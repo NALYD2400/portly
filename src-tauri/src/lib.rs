@@ -37,6 +37,13 @@ fn exit_app(app: AppHandle, state: State<'_, Mutex<AppState>>) {
 }
 
 #[tauri::command]
+fn relaunch_app_cmd(app: AppHandle, state: State<'_, Mutex<AppState>>) {
+    let process_mgr = &state.lock().unwrap().process_manager;
+    process_mgr.stop_all_servers();
+    app.restart();
+}
+
+#[tauri::command]
 fn get_projects_cmd() -> Vec<ProjectConfig> {
     let mut projects = load_projects();
     for prj in &mut projects {
@@ -378,6 +385,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             hide_window_cmd,
             exit_app,
+            relaunch_app_cmd,
             get_projects_cmd,
             save_projects_cmd,
             detect_stack_cmd,

@@ -105,9 +105,14 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
 
   const handleRestart = () => {
     try {
-      invoke('hide_window_cmd');
-    } catch (e) {}
-    onClose();
+      invoke('relaunch_app_cmd');
+    } catch (e) {
+      try {
+        invoke('exit_app');
+      } catch (err) {
+        onClose();
+      }
+    }
   };
 
   if (!isOpen) return null;
