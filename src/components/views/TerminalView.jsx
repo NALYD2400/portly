@@ -269,7 +269,7 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
       </div>
 
       {/* Server Tabs Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-white/[0.08]">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/[0.08] no-scrollbar">
         {displayServers.map((srv) => {
           const isPrimary = srv.id === primaryServer?.id;
           const isSecondary = isSplitMode && srv.id === secondaryServer?.id;
@@ -287,31 +287,31 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
                   setActiveServerId(srv.id);
                 }
               }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border whitespace-nowrap shrink-0 ${
                 isPrimary
-                  ? 'theme-accent-active font-bold border-white/20'
+                  ? 'theme-accent-active font-bold border-white/20 shadow-md'
                   : isSecondary
                   ? 'bg-cyan-500/25 border-cyan-500/60 text-cyan-200 shadow-md shadow-cyan-500/20'
                   : 'bg-white/[0.03] border-white/[0.06] text-gray-400 hover:bg-white/[0.08] hover:text-white'
               }`}
             >
               <span
-                className={`w-2 h-2 rounded-full ${
-                  isRunning ? 'bg-green-500 shadow-md shadow-green-500/50 animate-pulse' : 'bg-gray-600'
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  isRunning ? 'bg-green-400 shadow-md shadow-green-500/50 animate-pulse' : 'bg-gray-600'
                 }`}
               />
-              <span className="font-sans text-white">{srv.projectName}</span>
-              <span className="text-[11px] font-mono theme-accent-text">/ {srv.name}</span>
-              <span className="text-[10px] font-mono text-gray-400 bg-black/40 px-1.5 py-0.2 rounded">
+              <span className="font-semibold text-white tracking-tight">{srv.projectName}</span>
+              <span className="text-[11px] font-mono theme-accent-text font-medium">/ {srv.name}</span>
+              <span className="text-[10px] font-mono text-gray-300 bg-black/40 px-1.5 py-0.5 rounded-md border border-white/10 font-bold">
                 :{srv.port}
               </span>
               {isPrimary && (
-                <span className="text-[9px] font-mono font-bold theme-accent-badge px-1 rounded ml-1">
+                <span className="text-[10px] font-mono font-bold theme-accent-badge px-1.5 py-0.5 rounded-md ml-0.5">
                   1
                 </span>
               )}
               {isSecondary && (
-                <span className="text-[9px] font-mono font-bold bg-cyan-500/30 text-cyan-300 px-1 rounded ml-1">
+                <span className="text-[10px] font-mono font-bold bg-cyan-500/30 text-cyan-200 border border-cyan-500/40 px-1.5 py-0.5 rounded-md ml-0.5">
                   2
                 </span>
               )}
