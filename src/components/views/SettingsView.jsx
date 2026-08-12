@@ -34,34 +34,47 @@ export default function SettingsView({ projects = [] }) {
 
   const skillMarkdown = `---
 name: portly
-description: Automatically adds and configures the current codebase/project into Portly (developer supervisor). Use when the user types /portly or asks to register, track, or configure the current project in Portly.
+description: Automatically adds, registers, and manages codebases/projects in Portly (the high-performance Rust-powered developer process supervisor). Use when the user types /portly or asks to register, track, configure, or inspect projects in Portly.
 ---
 
-# Portly Project Auto-Configuration Skill
+# Portly v0.2.0 Project Supervisor Skill
 
-This skill registers and configures the active codebase project into **Portly** (\`C:\\Users\\dylan\\AppData\\Roaming\\portly\\projects.json\`).
+This skill registers, configures, and manages active codebase projects in **Portly** (\`C:\\Users\\dylan\\AppData\\Roaming\\portly\\projects.json\`).
 
-## Workflow
+## Portly v0.2.0 System Architecture
 
-When the user types \`/portly\` or requests to configure the project in Portly:
+- **GitHub Repository**: [NALYD2400/portly](https://github.com/NALYD2400/portly)
+- **Local Application Path**: \`C:\\Users\\dylan\\AppData\\Local\\Portly\\portly.exe\`
+- **Config Storage**: \`C:\\Users\\dylan\\AppData\\Roaming\\portly\\projects.json\`
+- **Native Rust Engine**: High-performance process manager with asynchronous stdout/stderr log streaming and real-time CPU/RAM telemetry polling (every 2s).
+- **Auto-Stop Child Processes on Exit**: On app exit or tray quit, Portly automatically terminates all spawned dev child server processes (\`taskkill /F /T\`) to prevent orphaned processes.
+- **In-App Auto-Updater**: Directly connects to GitHub Releases (\`NALYD2400/portly\`) with an animated download progress modal (\`AutoUpdateModal.jsx\`).
+- **Glassmorphism Motion UI System**: Fully responsive dark mode with dynamic theme accent color synchronization (\`--accent-color\` and \`--accent-color-rgb\`) for badges, spotlight glows, specular buttons, and background canvas waves.
 
-1. **Detect Project Details**:
-   - **Root Path**: Current workspace root folder path.
-   - **Name**: Folder name or \`name\` field in \`package.json\` / \`Cargo.toml\`.
-   - **Framework & Dev Command**:
-     - Next.js / Vite / React / Vue / Svelte: \`npm run dev\` (Port \`3000\` or \`5173\`)
-     - Tauri / Rust: \`cargo tauri dev\` or \`cargo run\` (Port \`4313\` or \`8080\`)
-     - Express / Node: \`node server.js\` (Port \`7737\` or \`3000\`)
-     - Python: \`python main.py\` (Port \`8000\`)
+---
+
+## Workflow: Registering a Project (\`/portly\`)
+
+When the user types \`/portly\` or requests to configure a project in Portly:
+
+1. **Detect Stack & Dev Commands**:
+   - **Root Path**: Workspace root directory.
+   - **Project Name**: Folder basename or \`name\` field in \`package.json\` / \`Cargo.toml\`.
+   - **Framework Detection Rules**:
+     - **Next.js / Vite / React / Vue / Svelte**: \`npm run dev\` (Port \`3000\` or \`5173\`)
+     - **Tauri / Rust**: \`npm run tauri dev\` or \`cargo run\` (Port \`4313\` / \`8080\`)
+     - **Express / Node**: \`node server.js\` (Port \`7737\` or \`3000\`)
+     - **Python (FastAPI/Flask/Django)**: \`python main.py\` or \`uvicorn main:app --reload\` (Port \`8000\`)
+     - **Go**: \`go run .\` (Port \`8080\`)
 
 2. **Update \`projects.json\`**:
    - Read \`C:\\Users\\dylan\\AppData\\Roaming\\portly\\projects.json\`.
-   - Check if an entry with \`root == current_workspace_root\` exists.
-   - If missing, append a new project object with servers.
-   - Save back to \`C:\\Users\\dylan\\AppData\\Roaming\\portly\\projects.json\`.
+   - If \`root == current_workspace_root\` exists, update dev commands if needed.
+   - If missing, append a new project configuration with servers.
+   - Save formatted JSON back to \`C:\\Users\\dylan\\AppData\\Roaming\\portly\\projects.json\`.
 
-3. **Confirm to User**:
-   - Output a concise confirmation message stating that the project has been registered in Portly.`;
+3. **User Confirmation**:
+   - Return a concise markdown summary confirming project registration, detected stack, assigned port, and dev command.`;
 
   const handleDownloadSkill = () => {
     const blob = new Blob([skillMarkdown], { type: 'text/markdown' });
