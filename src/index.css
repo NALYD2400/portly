@@ -1,0 +1,91 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+
+:root {
+  color-scheme: dark;
+  --accent-color: #a855f7;
+  --accent-color-rgb: 168, 85, 247;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #07070c;
+  color: #f3f4f6;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Dynamic Theme Utility Classes */
+.theme-accent-btn {
+  background: linear-gradient(135deg, var(--accent-color), rgba(var(--accent-color-rgb), 0.75)) !important;
+  box-shadow: 0 8px 24px -4px rgba(var(--accent-color-rgb), 0.4) !important;
+}
+
+.theme-accent-btn:hover {
+  filter: brightness(1.1);
+}
+
+.theme-accent-active {
+  background-color: rgba(var(--accent-color-rgb), 0.18) !important;
+  color: #ffffff !important;
+  border-color: rgba(var(--accent-color-rgb), 0.45) !important;
+  box-shadow: 0 4px 20px rgba(var(--accent-color-rgb), 0.2) !important;
+}
+
+.theme-accent-text {
+  color: var(--accent-color) !important;
+}
+
+.theme-accent-border {
+  border-color: rgba(var(--accent-color-rgb), 0.4) !important;
+}
+
+.theme-accent-badge {
+  background-color: rgba(var(--accent-color-rgb), 0.15) !important;
+  color: var(--accent-color) !important;
+  border: 1px solid rgba(var(--accent-color-rgb), 0.3) !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(13, 11, 24, 0.4);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(var(--accent-color-rgb), 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--accent-color-rgb), 0.6);
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(14, 14, 26, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+.glass-card {
+  background: rgba(22, 20, 38, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: all 0.25s ease-in-out;
+}
+
+.glass-card:hover {
+  border-color: rgba(var(--accent-color-rgb), 0.4);
+  box-shadow: 0 12px 30px -10px rgba(var(--accent-color-rgb), 0.25);
+  transform: translateY(-2px);
+}

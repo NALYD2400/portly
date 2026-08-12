@@ -1,0 +1,28 @@
+[package]
+name = "portly"
+version = "0.2.0"
+description = "Portly Developer Supervisor & Process Manager"
+authors = ["Dylan"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.0.5", features = [] }
+
+[dependencies]
+tauri = { version = "2.1.1", features = ["tray-icon"] }
+tauri-plugin-shell = "2.0.2"
+tauri-plugin-dialog = "2.0.2"
+tauri-plugin-single-instance = "2.0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.38", features = ["full"] }
+sysinfo = "0.30"
+open = "5.2"
+chrono = "0.4"
+lazy_static = "1.4"
+reqwest = { version = "0.12", features = ["json"] }
+dirs-next = "2.0"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
