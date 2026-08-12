@@ -1,6 +1,6 @@
 [package]
 name = "portly"
-version = "0.2.0"
+version = "0.3.0"
 description = "Portly Developer Supervisor & Process Manager"
 authors = ["Dylan"]
 edition = "2021"
