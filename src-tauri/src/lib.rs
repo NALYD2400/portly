@@ -131,10 +131,61 @@ fn read_env_file(project_root: String) -> Result<String, String> {
     }
 }
 
+use tauri_plugin_notification::NotificationExt;
+
 #[tauri::command]
 fn save_env_file(project_root: String, content: String) -> Result<(), String> {
     let path = Path::new(&project_root).join(".env");
     fs::write(path, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn send_windows_notification(app: AppHandle, title: String, body: String) {
+    let _ = app.notification()
+        .builder()
+        .title(title)
+        .body(body)
+        .show();
+}
+
+#[tauri::command]
+async fn start_localtunnel_cmd(port: u16) -> Result<String, String> {
+    let mut cmd = tokio::process::Command::new("cmd.exe");
+    cmd.arg("/C").arg(format!("npx -y localtunnel --port {}", port));
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd.stdout(std::process::Stdio::piped());
+
+    let mut child = match cmd.spawn() {
+        Ok(c) => c,
+        Err(_) => return Ok(format!("https://localtunnel.me?port={}", port)),
+    };
+
+    if let Some(stdout) = child.stdout.take() {
+        use tokio::io::AsyncBufReadExt;
+        let mut reader = tokio::io::BufReader::new(stdout).lines();
+        let timeout = tokio::time::sleep(tokio::time::Duration::from_secs(10));
+        tokio::pin!(timeout);
+
+        loop {
+            tokio::select! {
+                line = reader.next_line() => {
+                    if let Ok(Some(line_text)) = line {
+                        if line_text.contains("your url is:") {
+                            let url = line_text.replace("your url is:", "").trim().to_string();
+                            return Ok(url);
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                _ = &mut timeout => {
+                    break;
+                }
+            }
+        }
+    }
+
+    Ok(format!("https://localtunnel.me?port={}", port))
 }
 
 pub fn run() {
@@ -148,6 +199,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(Mutex::new(AppState {
             process_manager: ProcessManager::new(),
         }))
@@ -260,6 +312,8 @@ pub fn run() {
             open_browser,
             read_env_file,
             save_env_file,
+            send_windows_notification,
+            start_localtunnel_cmd,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

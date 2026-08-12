@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Network, RefreshCw, Skull, ExternalLink, Search, Sparkles, Radio, Server, ShieldAlert, CheckCircle2 } from 'lucide-react';
 
+import { triggerToast } from '../ui/ToastContainer';
+
 export default function PortsView({ projects = [] }) {
   const [ports, setPorts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState('all'); // all | portly | system
+  const [filterType, setFilterType] = useState('all');
 
   const fetchPorts = async () => {
     setLoading(true);
@@ -29,9 +31,19 @@ export default function PortsView({ projects = [] }) {
   const handleKillPort = async (pid) => {
     try {
       await invoke('kill_port_cmd', { pid });
+      triggerToast({
+        title: '☠️ Processus Terminé',
+        message: `Le processus PID ${pid} a été libéré.`,
+        type: 'warning',
+      });
       fetchPorts();
     } catch (e) {
       console.error('Failed to kill process:', e);
+      triggerToast({
+        title: '⚠️ Échec de la Fermeture',
+        message: String(e),
+        type: 'error',
+      });
     }
   };
 

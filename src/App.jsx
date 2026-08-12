@@ -14,6 +14,7 @@ import EnvEditorModal from './components/modals/EnvEditorModal';
 import EditServerModal from './components/modals/EditServerModal';
 import AddServerModal from './components/modals/AddServerModal';
 import AutoUpdateModal from './components/modals/AutoUpdateModal';
+import ToastContainer from './components/ui/ToastContainer';
 import { useProjects, useSystemMetrics } from './hooks/useTauriIPC';
 
 export default function App() {
@@ -195,6 +196,8 @@ export default function App() {
         onClose={() => setIsUpdateModalOpen(false)}
         currentVersion="0.2.0"
       />
+
+      <ToastContainer />
     </div>
   );
 }

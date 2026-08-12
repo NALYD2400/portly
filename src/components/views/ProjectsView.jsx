@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Play, Square, RotateCw, ExternalLink, Code2, Folder, FileText, Trash2, Plus, Terminal, Edit3, ChevronDown, ChevronRight, Sparkles, Activity, Layers } from 'lucide-react';
+import { Play, Square, RotateCw, ExternalLink, Code2, Folder, FileText, Trash2, Plus, Terminal, Edit3, ChevronDown, ChevronRight, Sparkles, Activity, Layers, Globe, Share2 } from 'lucide-react';
+import { triggerToast } from '../ui/ToastContainer';
 
 export default function ProjectsView({
   projects,
@@ -50,16 +51,57 @@ export default function ProjectsView({
         command,
         env: env || {},
       });
+      triggerToast({
+        title: '🚀 Serveur Démarré',
+        message: `Command: ${command}`,
+        type: 'success',
+      });
     } catch (e) {
       console.error('Error starting server:', e);
+      triggerToast({
+        title: '⚠️ Échec du Démarrage',
+        message: String(e),
+        type: 'error',
+      });
     }
   };
 
   const handleStopServer = async (serverId) => {
     try {
       await invoke('stop_server_cmd', { serverId });
+      triggerToast({
+        title: '⏹ Serveur Arrêté',
+        message: `ID: ${serverId}`,
+        type: 'info',
+      });
     } catch (e) {
       console.error('Error stopping server:', e);
+    }
+  };
+
+  const handleShareTunnel = async (port, serverName) => {
+    if (!port) return;
+    triggerToast({
+      title: `🌐 Génération du Tunnel...`,
+      message: `Création de l'URL publique pour le port :${port}`,
+      type: 'info',
+      duration: 3000,
+    });
+
+    try {
+      const publicUrl = await invoke('start_localtunnel_cmd', { port: Number(port) });
+      if (publicUrl) {
+        navigator.clipboard.writeText(publicUrl);
+        triggerToast({
+          title: `🌐 Tunnel Public Actif !`,
+          message: `${publicUrl} (Copié dans le presse-papier !)`,
+          type: 'success',
+          duration: 7000,
+        });
+        invoke('open_browser', { url: publicUrl });
+      }
+    } catch (e) {
+      console.error('Error generating tunnel:', e);
     }
   };
 
@@ -409,13 +451,23 @@ export default function ProjectsView({
                             )}
 
                             {srv.port > 0 && (
-                              <button
-                                onClick={() => handleOpenBrowser(`http://localhost:${srv.port}`)}
-                                className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-300 hover:text-white border border-white/[0.08] transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 group"
-                                title={`Ouvrir http://localhost:${srv.port}`}
-                              >
-                                <ExternalLink className="w-3.5 h-3.5 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => handleOpenBrowser(`http://localhost:${srv.port}`)}
+                                  className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-300 hover:text-white border border-white/[0.08] transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 group"
+                                  title={`Ouvrir http://localhost:${srv.port}`}
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
+                                </button>
+
+                                <button
+                                  onClick={() => handleShareTunnel(srv.port, srv.name)}
+                                  className="p-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 group"
+                                  title="Partager un lien Tunnel Web/Mobile public"
+                                >
+                                  <Globe className="w-3.5 h-3.5 group-hover:rotate-45 transition-transform" />
+                                </button>
+                              </>
                             )}
 
                             <button

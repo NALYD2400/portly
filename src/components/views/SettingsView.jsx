@@ -25,8 +25,9 @@ export default function SettingsView({ projects = [] }) {
   const [autoRestart, setAutoRestart] = useState(() => localStorage.getItem('portly_cfg_autorestart') === 'true');
   const [hideStoppedServers, setHideStoppedServers] = useState(() => localStorage.getItem('portly_cfg_hidestopped') !== 'false');
   const [cleanAnsiLogs, setCleanAnsiLogs] = useState(true);
-  const [notifications, setNotifications] = useState(true);
   const [minimizeToTray, setMinimizeToTray] = useState(() => localStorage.getItem('portly_cfg_minimizetotray') !== 'false');
+  const [notifWindows, setNotifWindows] = useState(() => localStorage.getItem('portly_cfg_notif_windows') !== 'false');
+  const [notifApp, setNotifApp] = useState(() => localStorage.getItem('portly_cfg_notif_app') !== 'false');
   const [autoStart, setAutoStart] = useState(false);
 
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -189,9 +190,15 @@ When the user types \`/portly\` or requests to configure a project in Portly:
     showAutoSaved();
   };
 
-  const toggleNotifications = (val) => {
-    setNotifications(val);
-    localStorage.setItem('portly_cfg_notifications', val ? 'true' : 'false');
+  const toggleNotifWindows = (val) => {
+    setNotifWindows(val);
+    localStorage.setItem('portly_cfg_notif_windows', val ? 'true' : 'false');
+    showAutoSaved();
+  };
+
+  const toggleNotifApp = (val) => {
+    setNotifApp(val);
+    localStorage.setItem('portly_cfg_notif_app', val ? 'true' : 'false');
     showAutoSaved();
   };
 
@@ -465,16 +472,29 @@ When the user types \`/portly\` or requests to configure a project in Portly:
                 </div>
 
                 <div
-                  onClick={() => toggleNotifications(!notifications)}
+                  onClick={() => toggleNotifWindows(!notifWindows)}
                   className="glass-card p-4 rounded-xl flex items-center justify-between cursor-pointer select-none"
                 >
                   <div>
-                    <div className="text-xs font-semibold text-white">Notifications Systèmes Windows</div>
+                    <div className="text-xs font-semibold text-white">Notifications Systèmes Windows OS</div>
                     <div className="text-[11px] text-gray-400 mt-0.5">
-                      Envoyer une alerte système lors de l'arrêt d'un serveur ou en cas d'erreur de port occupée
+                      Transmettre les alertes dans le Centre de Notifications de Windows (en bas à droite de la barre des tâches)
                     </div>
                   </div>
-                  <ToggleSwitch checked={notifications} onChange={toggleNotifications} />
+                  <ToggleSwitch checked={notifWindows} onChange={toggleNotifWindows} />
+                </div>
+
+                <div
+                  onClick={() => toggleNotifApp(!notifApp)}
+                  className="glass-card p-4 rounded-xl flex items-center justify-between cursor-pointer select-none"
+                >
+                  <div>
+                    <div className="text-xs font-semibold text-white">Notifications In-App (Toasts Néons)</div>
+                    <div className="text-[11px] text-gray-400 mt-0.5">
+                      Afficher les alertes visuelles flottantes en bas à droite de l'application Portly
+                    </div>
+                  </div>
+                  <ToggleSwitch checked={notifApp} onChange={toggleNotifApp} />
                 </div>
 
                 <div
