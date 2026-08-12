@@ -36,13 +36,13 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
   const handleOpenBrowser = (url) => invoke('open_browser', { url });
 
   return (
-    <div className="space-y-6 animate-fadeIn select-none">
+    <div className="space-y-6 animate-fadeIn select-none pb-8">
       {/* Header Banner */}
-      <div className="glass-panel p-6 rounded-2xl border theme-accent-border bg-black/40 flex items-center justify-between">
+      <div className="glass-panel p-6 rounded-3xl border theme-accent-border bg-gradient-to-r from-[#0d0b1a] via-[#120e29] to-[#0d0b1a] flex items-center justify-between shadow-2xl">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <span>Portly Supervisor</span>
-            <span className="text-xs px-2 py-0.5 rounded-full theme-accent-badge font-mono">
+            <span className="text-xs px-2.5 py-0.5 rounded-full theme-accent-badge font-mono font-bold">
               Rust Engine Active
             </span>
           </h1>
@@ -52,146 +52,190 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
         </div>
         <button
           onClick={() => onSelectTab('projects')}
-          className="px-4 py-2 rounded-xl theme-accent-btn text-white font-medium text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+          className="px-5 py-2.5 rounded-2xl theme-accent-btn text-white font-bold text-xs flex items-center gap-2 transition-all duration-200 cursor-pointer shadow-lg active:scale-95 hover:brightness-110 shrink-0"
         >
           <span>Gérer les Projets</span>
           <ArrowUpRight className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Metrics Cards Grid (Portly Managed Only) */}
-      <div className="grid grid-cols-3 gap-4">
-        {/* Managed CPU Card */}
-        <div className="glass-card p-5 rounded-2xl relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium">Consommation CPU (Portly)</span>
-            <Cpu className="w-4 h-4 theme-accent-text" />
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-white font-mono">
-              {metrics.managed_cpu_pct ? metrics.managed_cpu_pct.toFixed(1) : '0.0'}%
-            </span>
-          </div>
-          <p className="text-[11px] text-gray-500 mt-1">Total CPU utilisé par vos serveurs de dev</p>
-          <div className="w-full bg-black/40 h-1.5 rounded-full mt-3 overflow-hidden border border-white/5">
-            <div
-              className="theme-accent-btn h-full rounded-full transition-all duration-500"
-              style={{ width: `${Math.min(100, metrics.managed_cpu_pct || 0)}%` }}
-            />
-          </div>
-        </div>
+      {/* UNIFIED METRICS BENTO PANEL (Synchronized with User Selected Theme Accent Color) */}
+      <div className="glass-panel rounded-3xl border border-white/10 p-6 shadow-2xl bg-gradient-to-br from-[#0e0c1f] via-[#130f2c] to-[#0e0c1f] relative overflow-hidden group hover:theme-accent-border transition-all duration-300">
+        {/* Glow backdrop synchronized with theme accent color */}
+        <div
+          className="pointer-events-none absolute -right-20 -top-20 w-80 h-80 rounded-full blur-3xl transition-all duration-500"
+          style={{ background: 'rgba(var(--accent-color-rgb), 0.15)' }}
+        />
+        <div
+          className="pointer-events-none absolute -left-20 -bottom-20 w-80 h-80 rounded-full blur-3xl transition-all duration-500"
+          style={{ background: 'rgba(var(--accent-color-rgb), 0.15)' }}
+        />
 
-        {/* Managed RAM Card */}
-        <div className="glass-card p-5 rounded-2xl relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium font-mono">Consommation RAM (Portly)</span>
-            <Activity className="w-4 h-4 text-cyan-400" />
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-white font-mono">
-              {metrics.managed_ram_mb ? metrics.managed_ram_mb.toFixed(1) : '0.0'} MB
-            </span>
-          </div>
-          <p className="text-[11px] text-gray-500 mt-1">Mémoire RAM cumulée de vos processus</p>
-          <div className="w-full bg-black/40 h-1.5 rounded-full mt-3 overflow-hidden border border-white/5">
-            <div
-              className="bg-gradient-to-r from-cyan-500 to-blue-500 h-full rounded-full transition-all duration-500"
-              style={{ width: `${Math.min(100, (metrics.managed_ram_mb || 0) / 50)}%` }}
-            />
-          </div>
-        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/[0.08] relative z-10 gap-6 md:gap-0">
+          {/* Module 1: CPU */}
+          <div className="md:pr-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-300 font-bold uppercase tracking-wider font-mono flex items-center gap-2">
+                <Cpu className="w-4 h-4 theme-accent-text" />
+                <span>Consommation CPU</span>
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full theme-accent-badge font-bold">
+                Portly
+              </span>
+            </div>
 
-        {/* Active Servers Card */}
-        <div className="glass-card p-5 rounded-2xl relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium">Serveurs en Cours</span>
-            <Zap className="w-4 h-4 text-amber-400" />
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold text-white font-mono tracking-tight">
+                {metrics.managed_cpu_pct ? metrics.managed_cpu_pct.toFixed(1) : '0.0'}%
+              </span>
+              <span className="text-xs text-gray-400 font-mono">CPU Total</span>
+            </div>
+
+            <p className="text-[11px] text-gray-400 font-mono">Total CPU utilisé par vos serveurs de dev</p>
+
+            <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden border border-white/10 p-0.5">
+              <div
+                className="theme-accent-btn h-full rounded-full transition-all duration-500 shadow-[0_0_10px_var(--accent-color)]"
+                style={{ width: `${Math.min(100, metrics.managed_cpu_pct || 0)}%` }}
+              />
+            </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-white font-mono">
-              {metrics.active_servers_count || 0}
-            </span>
-            <span className="text-xs text-gray-400">/ {totalProjects} projets inscrits</span>
+
+          {/* Module 2: RAM */}
+          <div className="md:px-6 pt-6 md:pt-0 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-300 font-bold uppercase tracking-wider font-mono flex items-center gap-2">
+                <Activity className="w-4 h-4 theme-accent-text" />
+                <span>Mémoire RAM (Cumulée)</span>
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full theme-accent-badge font-bold">
+                RAM
+              </span>
+            </div>
+
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold text-white font-mono tracking-tight">
+                {metrics.managed_ram_mb ? metrics.managed_ram_mb.toFixed(1) : '0.0'}
+              </span>
+              <span className="text-xs theme-accent-text font-mono font-bold">MB</span>
+            </div>
+
+            <p className="text-[11px] text-gray-400 font-mono">Mémoire RAM cumulée de vos processus</p>
+
+            <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden border border-white/10 p-0.5">
+              <div
+                className="theme-accent-btn h-full rounded-full transition-all duration-500 shadow-[0_0_10px_var(--accent-color)]"
+                style={{ width: `${Math.min(100, (metrics.managed_ram_mb || 0) / 50)}%` }}
+              />
+            </div>
           </div>
-          <p className="text-[11px] text-gray-500 mt-1">Processus de dev actifs en arrière-plan</p>
-          <div className="w-full bg-black/40 h-1.5 rounded-full mt-3 overflow-hidden border border-white/5">
-            <div
-              className="bg-gradient-to-r from-amber-500 to-orange-400 h-full rounded-full transition-all duration-500"
-              style={{ width: totalProjects > 0 ? `${((metrics.active_servers_count || 0) / totalProjects) * 100}%` : '0%' }}
-            />
+
+          {/* Module 3: Serveurs & Projets */}
+          <div className="md:pl-6 pt-6 md:pt-0 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-300 font-bold uppercase tracking-wider font-mono flex items-center gap-2">
+                <Zap className="w-4 h-4 theme-accent-text" />
+                <span>Serveurs en Cours</span>
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                En direct
+              </span>
+            </div>
+
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold text-white font-mono tracking-tight">
+                {metrics.active_servers_count || 0}
+              </span>
+              <span className="text-xs text-gray-400 font-mono">/ {totalProjects} projet(s) inscrits</span>
+            </div>
+
+            <p className="text-[11px] text-gray-400 font-mono">Processus de dev actifs en arrière-plan</p>
+
+            <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden border border-white/10 p-0.5">
+              <div
+                className="theme-accent-btn h-full rounded-full transition-all duration-500 shadow-[0_0_10px_var(--accent-color)]"
+                style={{
+                  width: totalProjects > 0 ? `${((metrics.active_servers_count || 0) / totalProjects) * 100}%` : '0%',
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Active Running Projects Detail Table */}
-      <div className="glass-panel p-5 rounded-2xl space-y-4 border border-white/[0.08]">
-        <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
-          <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400" />
+      <div className="glass-panel p-6 rounded-3xl space-y-4 border border-white/10 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/[0.08] pb-3.5">
+          <h2 className="text-sm font-bold text-white flex items-center gap-2 tracking-tight">
+            <Zap className="w-4.5 h-4.5 theme-accent-text" />
             <span>Processus & Serveurs Lancés en Temps Réel ({runningServersList.length})</span>
           </h2>
-          <span className="text-[10px] text-gray-400 font-mono">Actualisation toutes les 2s</span>
+          <span className="text-[11px] text-gray-400 font-mono">Actualisation 2s</span>
         </div>
 
         {runningServersList.length === 0 ? (
-          <div className="py-10 text-center text-gray-500 text-xs italic space-y-2">
+          <div className="py-10 text-center text-gray-400 text-xs italic space-y-2">
             <div>Aucun serveur de dev n'est actuellement lancé.</div>
             <button
               onClick={() => onSelectTab('projects')}
-              className="px-3 py-1.5 rounded-lg theme-accent-badge text-xs transition-colors cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl theme-accent-badge text-xs transition-colors cursor-pointer font-bold"
             >
               Lancer un serveur de projet →
             </button>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {runningServersList.map((srv) => (
               <div
                 key={srv.id}
-                className="glass-card p-4 rounded-xl flex items-center justify-between border border-white/[0.06]"
+                className="glass-card p-4 rounded-2xl flex items-center justify-between border border-white/[0.08] hover:theme-accent-border transition-all duration-200"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3.5">
                   <div
-                    className="w-3 h-3 rounded-full shadow-lg"
-                    style={{ backgroundColor: srv.projectColor || '#a855f7' }}
+                    className="w-3.5 h-3.5 rounded-full shadow-lg shrink-0"
+                    style={{
+                      backgroundColor: srv.projectColor || 'var(--accent-color)',
+                      boxShadow: `0 0 12px ${srv.projectColor || 'var(--accent-color)'}`,
+                    }}
                   />
                   <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-xs font-bold text-white">{srv.projectName}</h3>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded theme-accent-badge">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-bold text-white tracking-tight">{srv.projectName}</h3>
+                      <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full theme-accent-badge">
                         {srv.name} (:{srv.port})
                       </span>
                       {srv.pid && (
-                        <span className="text-[10px] font-mono text-gray-400 bg-white/[0.05] px-1.5 py-0.2 rounded">
+                        <span className="text-[10px] font-mono text-gray-400 bg-white/[0.05] border border-white/10 px-2 py-0.5 rounded-full font-bold">
                           PID: {srv.pid}
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] font-mono text-gray-400 mt-0.5">{srv.command}</p>
+                    <p className="text-[11px] font-mono text-gray-400 mt-1 select-all">{srv.command}</p>
                   </div>
                 </div>
 
                 {/* Per-process CPU & RAM consumption details */}
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-5 shrink-0">
                   <div className="text-right">
-                    <div className="text-xs font-bold theme-accent-text font-mono">
+                    <div className="text-xs font-extrabold theme-accent-text font-mono">
                       {srv.cpu_usage ? srv.cpu_usage.toFixed(1) : '0.0'}% CPU
                     </div>
-                    <div className="text-[10px] text-gray-500">Utilisation Processeur</div>
+                    <div className="text-[10px] text-gray-500 font-mono">Processeur</div>
                   </div>
 
                   <div className="text-right">
-                    <div className="text-xs font-bold text-cyan-300 font-mono">
+                    <div className="text-xs font-extrabold theme-accent-text font-mono">
                       {srv.ram_mb ? srv.ram_mb.toFixed(1) : '0.0'} MB
                     </div>
-                    <div className="text-[10px] text-gray-500">Mémoire RAM</div>
+                    <div className="text-[10px] text-gray-500 font-mono">RAM</div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 pl-2 border-l border-white/[0.08]">
+                  <div className="flex items-center gap-2 pl-3 border-l border-white/[0.08]">
                     {srv.port > 0 && (
                       <button
                         onClick={() => handleOpenBrowser(`http://localhost:${srv.port}`)}
-                        className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-gray-300 hover:text-white transition-colors cursor-pointer"
+                        className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-300 hover:text-white border border-white/[0.08] transition-all cursor-pointer active:scale-95"
                         title="Ouvrir dans le navigateur"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -200,9 +244,9 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
 
                     <button
                       onClick={() => handleStopServer(srv.id)}
-                      className="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 font-medium text-xs flex items-center gap-1 border border-red-500/30 transition-colors cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs flex items-center gap-1.5 border border-red-500/40 shadow-lg shadow-red-500/10 transition-all cursor-pointer active:scale-95"
                     >
-                      <Square className="w-3 h-3 fill-red-400 text-red-400" />
+                      <Square className="w-3.5 h-3.5 fill-red-400 text-red-400" />
                       <span>Arrêter</span>
                     </button>
                   </div>
