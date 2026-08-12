@@ -3,6 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { Settings, Palette, Zap, Monitor, Shield, Check, Sparkles, RefreshCw, Hash, Bell, Terminal, Activity, FileArchive, Folder, ChevronRight, Sliders, Laptop, Download, Upload, FileJson, Bot, Copy, Pipette, Keyboard } from 'lucide-react';
 import ToggleSwitch from '../ui/ToggleSwitch';
 
+import pkg from '../../../package.json';
+
 function hexToRgbStr(hex) {
   if (!hex || !hex.startsWith('#')) return '168, 85, 247';
   let c = hex.replace('#', '');
@@ -307,7 +309,7 @@ When the user types \`/portly\` or requests to configure a project in Portly:
             <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2.5">
               <span>Paramètres Portly</span>
               <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full theme-accent-badge border border-white/10">
-                v0.3.1
+                v{pkg.version}
               </span>
             </h1>
             <p className="text-xs text-gray-400">
