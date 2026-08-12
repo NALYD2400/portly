@@ -112,17 +112,40 @@ export default function ProjectsView({
     }
   };
 
-  const handleStopServer = async (serverId) => {
+  const handleStopServer = async (projectId, serverId, pid) => {
     try {
-      await invoke('stop_server_cmd', { serverId });
-      triggerToast({
-        title: '⏹ Serveur Arrêté',
-        message: `ID: ${serverId}`,
-        type: 'info',
-      });
+      await invoke('stop_server_cmd', { serverId, pid: pid ? Number(pid) : null });
     } catch (e) {
-      console.error('Error stopping server:', e);
+      console.warn('Error stopping server:', e);
     }
+
+    if (pid) {
+      try {
+        await invoke('kill_port_cmd', { pid: Number(pid) });
+      } catch (e) {}
+    }
+
+    const updatedProjects = projects.map((p) => {
+      if (p.id === projectId) {
+        return {
+          ...p,
+          servers: (p.servers || []).map((s) => {
+            if (s.id === serverId) {
+              return { ...s, state: 'stopped', pid: null };
+            }
+            return s;
+          }),
+        };
+      }
+      return p;
+    });
+
+    saveProjects(updatedProjects);
+    triggerToast({
+      title: '⏹ Serveur Arrêté',
+      message: `Le serveur a été arrêté avec succès.`,
+      type: 'info',
+    });
   };
 
   const handleShareTunnel = async (port, serverName) => {
@@ -492,7 +515,7 @@ export default function ProjectsView({
                           <div className="flex items-center gap-2 shrink-0">
                             {isRunning ? (
                               <button
-                                onClick={() => handleStopServer(srv.id)}
+                                onClick={() => handleStopServer(project.id, srv.id, srv.pid)}
                                 className="px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs flex items-center gap-1.5 border border-red-500/40 shadow-lg shadow-red-500/10 transition-all duration-200 cursor-pointer active:scale-95 group"
                               >
                                 <Square className="w-3.5 h-3.5 fill-red-400 text-red-400 group-hover:scale-110 transition-transform" />

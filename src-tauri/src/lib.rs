@@ -16,6 +16,7 @@ use std::sync::Mutex;
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, State};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
@@ -81,9 +82,14 @@ fn start_server_cmd(
 fn stop_server_cmd(
     state: State<'_, Mutex<AppState>>,
     server_id: String,
+    pid: Option<u32>,
 ) -> Result<(), String> {
     let process_mgr = &state.lock().unwrap().process_manager;
-    process_mgr.stop_server(&server_id)
+    let _ = process_mgr.stop_server(&server_id);
+    if let Some(pid_num) = pid {
+        let _ = kill_pid(pid_num);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -145,7 +151,6 @@ fn read_env_file(project_root: String) -> Result<String, String> {
 
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_autostart::ManagerExt;
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 #[tauri::command]
 fn save_env_file(project_root: String, content: String) -> Result<(), String> {
@@ -186,6 +191,10 @@ fn register_global_shortcut_cmd(app: AppHandle, shortcut: String) -> Result<(), 
     let normalized = shortcut
         .replace("Ctrl", "CommandOrControl")
         .replace("ctrl", "CommandOrControl");
+
+    if let Ok(sc) = normalized.parse::<Shortcut>() {
+        let _ = app.global_shortcut().register(sc);
+    }
 
     let _ = app.global_shortcut().on_shortcut(normalized.as_str(), move |app_handle, _shortcut, event| {
         if event.state == ShortcutState::Pressed {
@@ -269,6 +278,24 @@ pub fn run() {
                 let _ = window.set_focus();
             }
             system_metrics::start_metrics_poller(app.handle().clone());
+
+            // Register default Global Shortcut at startup
+            let _ = app.global_shortcut().on_shortcut("CommandOrControl+Alt+P", move |handle, _sc, event| {
+                if event.state == ShortcutState::Pressed {
+                    if let Some(window) = handle.get_webview_window("main") {
+                        if window.is_visible().unwrap_or(false) {
+                            let _ = window.hide();
+                        } else {
+                            let _ = window.show();
+                            let _ = window.unminimize();
+                            let _ = window.set_focus();
+                        }
+                    }
+                }
+            });
+            if let Ok(sc) = "CommandOrControl+Alt+P".parse::<Shortcut>() {
+                let _ = app.global_shortcut().register(sc);
+            }
 
             // Build System Tray Menu
             let show_item = MenuItemBuilder::with_id("show", "Ouvrir Portly").build(app)?;
