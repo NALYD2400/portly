@@ -185,6 +185,15 @@ async fn download_update_cmd(app: AppHandle, url: String) -> Result<String, Stri
     Ok(installer_path.to_string_lossy().to_string())
 }
 
+fn clean_path_str(path: &std::path::Path) -> String {
+    let s = path.to_string_lossy().to_string();
+    if s.starts_with(r"\\?\") {
+        s[4..].to_string()
+    } else {
+        s
+    }
+}
+
 #[tauri::command]
 fn install_update_and_relaunch_cmd(app: AppHandle, state: State<'_, Mutex<AppState>>) -> Result<(), String> {
     let process_mgr = &state.lock().unwrap().process_manager;
@@ -198,14 +207,26 @@ fn install_update_and_relaunch_cmd(app: AppHandle, state: State<'_, Mutex<AppSta
         return Err("Fichier d'installation introuvable.".into());
     }
 
-    let cmd_script = format!(
-        "timeout /t 1 /nobreak > nul & start /wait \"\" \"{}\" /S & start \"\" \"{}\"",
-        installer_path.to_string_lossy(),
-        current_exe.to_string_lossy()
+    let installer_clean = clean_path_str(&installer_path);
+    let exe_clean = clean_path_str(&current_exe);
+    let bat_path = temp_dir.join("run_portly_update.bat");
+
+    let bat_content = format!(
+        "@echo off\r\n\
+         timeout /t 2 /nobreak > nul\r\n\
+         start /wait \"\" \"{}\" /S\r\n\
+         start \"\" \"{}\"\r\n\
+         del \"%~f0\"\r\n",
+        installer_clean,
+        exe_clean
     );
 
+    std::fs::write(&bat_path, bat_content).map_err(|e| format!("Erreur écriture script: {}", e))?;
+
+    let bat_clean = clean_path_str(&bat_path);
+
     std::process::Command::new("cmd")
-        .args(&["/C", &cmd_script])
+        .args(&["/C", "start", "/b", "", &bat_clean])
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()
         .map_err(|e| format!("Impossible de lancer le script de mise à jour: {}", e))?;
