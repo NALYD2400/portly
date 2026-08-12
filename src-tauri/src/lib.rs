@@ -181,20 +181,15 @@ fn is_autostart_cmd(app: AppHandle) -> Result<bool, String> {
     app.autolaunch().is_enabled().map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-fn register_global_shortcut_cmd(app: AppHandle, shortcut: String) -> Result<(), String> {
+fn register_shortcut_internal(app: &AppHandle, shortcut: &str) {
     let _ = app.global_shortcut().unregister_all();
     if shortcut.is_empty() {
-        return Ok(());
+        return;
     }
 
     let normalized = shortcut
         .replace("Ctrl", "CommandOrControl")
         .replace("ctrl", "CommandOrControl");
-
-    if let Ok(sc) = normalized.parse::<Shortcut>() {
-        let _ = app.global_shortcut().register(sc);
-    }
 
     let _ = app.global_shortcut().on_shortcut(normalized.as_str(), move |app_handle, _shortcut, event| {
         if event.state == ShortcutState::Pressed {
@@ -209,6 +204,16 @@ fn register_global_shortcut_cmd(app: AppHandle, shortcut: String) -> Result<(), 
             }
         }
     });
+
+    if let Ok(sc) = normalized.parse::<Shortcut>() {
+        let _ = app.global_shortcut().register(sc);
+    }
+}
+
+#[tauri::command]
+fn register_global_shortcut_cmd(app: AppHandle, shortcut: String) -> Result<(), String> {
+    let _ = config_store::save_saved_shortcut(&shortcut);
+    register_shortcut_internal(&app, &shortcut);
     Ok(())
 }
 
@@ -279,23 +284,9 @@ pub fn run() {
             }
             system_metrics::start_metrics_poller(app.handle().clone());
 
-            // Register default Global Shortcut at startup
-            let _ = app.global_shortcut().on_shortcut("CommandOrControl+Alt+P", move |handle, _sc, event| {
-                if event.state == ShortcutState::Pressed {
-                    if let Some(window) = handle.get_webview_window("main") {
-                        if window.is_visible().unwrap_or(false) {
-                            let _ = window.hide();
-                        } else {
-                            let _ = window.show();
-                            let _ = window.unminimize();
-                            let _ = window.set_focus();
-                        }
-                    }
-                }
-            });
-            if let Ok(sc) = "CommandOrControl+Alt+P".parse::<Shortcut>() {
-                let _ = app.global_shortcut().register(sc);
-            }
+            // Register saved Global Shortcut at startup from disk
+            let initial_shortcut = config_store::load_saved_shortcut();
+            register_shortcut_internal(app.handle(), &initial_shortcut);
 
             // Build System Tray Menu
             let show_item = MenuItemBuilder::with_id("show", "Ouvrir Portly").build(app)?;

@@ -60,3 +60,27 @@ pub fn save_projects(projects: &[ProjectConfig]) -> Result<(), String> {
     fs::write(file, json).map_err(|e| e.to_string())?;
     Ok(())
 }
+
+pub fn get_shortcut_file() -> PathBuf {
+    let mut file = get_config_dir();
+    file.push("shortcut.txt");
+    file
+}
+
+pub fn load_saved_shortcut() -> String {
+    let file = get_shortcut_file();
+    if file.exists() {
+        if let Ok(content) = fs::read_to_string(&file) {
+            let trimmed = content.trim();
+            if !trimmed.is_empty() {
+                return trimmed.to_string();
+            }
+        }
+    }
+    "Ctrl+Alt+P".to_string()
+}
+
+pub fn save_saved_shortcut(shortcut: &str) -> Result<(), String> {
+    let file = get_shortcut_file();
+    fs::write(file, shortcut).map_err(|e| e.to_string())
+}

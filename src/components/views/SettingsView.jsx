@@ -26,6 +26,10 @@ function ShortcutRecorder({ value, onChange }) {
     if (e.altKey) parts.push('Alt');
     if (e.shiftKey) parts.push('Shift');
 
+    if (!e.ctrlKey && !e.altKey) {
+      parts.unshift('Ctrl');
+    }
+
     let keyName = e.key.toUpperCase();
     if (keyName === ' ') keyName = 'Space';
 
