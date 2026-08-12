@@ -82,7 +82,7 @@ export default function Sidebar({
         >
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="font-mono text-gray-300 group-hover:text-white">Portly v0.2.0</span>
+            <span className="font-mono text-gray-300 group-hover:text-white">Portly v0.3.1</span>
           </div>
           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded font-bold theme-accent-badge">
             MAJ

@@ -206,11 +206,45 @@ export default function ProjectsView({
     });
   };
 
-  const handleStopProjectServers = (project) => {
-    (project.servers || []).forEach((srv) => {
-      if (srv.state === 'running') {
-        handleStopServer(srv.id);
+  const handleStopProjectServers = async (project) => {
+    const runningServers = (project.servers || []).filter((srv) => srv.state === 'running');
+    if (runningServers.length === 0) return;
+
+    const stoppedIds = new Set(runningServers.map((s) => s.id));
+
+    for (const srv of runningServers) {
+      try {
+        await invoke('stop_server_cmd', { serverId: srv.id, pid: srv.pid ? Number(srv.pid) : null });
+      } catch (e) {
+        console.warn('Error stopping server:', e);
       }
+      if (srv.pid) {
+        try {
+          await invoke('kill_port_cmd', { pid: Number(srv.pid) });
+        } catch (e) {}
+      }
+    }
+
+    const updatedProjects = projects.map((p) => {
+      if (p.id === project.id) {
+        return {
+          ...p,
+          servers: (p.servers || []).map((s) => {
+            if (stoppedIds.has(s.id)) {
+              return { ...s, state: 'stopped', pid: null };
+            }
+            return s;
+          }),
+        };
+      }
+      return p;
+    });
+
+    saveProjects(updatedProjects);
+    triggerToast({
+      title: '⏹ Serveurs Arrêtés',
+      message: `Tous les serveurs du projet "${project.name}" ont été arrêtés.`,
+      type: 'info',
     });
   };
 

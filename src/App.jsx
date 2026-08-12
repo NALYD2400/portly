@@ -213,7 +213,7 @@ export default function App() {
       <AutoUpdateModal
         isOpen={isUpdateModalOpen}
         onClose={() => setIsUpdateModalOpen(false)}
-        currentVersion="0.2.0"
+        currentVersion="0.3.1"
       />
 
       <ToastContainer />
