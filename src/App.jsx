@@ -24,8 +24,10 @@ const CURRENT_APP_VERSION = pkg.version;
 
 function isNewerVersion(latest, current) {
   if (!latest || !current) return false;
-  const lParts = latest.split('.').map(Number);
-  const cParts = current.split('.').map(Number);
+  const cleanL = latest.replace(/^v/, '').trim();
+  const cleanC = current.replace(/^v/, '').trim();
+  const lParts = cleanL.split('.').map((p) => parseInt(p, 10) || 0);
+  const cParts = cleanC.split('.').map((p) => parseInt(p, 10) || 0);
   for (let i = 0; i < Math.max(lParts.length, cParts.length); i++) {
     const l = lParts[i] || 0;
     const c = cParts[i] || 0;
@@ -199,7 +201,12 @@ export default function App() {
                 />
               )}
 
-              {activeTab === 'settings' && <SettingsView projects={projects} />}
+              {activeTab === 'settings' && (
+                <SettingsView
+                  projects={projects}
+                  onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
+                />
+              )}
             </>
           )}
         </main>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Settings, Palette, Zap, Monitor, Shield, Check, Sparkles, RefreshCw, Hash, Bell, Terminal, Activity, FileArchive, Folder, ChevronRight, Sliders, Laptop, Download, Upload, FileJson, Bot, Copy, Pipette, Keyboard } from 'lucide-react';
+import { Settings, Palette, Zap, Monitor, Shield, Check, Sparkles, RefreshCw, Hash, ChevronRight, Download, Upload, Bot, Copy, Pipette, Keyboard } from 'lucide-react';
 import ToggleSwitch from '../ui/ToggleSwitch';
 
 import pkg from '../../../package.json';
@@ -59,7 +59,7 @@ function ShortcutRecorder({ value, onChange }) {
   );
 }
 
-export default function SettingsView({ projects = [] }) {
+export default function SettingsView({ projects = [], onOpenUpdateModal }) {
   const [activeSubTab, setActiveSubTab] = useState('appearance');
 
   // Theme Accent
@@ -534,6 +534,33 @@ When the user types \`/portly\` or requests to configure a project in Portly:
               </div>
 
               <div className="space-y-4">
+                {/* Auto Update Action Card */}
+                <div className="glass-card p-4.5 rounded-xl flex items-center justify-between border border-purple-500/20 bg-purple-500/5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl theme-accent-badge flex items-center justify-center shadow-md">
+                      <Download className="w-4.5 h-4.5 theme-accent-text" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-white flex items-center gap-2">
+                        <span>Mises à Jour Automatiques Portly</span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full theme-accent-badge border border-white/10">v{pkg.version}</span>
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">
+                        Rechercher et installer les nouvelles releases officielles depuis GitHub Releases
+                      </div>
+                    </div>
+                  </div>
+                  {onOpenUpdateModal && (
+                    <button
+                      onClick={onOpenUpdateModal}
+                      className="py-2 px-4 rounded-xl theme-accent-btn text-white text-xs font-bold flex items-center gap-2 shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Vérifier les Mises à Jour</span>
+                    </button>
+                  )}
+                </div>
+
                 <div
                   onClick={() => toggleMinimizeToTray(!minimizeToTray)}
                   className="glass-card p-4 rounded-xl flex items-center justify-between cursor-pointer select-none"

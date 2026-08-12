@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { DownloadCloud, Sparkles, RefreshCw, CheckCircle2, ArrowRight, X, ShieldCheck, Zap, AlertCircle } from 'lucide-react';
+import { DownloadCloud, Sparkles, RefreshCw, CheckCircle2, X, Zap, AlertCircle } from 'lucide-react';
 
-export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2.0' }) {
+export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.3.1' }) {
   const [status, setStatus] = useState('checking'); // checking | available | downloading | installing | completed | upToDate | error
   const [latestVersion, setLatestVersion] = useState('');
   const [releaseNotes, setReleaseNotes] = useState('');
@@ -32,20 +32,27 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
       });
 
       if (!res.ok) {
-        setStatus('upToDate');
+        if (res.status === 403) {
+          setErrorMessage('Limite de requêtes GitHub API atteinte (60 req/h). Réessayez plus tard.');
+        } else {
+          setErrorMessage(`Serveur GitHub indisponible (code HTTP ${res.status}).`);
+        }
+        setStatus('error');
         return;
       }
 
       const data = await res.json();
-      const tag = data.tag_name ? data.tag_name.replace(/^v/, '') : '0.2.0';
+      const tag = data.tag_name ? data.tag_name.replace(/^v/, '').trim() : '0.3.1';
       setLatestVersion(tag);
       setReleaseNotes(data.body || 'Dernières améliorations et correctifs de performance.');
 
       const asset = (data.assets || []).find(
-        (a) => a.name.endsWith('.exe') || a.name.endsWith('.msi')
+        (a) => a.name.toLowerCase().endsWith('.exe') || a.name.toLowerCase().endsWith('.msi')
       );
       if (asset) {
         setDownloadUrl(asset.browser_download_url);
+      } else {
+        setDownloadUrl(`https://github.com/${GITHUB_REPO}/releases/download/v${tag}/Portly_${tag}_x64-setup.exe`);
       }
 
       if (isNewerVersion(tag, currentVersion)) {
@@ -55,13 +62,17 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
       }
     } catch (e) {
       console.warn('Could not fetch github releases:', e);
-      setStatus('upToDate');
+      setErrorMessage('Impossible de se connecter aux serveurs GitHub Releases.');
+      setStatus('error');
     }
   };
 
   const isNewerVersion = (latest, current) => {
-    const lParts = latest.split('.').map(Number);
-    const cParts = current.split('.').map(Number);
+    if (!latest || !current) return false;
+    const cleanL = latest.replace(/^v/, '').trim();
+    const cleanC = current.replace(/^v/, '').trim();
+    const lParts = cleanL.split('.').map((p) => parseInt(p, 10) || 0);
+    const cParts = cleanC.split('.').map((p) => parseInt(p, 10) || 0);
     for (let i = 0; i < Math.max(lParts.length, cParts.length); i++) {
       const l = lParts[i] || 0;
       const c = cParts[i] || 0;
@@ -97,28 +108,23 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
       await invoke('download_update_cmd', { url: targetUrl });
 
       if (unlisten) unlisten();
-      setStatus('installing');
-      setTimeout(() => {
-        setStatus('completed');
-      }, 1000);
+      setStatus('completed');
     } catch (err) {
       if (unlisten) unlisten();
       console.error('Update download error:', err);
-      setErrorMessage(String(err));
+      setErrorMessage(typeof err === 'string' ? err : err?.message || String(err));
       setStatus('error');
     }
   };
 
   const handleRestart = async () => {
+    setStatus('installing');
     try {
       await invoke('install_update_and_relaunch_cmd');
     } catch (e) {
       console.error('Install/relaunch error:', e);
-      try {
-        invoke('exit_app');
-      } catch (err) {
-        onClose();
-      }
+      setErrorMessage(typeof e === 'string' ? e : e?.message || String(e));
+      setStatus('error');
     }
   };
 
@@ -291,8 +297,8 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
                 <Zap className="w-6 h-6 theme-accent-text animate-bounce" />
               </div>
               <div>
-                <p className="text-sm font-bold text-white">Extraction & Installation en cours...</p>
-                <p className="text-xs text-gray-400 mt-1">Mise à jour automatique de l'exécutable local</p>
+                <p className="text-sm font-bold text-white">Lancement de l'installateur Windows...</p>
+                <p className="text-xs text-gray-400 mt-1">L'application va se fermer pour appliquer la mise à jour.</p>
               </div>
             </div>
           )}
@@ -305,8 +311,8 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
               </div>
 
               <div>
-                <h4 className="text-base font-bold text-white">Mise à jour v{latestVersion} prête !</h4>
-                <p className="text-xs text-gray-400 mt-1">L'application a été mise à jour avec succès.</p>
+                <h4 className="text-base font-bold text-white">Mise à jour v{latestVersion} téléchargée !</h4>
+                <p className="text-xs text-gray-400 mt-1">L'installateur est prêt. Cliquez pour appliquer et relancer.</p>
               </div>
 
               <button
@@ -314,8 +320,36 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
                 className="w-full py-3 rounded-xl theme-accent-btn text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer active:scale-95"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>Relancer Portly Maintenant</span>
+                <span>Installer & Relancer Portly</span>
               </button>
+            </div>
+          )}
+
+          {/* Status: Error */}
+          {status === 'error' && (
+            <div className="py-6 text-center space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-red-500/20 border border-red-500/30 flex items-center justify-center mx-auto shadow-lg">
+                <AlertCircle className="w-7 h-7 text-red-400" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white">Échec de la mise à jour</h4>
+                <p className="text-xs text-red-300 mt-1 max-w-xs mx-auto break-words">{errorMessage}</p>
+              </div>
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  onClick={onClose}
+                  className="w-1/2 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-gray-300 text-xs font-semibold border border-white/10 transition-all cursor-pointer active:scale-95"
+                >
+                  Fermer
+                </button>
+                <button
+                  onClick={checkForUpdates}
+                  className="w-1/2 py-2.5 rounded-xl theme-accent-btn text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg transition-all cursor-pointer active:scale-95"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Réessayer</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

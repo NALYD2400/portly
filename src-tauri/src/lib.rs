@@ -139,10 +139,14 @@ async fn download_update_cmd(app: AppHandle, url: String) -> Result<String, Stri
     use tokio::io::AsyncWriteExt;
     use tauri::Emitter;
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .user_agent("Portly-Updater")
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .build()
+        .map_err(|e| format!("Erreur initialisation client HTTP: {}", e))?;
+
     let mut response = client
         .get(&url)
-        .header("User-Agent", "Portly-Updater")
         .send()
         .await
         .map_err(|e| format!("Erreur de réseau: {}", e))?;
@@ -155,12 +159,18 @@ async fn download_update_cmd(app: AppHandle, url: String) -> Result<String, Stri
     let temp_dir = std::env::temp_dir();
     let installer_path = temp_dir.join("portly_update_installer.exe");
 
+    // Supprimer tout reliquat d'une précédente mise à jour si présent
+    if installer_path.exists() {
+        let _ = tokio::fs::remove_file(&installer_path).await;
+    }
+
     let mut file = tokio::fs::File::create(&installer_path)
         .await
         .map_err(|e| format!("Erreur création fichier: {}", e))?;
 
     let mut downloaded: u64 = 0;
-    while let Ok(Some(chunk)) = response.chunk().await {
+    while let Some(chunk_result) = response.chunk().await.transpose() {
+        let chunk = chunk_result.map_err(|e| format!("Interruption du téléchargement: {}", e))?;
         file.write_all(&chunk)
             .await
             .map_err(|e| format!("Erreur d'écriture: {}", e))?;
@@ -187,6 +197,15 @@ async fn download_update_cmd(app: AppHandle, url: String) -> Result<String, Stri
                 percentage: pct,
             },
         );
+    }
+
+    file.flush().await.map_err(|e| format!("Erreur finalisation fichier: {}", e))?;
+
+    if total_size > 0 && downloaded < total_size {
+        return Err(format!(
+            "Téléchargement incomplet: {}/{} octets reçus.",
+            downloaded, total_size
+        ));
     }
 
     Ok(installer_path.to_string_lossy().to_string())
@@ -217,14 +236,15 @@ fn install_update_and_relaunch_cmd(app: AppHandle, state: State<'_, Mutex<AppSta
     let installer_clean = clean_path_str(&installer_path);
     let exe_clean = clean_path_str(&current_exe);
 
+    // PowerShell robust script to wait for app exit, run installer with UAC fallback, and relaunch app
     let ps_script = format!(
-        "Start-Sleep -Seconds 2; Start-Process -FilePath \"{}\" -ArgumentList \"/S\" -Wait; Start-Process -FilePath \"{}\"",
-        installer_clean,
-        exe_clean
+        "Start-Sleep -Seconds 2; $inst = '{}'; $exe = '{}'; try {{ $p = Start-Process -FilePath $inst -ArgumentList '/S' -PassThru -ErrorAction Stop; $p.WaitForExit() }} catch {{ Start-Process -FilePath $inst -ArgumentList '/S' -Verb RunAs -Wait }}; if (Test-Path $exe) {{ Start-Process -FilePath $exe }}",
+        installer_clean.replace("'", "''"),
+        exe_clean.replace("'", "''")
     );
 
     std::process::Command::new("powershell")
-        .args(&["-NoProfile", "-WindowStyle", "Hidden", "-Command", &ps_script])
+        .args(&["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &ps_script])
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()
         .map_err(|e| format!("Impossible d'exécuter la mise à jour: {}", e))?;
