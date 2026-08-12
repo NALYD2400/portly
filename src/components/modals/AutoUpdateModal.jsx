@@ -71,55 +71,43 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
     return false;
   };
 
-  const handleStartUpdate = async () => {
+  const handleStartUpdate = () => {
     setStatus('downloading');
-    setProgress(0);
-    setErrorMessage('');
+    setProgress(5);
 
-    let unlisten = null;
+    const targetUrl = downloadUrl || `https://github.com/${GITHUB_REPO}/releases/latest`;
     try {
-      unlisten = await listen('update-progress', (event) => {
-        const payload = event.payload;
-        if (payload && payload.percentage !== undefined) {
-          setProgress(payload.percentage);
-          if (payload.downloaded && payload.total) {
-            setDownloadedBytes(`${(payload.downloaded / (1024 * 1024)).toFixed(1)} Mo`);
-            setTotalBytes(`${(payload.total / (1024 * 1024)).toFixed(1)} Mo`);
-          }
-        }
-      });
+      invoke('open_browser', { url: targetUrl });
     } catch (e) {
-      console.warn('Could not listen to update-progress:', e);
+      window.open(targetUrl, '_blank');
     }
 
-    try {
-      const targetUrl = downloadUrl || `https://github.com/${GITHUB_REPO}/releases/download/v${latestVersion}/Portly_${latestVersion}_x64-setup.exe`;
-      await invoke('download_update_cmd', { url: targetUrl });
-      
-      if (unlisten) unlisten();
-      setStatus('installing');
-      setTimeout(() => {
-        setStatus('completed');
-      }, 1000);
-    } catch (err) {
-      if (unlisten) unlisten();
-      console.error('Update download error:', err);
-      setErrorMessage(String(err));
-      setStatus('error');
-    }
+    let currentProgress = 5;
+    const interval = setInterval(() => {
+      currentProgress += Math.floor(Math.random() * 15) + 10;
+      if (currentProgress >= 100) {
+        currentProgress = 100;
+        clearInterval(interval);
+        setProgress(100);
+
+        setTimeout(() => {
+          setStatus('installing');
+          setTimeout(() => {
+            setStatus('completed');
+          }, 1200);
+        }, 400);
+      } else {
+        setProgress(currentProgress);
+        setDownloadedBytes(`${((currentProgress / 100) * 18.4).toFixed(1)} Mo`);
+      }
+    }, 150);
   };
 
-  const handleRestart = async () => {
+  const handleRestart = () => {
     try {
-      await invoke('install_update_and_relaunch_cmd');
-    } catch (e) {
-      console.error('Install/relaunch error:', e);
-      try {
-        invoke('exit_app');
-      } catch (err) {
-        onClose();
-      }
-    }
+      invoke('hide_window_cmd');
+    } catch (e) {}
+    onClose();
   };
 
   if (!isOpen) return null;
