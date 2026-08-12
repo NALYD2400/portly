@@ -304,7 +304,12 @@ When the user types \`/portly\` or requests to configure a project in Portly:
             <Settings className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Paramètres Portly</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2.5">
+              <span>Paramètres Portly</span>
+              <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full theme-accent-badge border border-white/10">
+                v0.3.1
+              </span>
+            </h1>
             <p className="text-xs text-gray-400">
               Personnalisation avancée de l'interface, des processus et des préférences système.
             </p>

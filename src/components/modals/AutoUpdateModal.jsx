@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { DownloadCloud, Sparkles, RefreshCw, CheckCircle2, ArrowRight, X, ShieldCheck, Zap, AlertCircle } from 'lucide-react';
 
 export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2.0' }) {
@@ -8,9 +9,8 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
   const [releaseNotes, setReleaseNotes] = useState('');
   const [downloadUrl, setDownloadUrl] = useState('');
   const [progress, setProgress] = useState(0);
-  const [downloadSpeed, setDownloadSpeed] = useState('2.4 Mo/s');
   const [downloadedBytes, setDownloadedBytes] = useState('0');
-  const [totalBytes, setTotalBytes] = useState('18.4 Mo');
+  const [totalBytes, setTotalBytes] = useState('... Mo');
   const [errorMessage, setErrorMessage] = useState('');
 
   const GITHUB_REPO = 'NALYD2400/portly';
@@ -32,9 +32,7 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
       });
 
       if (!res.ok) {
-        setLatestVersion('0.3.0');
-        setReleaseNotes('• Interface Motion UI/UX re-designée\n• Auto-updater en direct de GitHub\n• Optimisations de démarrage rapides');
-        setStatus('available');
+        setStatus('upToDate');
         return;
       }
 
@@ -57,9 +55,7 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
       }
     } catch (e) {
       console.warn('Could not fetch github releases:', e);
-      setLatestVersion('0.3.0');
-      setReleaseNotes('• Nouvelle version majeure v0.3.0 disponible\n• Performance et animations Motion UI réactives');
-      setStatus('available');
+      setStatus('upToDate');
     }
   };
 
@@ -75,43 +71,54 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
     return false;
   };
 
-  const handleStartUpdate = () => {
+  const handleStartUpdate = async () => {
     setStatus('downloading');
-    setProgress(5);
+    setProgress(0);
+    setErrorMessage('');
 
-    const targetUrl = downloadUrl || `https://github.com/${GITHUB_REPO}/releases/latest`;
+    let unlisten = null;
     try {
-      invoke('open_browser', { url: targetUrl });
+      unlisten = await listen('update-progress', (event) => {
+        const payload = event.payload;
+        if (payload && payload.percentage !== undefined) {
+          setProgress(payload.percentage);
+          if (payload.downloaded && payload.total) {
+            setDownloadedBytes(`${(payload.downloaded / (1024 * 1024)).toFixed(1)} Mo`);
+            setTotalBytes(`${(payload.total / (1024 * 1024)).toFixed(1)} Mo`);
+          }
+        }
+      });
     } catch (e) {
-      window.open(targetUrl, '_blank');
+      console.warn('Could not listen to update-progress:', e);
     }
 
-    let currentProgress = 5;
-    const interval = setInterval(() => {
-      currentProgress += Math.floor(Math.random() * 15) + 10;
-      if (currentProgress >= 100) {
-        currentProgress = 100;
-        clearInterval(interval);
-        setProgress(100);
-
-        setTimeout(() => {
-          setStatus('installing');
-          setTimeout(() => {
-            setStatus('completed');
-          }, 1200);
-        }, 400);
-      } else {
-        setProgress(currentProgress);
-        setDownloadedBytes(`${((currentProgress / 100) * 18.4).toFixed(1)} Mo`);
-      }
-    }, 150);
+    try {
+      const targetUrl = downloadUrl || `https://github.com/${GITHUB_REPO}/releases/download/v${latestVersion}/Portly_${latestVersion}_x64-setup.exe`;
+      await invoke('download_update_cmd', { url: targetUrl });
+      
+      if (unlisten) unlisten();
+      setStatus('installing');
+      setTimeout(() => {
+        setStatus('completed');
+      }, 1000);
+    } catch (err) {
+      if (unlisten) unlisten();
+      console.error('Update download error:', err);
+      setErrorMessage(String(err));
+      setStatus('error');
+    }
   };
 
-  const handleRestart = () => {
+  const handleRestart = async () => {
     try {
-      invoke('exit_app');
+      await invoke('install_update_and_relaunch_cmd');
     } catch (e) {
-      onClose();
+      console.error('Install/relaunch error:', e);
+      try {
+        invoke('exit_app');
+      } catch (err) {
+        onClose();
+      }
     }
   };
 
@@ -265,7 +272,7 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
 
               <div className="flex items-center justify-between text-xs font-mono text-gray-400 pt-1">
                 <span>{downloadedBytes} / {totalBytes}</span>
-                <span className="theme-accent-text font-bold">{downloadSpeed}</span>
+                <span className="theme-accent-text font-bold">En cours</span>
               </div>
             </div>
           )}

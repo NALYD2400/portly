@@ -128,6 +128,93 @@ fn open_browser(url: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn download_update_cmd(app: AppHandle, url: String) -> Result<String, String> {
+    use tokio::io::AsyncWriteExt;
+    use tauri::Emitter;
+
+    let client = reqwest::Client::new();
+    let mut response = client
+        .get(&url)
+        .header("User-Agent", "Portly-Updater")
+        .send()
+        .await
+        .map_err(|e| format!("Erreur de réseau: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Erreur serveur HTTP {}", response.status()));
+    }
+
+    let total_size = response.content_length().unwrap_or(0);
+    let temp_dir = std::env::temp_dir();
+    let installer_path = temp_dir.join("portly_update_installer.exe");
+
+    let mut file = tokio::fs::File::create(&installer_path)
+        .await
+        .map_err(|e| format!("Erreur création fichier d'installation: {}", e))?;
+
+    let mut downloaded: u64 = 0;
+    while let Ok(Some(chunk)) = response.chunk().await {
+        file.write_all(&chunk)
+            .await
+            .map_err(|e| format!("Erreur d'écriture du fichier: {}", e))?;
+        downloaded += chunk.len() as u64;
+
+        let pct = if total_size > 0 {
+            ((downloaded as f64 / total_size as f64) * 100.0) as u32
+        } else {
+            50
+        };
+
+        #[derive(serde::Serialize, Clone)]
+        struct ProgressPayload {
+            downloaded: u64,
+            total: u64,
+            percentage: u32,
+        }
+
+        let _ = app.emit(
+            "update-progress",
+            ProgressPayload {
+                downloaded,
+                total: total_size,
+                percentage: pct,
+            },
+        );
+    }
+
+    Ok(installer_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn install_update_and_relaunch_cmd(app: AppHandle, state: State<'_, Mutex<AppState>>) -> Result<(), String> {
+    let process_mgr = &state.lock().unwrap().process_manager;
+    process_mgr.stop_all_servers();
+
+    let temp_dir = std::env::temp_dir();
+    let installer_path = temp_dir.join("portly_update_installer.exe");
+    let current_exe = std::env::current_exe().unwrap_or_default();
+
+    if !installer_path.exists() {
+        return Err("Fichier d'installation introuvable.".into());
+    }
+
+    let cmd_script = format!(
+        "timeout /t 1 /nobreak > nul & start /wait \"\" \"{}\" /S & start \"\" \"{}\"",
+        installer_path.to_string_lossy(),
+        current_exe.to_string_lossy()
+    );
+
+    std::process::Command::new("cmd")
+        .args(&["/C", &cmd_script])
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .map_err(|e| format!("Impossible de lancer le script de mise à jour: {}", e))?;
+
+    app.exit(0);
+    Ok(())
+}
+
+#[tauri::command]
 async fn ping_port_cmd(port: u16) -> Result<bool, String> {
     use std::net::TcpStream;
     let addr = format!("127.0.0.1:{}", port);
@@ -396,6 +483,8 @@ pub fn run() {
             set_autostart_cmd,
             is_autostart_cmd,
             register_global_shortcut_cmd,
+            download_update_cmd,
+            install_update_and_relaunch_cmd,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

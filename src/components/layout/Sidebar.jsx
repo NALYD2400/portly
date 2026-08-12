@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, FolderCode, Network, Terminal, Settings, Plus, Search } from 'lucide-react';
+import { LayoutDashboard, FolderCode, Network, Terminal, Settings, Plus, Search, Download } from 'lucide-react';
 
 export default function Sidebar({
   activeTab,
@@ -8,6 +8,7 @@ export default function Sidebar({
   onAddProject,
   onOpenCommandPalette,
   onOpenUpdateModal,
+  updateAvailable,
 }) {
   const navItems = [
     { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
@@ -74,21 +75,7 @@ export default function Sidebar({
       </div>
 
       {/* Footer Info */}
-      <div className="pt-3 border-t border-white/[0.06] space-y-1">
-        <button
-          onClick={onOpenUpdateModal}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-[11px] font-medium text-gray-400 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer group"
-          title="Rechercher une mise à jour sur GitHub"
-        >
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="font-mono text-gray-300 group-hover:text-white">Portly v0.3.1</span>
-          </div>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded font-bold theme-accent-badge">
-            MAJ
-          </span>
-        </button>
-
+      <div className="pt-3 border-t border-white/[0.06]">
         <button
           onClick={() => setActiveTab('settings')}
           className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer border ${
@@ -101,6 +88,21 @@ export default function Sidebar({
             <Settings className={`w-4 h-4 ${activeTab === 'settings' ? 'theme-accent-text' : 'text-gray-400'}`} />
             <span>Paramètres</span>
           </div>
+
+          {updateAvailable && (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenUpdateModal();
+              }}
+              className="relative p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition-all duration-200 cursor-pointer animate-pulse hover:scale-110 active:scale-95 group/update shadow-lg shadow-emerald-500/10 shrink-0"
+              title="Mise à jour disponible ! Cliquez pour télécharger."
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400 group-hover/update:translate-y-0.5 transition-transform" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500"></span>
+            </div>
+          )}
         </button>
       </div>
     </aside>
