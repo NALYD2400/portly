@@ -156,6 +156,17 @@ impl ProcessManager {
         }
     }
 
+    pub fn stop_all_servers(&self) {
+        let mut processes = self.processes.lock().unwrap();
+        for (_id, pid) in processes.drain() {
+            let mut kill_cmd = std::process::Command::new("taskkill");
+            kill_cmd
+                .args(["/F", "/T", "/PID", &pid.to_string()])
+                .creation_flags(CREATE_NO_WINDOW);
+            let _ = kill_cmd.output();
+        }
+    }
+
     pub fn is_running(&self, server_id: &str) -> bool {
         let processes = self.processes.lock().unwrap();
         processes.contains_key(server_id)

@@ -29,7 +29,9 @@ fn hide_window_cmd(window: tauri::Window) {
 }
 
 #[tauri::command]
-fn exit_app(app: AppHandle) {
+fn exit_app(app: AppHandle, state: State<'_, Mutex<AppState>>) {
+    let process_mgr = &state.lock().unwrap().process_manager;
+    process_mgr.stop_all_servers();
     app.exit(0);
 }
 
@@ -211,6 +213,9 @@ pub fn run() {
                         }
                     }
                     "quit" => {
+                        let state_lock = app.state::<Mutex<AppState>>();
+                        let process_mgr = &state_lock.lock().unwrap().process_manager;
+                        process_mgr.stop_all_servers();
                         app.exit(0);
                     }
                     _ => {}
