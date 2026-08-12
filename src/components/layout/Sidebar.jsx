@@ -7,6 +7,7 @@ export default function Sidebar({
   activeServersCount,
   onAddProject,
   onOpenCommandPalette,
+  onOpenUpdateModal,
 }) {
   const navItems = [
     { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
@@ -73,7 +74,21 @@ export default function Sidebar({
       </div>
 
       {/* Footer Info */}
-      <div className="pt-3 border-t border-white/[0.06]">
+      <div className="pt-3 border-t border-white/[0.06] space-y-1">
+        <button
+          onClick={onOpenUpdateModal}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-[11px] font-medium text-gray-400 hover:text-purple-300 hover:bg-purple-500/10 border border-transparent hover:border-purple-500/20 transition-all cursor-pointer group"
+          title="Rechercher une mise à jour sur GitHub"
+        >
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="font-mono text-gray-300 group-hover:text-white">Portly v0.2.0</span>
+          </div>
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+            MAJ
+          </span>
+        </button>
+
         <button
           onClick={() => setActiveTab('settings')}
           className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer border ${

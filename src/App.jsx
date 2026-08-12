@@ -13,12 +13,14 @@ import CommandPaletteModal from './components/modals/CommandPaletteModal';
 import EnvEditorModal from './components/modals/EnvEditorModal';
 import EditServerModal from './components/modals/EditServerModal';
 import AddServerModal from './components/modals/AddServerModal';
+import AutoUpdateModal from './components/modals/AutoUpdateModal';
 import { useProjects, useSystemMetrics } from './hooks/useTauriIPC';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('projects');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [envModalRoot, setEnvModalRoot] = useState(null);
   const [editServerTarget, setEditServerTarget] = useState(null);
   const [addServerProject, setAddServerProject] = useState(null);
@@ -105,6 +107,7 @@ export default function App() {
           activeServersCount={activeServersCount}
           onAddProject={() => setIsAddModalOpen(true)}
           onOpenCommandPalette={() => setIsPaletteOpen(true)}
+          onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
         />
 
         {/* View Container */}
@@ -185,6 +188,12 @@ export default function App() {
         project={addServerProject}
         projects={projects}
         saveProjects={saveProjects}
+      />
+
+      <AutoUpdateModal
+        isOpen={isUpdateModalOpen}
+        onClose={() => setIsUpdateModalOpen(false)}
+        currentVersion="0.2.0"
       />
     </div>
   );
