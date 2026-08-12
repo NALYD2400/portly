@@ -18,11 +18,29 @@ import AutoUpdateModal from './components/modals/AutoUpdateModal';
 import ToastContainer from './components/ui/ToastContainer';
 import { useProjects, useSystemMetrics } from './hooks/useTauriIPC';
 
+import pkg from '../package.json';
+
+const CURRENT_APP_VERSION = pkg.version;
+
+function isNewerVersion(latest, current) {
+  if (!latest || !current) return false;
+  const lParts = latest.split('.').map(Number);
+  const cParts = current.split('.').map(Number);
+  for (let i = 0; i < Math.max(lParts.length, cParts.length); i++) {
+    const l = lParts[i] || 0;
+    const c = cParts[i] || 0;
+    if (l > c) return true;
+    if (l < c) return false;
+  }
+  return false;
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('projects');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
   const [envModalRoot, setEnvModalRoot] = useState(null);
   const [editProjectTarget, setEditProjectTarget] = useState(null);
   const [editServerTarget, setEditServerTarget] = useState(null);
@@ -31,6 +49,27 @@ export default function App() {
 
   const { projects, setProjects, saveProjects, loading } = useProjects();
   const metrics = useSystemMetrics();
+
+  // Check for updates on GitHub Releases silently at app launch
+  useEffect(() => {
+    const checkUpdateOnLaunch = async () => {
+      try {
+        const res = await fetch('https://api.github.com/repos/NALYD2400/portly/releases/latest', {
+          headers: { Accept: 'application/vnd.github.v3+json' },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const tag = data.tag_name ? data.tag_name.replace(/^v/, '') : '';
+          if (tag && isNewerVersion(tag, CURRENT_APP_VERSION)) {
+            setUpdateAvailable(true);
+          }
+        }
+      } catch (e) {
+        console.warn('Update check at launch failed:', e);
+      }
+    };
+    checkUpdateOnLaunch();
+  }, []);
 
   // Initialize custom Hex accent color & Register Global OS Shortcut at launch
   useEffect(() => {
@@ -118,6 +157,7 @@ export default function App() {
           onAddProject={() => setIsAddModalOpen(true)}
           onOpenCommandPalette={() => setIsPaletteOpen(true)}
           onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
+          updateAvailable={updateAvailable}
         />
 
         {/* View Container */}

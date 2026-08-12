@@ -79,9 +79,16 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
     setStatus('downloading');
     setProgress(5);
 
+    const targetUrl = downloadUrl || `https://github.com/${GITHUB_REPO}/releases/latest`;
+    try {
+      invoke('open_browser', { url: targetUrl });
+    } catch (e) {
+      window.open(targetUrl, '_blank');
+    }
+
     let currentProgress = 5;
     const interval = setInterval(() => {
-      currentProgress += Math.floor(Math.random() * 12) + 8;
+      currentProgress += Math.floor(Math.random() * 15) + 10;
       if (currentProgress >= 100) {
         currentProgress = 100;
         clearInterval(interval);
@@ -91,20 +98,21 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion = '0.2
           setStatus('installing');
           setTimeout(() => {
             setStatus('completed');
-          }, 2000);
-        }, 600);
+          }, 1200);
+        }, 400);
       } else {
         setProgress(currentProgress);
         setDownloadedBytes(`${((currentProgress / 100) * 18.4).toFixed(1)} Mo`);
       }
-    }, 280);
+    }, 150);
   };
 
   const handleRestart = () => {
     try {
-      invoke('hide_window_cmd');
-    } catch (e) {}
-    onClose();
+      invoke('exit_app');
+    } catch (e) {
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
