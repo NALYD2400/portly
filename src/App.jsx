@@ -11,6 +11,7 @@ import ContextMenu from './components/ui/ContextMenu';
 import AddProjectModal from './components/modals/AddProjectModal';
 import CommandPaletteModal from './components/modals/CommandPaletteModal';
 import EnvEditorModal from './components/modals/EnvEditorModal';
+import EditProjectModal from './components/modals/EditProjectModal';
 import EditServerModal from './components/modals/EditServerModal';
 import AddServerModal from './components/modals/AddServerModal';
 import AutoUpdateModal from './components/modals/AutoUpdateModal';
@@ -23,6 +24,7 @@ export default function App() {
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [envModalRoot, setEnvModalRoot] = useState(null);
+  const [editProjectTarget, setEditProjectTarget] = useState(null);
   const [editServerTarget, setEditServerTarget] = useState(null);
   const [addServerProject, setAddServerProject] = useState(null);
   const [selectedTerminal, setSelectedTerminal] = useState({ id: null, name: null });
@@ -30,7 +32,7 @@ export default function App() {
   const { projects, setProjects, saveProjects, loading } = useProjects();
   const metrics = useSystemMetrics();
 
-  // Initialize custom Hex accent color at launch
+  // Initialize custom Hex accent color & Register Global OS Shortcut at launch
   useEffect(() => {
     const savedHex = localStorage.getItem('portly_custom_hex');
     if (savedHex && savedHex.startsWith('#')) {
@@ -43,6 +45,13 @@ export default function App() {
         document.documentElement.style.setProperty('--accent-color-rgb', rgb);
       }
     }
+
+    const savedShortcut = localStorage.getItem('portly_cfg_shortcut') || 'Ctrl+Alt+P';
+    setTimeout(() => {
+      invoke('register_global_shortcut_cmd', { shortcut: savedShortcut }).catch((e) => {
+        console.warn('Non-critical: Global shortcut registration fallback:', e);
+      });
+    }, 500);
   }, []);
 
   // Global Ctrl+K / Cmd+K Command Palette Shortcut Listener
@@ -134,6 +143,7 @@ export default function App() {
                   onOpenTerminal={handleOpenTerminal}
                   onOpenEnvModal={(root) => setEnvModalRoot(root)}
                   onAddProject={() => setIsAddModalOpen(true)}
+                  onEditProject={(project) => setEditProjectTarget(project)}
                   onEditServer={(target) => setEditServerTarget(target)}
                   onAddServer={(project) => setAddServerProject(project)}
                 />
@@ -172,8 +182,17 @@ export default function App() {
       />
 
       <EnvEditorModal
+        isOpen={!!envModalRoot}
         projectRoot={envModalRoot}
         onClose={() => setEnvModalRoot(null)}
+      />
+
+      <EditProjectModal
+        isOpen={!!editProjectTarget}
+        project={editProjectTarget}
+        projects={projects}
+        saveProjects={saveProjects}
+        onClose={() => setEditProjectTarget(null)}
       />
 
       <EditServerModal

@@ -1,7 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Play, Square, RotateCw, ExternalLink, Code2, Folder, FileText, Trash2, Plus, Terminal, Edit3, ChevronDown, ChevronRight, Sparkles, Activity, Layers, Globe, Share2 } from 'lucide-react';
+import { Play, Square, RotateCw, ExternalLink, Code2, Folder, FileText, Trash2, Plus, Terminal, Edit3, ChevronDown, ChevronRight, Sparkles, Activity, Layers, Globe, Share2, Clock } from 'lucide-react';
 import { triggerToast } from '../ui/ToastContainer';
+
+const serverStartTimestamps = {};
+
+function ServerUptimeBadge({ serverId, isRunning }) {
+  const [uptimeStr, setUptimeStr] = useState('0s');
+
+  useEffect(() => {
+    if (!isRunning) {
+      delete serverStartTimestamps[serverId];
+      setUptimeStr('0s');
+      return;
+    }
+
+    if (!serverStartTimestamps[serverId]) {
+      serverStartTimestamps[serverId] = Date.now();
+    }
+
+    const update = () => {
+      const startTime = serverStartTimestamps[serverId];
+      const diffSec = Math.max(0, Math.floor((Date.now() - startTime) / 1000));
+      if (diffSec < 60) {
+        setUptimeStr(`${diffSec}s`);
+      } else if (diffSec < 3600) {
+        const m = Math.floor(diffSec / 60);
+        const s = diffSec % 60;
+        setUptimeStr(`${m}m ${s}s`);
+      } else {
+        const h = Math.floor(diffSec / 3600);
+        const m = Math.floor((diffSec % 3600) / 60);
+        setUptimeStr(`${h}h ${m}m`);
+      }
+    };
+
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [serverId, isRunning]);
+
+  return (
+    <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 flex items-center gap-1.5 shadow-sm">
+      <Clock className="w-3.5 h-3.5 text-purple-400" />
+      <span>{uptimeStr}</span>
+    </span>
+  );
+}
 
 export default function ProjectsView({
   projects,
@@ -9,6 +54,7 @@ export default function ProjectsView({
   onOpenTerminal,
   onOpenEnvModal,
   onAddProject,
+  onEditProject,
   onEditServer,
   onAddServer,
 }) {
@@ -349,6 +395,14 @@ export default function ProjectsView({
                     </button>
 
                     <button
+                      onClick={() => onEditProject && onEditProject(project)}
+                      className="p-2 rounded-xl bg-white/[0.04] hover:bg-purple-500/20 text-gray-300 hover:text-purple-300 border border-white/[0.06] hover:border-purple-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
+                      title="Modifier le nom et la couleur du projet"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+
+                    <button
                       onClick={() => handleDeleteProject(project.id)}
                       className="p-2 rounded-xl bg-white/[0.04] hover:bg-red-500/20 text-gray-400 hover:text-red-400 border border-white/[0.06] hover:border-red-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
                       title="Supprimer le projet de Portly"
@@ -396,33 +450,39 @@ export default function ProjectsView({
                             </div>
 
                             <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs font-bold text-white tracking-tight">{srv.name}</span>
+                              <div className="flex items-center gap-2.5 flex-wrap">
+                                <span className="text-sm font-bold text-white tracking-tight">{srv.name}</span>
 
-                                <span className="text-[11px] font-mono font-semibold text-purple-400">
+                                <span className="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold theme-accent-badge">
                                   :{srv.port}
                                 </span>
 
-                                {/* Status Pill Badge */}
                                 {isRunning ? (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono tracking-wide flex items-center gap-1">
+                                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono tracking-wide flex items-center gap-1.5 shadow-sm">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                    EN COURS
+                                    <span>EN COURS</span>
                                   </span>
                                 ) : (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/[0.04] text-gray-400 border border-white/[0.08] font-mono">
+                                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/[0.04] text-gray-400 border border-white/[0.08] font-mono">
                                     ARRÊTÉ
                                   </span>
                                 )}
 
+                                {isRunning && (
+                                  <ServerUptimeBadge serverId={srv.id} isRunning={isRunning} />
+                                )}
+
                                 {srv.pid && (
-                                  <span className="text-[10px] font-mono theme-accent-badge px-2 py-0.5 rounded-full font-bold">
-                                    PID: {srv.pid}
+                                  <span
+                                    className="text-xs font-mono text-gray-400 bg-white/[0.04] px-2.5 py-0.5 rounded-full border border-white/10"
+                                    title={`PID ${srv.pid} | Guard RAM Max: ${srv.ramLimit || 500} MB`}
+                                  >
+                                    PID {srv.pid}
                                   </span>
                                 )}
                               </div>
 
-                              <p className="text-[11px] font-mono text-gray-400 mt-1 selection:bg-purple-500/30">
+                              <p className="text-xs font-mono text-gray-400 mt-1 selection:bg-purple-500/30">
                                 {srv.command}
                               </p>
                             </div>

@@ -122,6 +122,18 @@ fn open_browser(url: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn ping_port_cmd(port: u16) -> Result<bool, String> {
+    use std::net::TcpStream;
+    let addr = format!("127.0.0.1:{}", port);
+    if let Ok(std_addr) = addr.parse::<std::net::SocketAddr>() {
+        if TcpStream::connect_timeout(&std_addr, std::time::Duration::from_millis(500)).is_ok() {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+#[tauri::command]
 fn read_env_file(project_root: String) -> Result<String, String> {
     let path = Path::new(&project_root).join(".env");
     if path.exists() {
@@ -132,6 +144,8 @@ fn read_env_file(project_root: String) -> Result<String, String> {
 }
 
 use tauri_plugin_notification::NotificationExt;
+use tauri_plugin_autostart::ManagerExt;
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 #[tauri::command]
 fn save_env_file(project_root: String, content: String) -> Result<(), String> {
@@ -146,6 +160,47 @@ fn send_windows_notification(app: AppHandle, title: String, body: String) {
         .title(title)
         .body(body)
         .show();
+}
+
+#[tauri::command]
+fn set_autostart_cmd(app: AppHandle, enable: bool) -> Result<(), String> {
+    if enable {
+        app.autolaunch().enable().map_err(|e| e.to_string())
+    } else {
+        app.autolaunch().disable().map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+fn is_autostart_cmd(app: AppHandle) -> Result<bool, String> {
+    app.autolaunch().is_enabled().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn register_global_shortcut_cmd(app: AppHandle, shortcut: String) -> Result<(), String> {
+    let _ = app.global_shortcut().unregister_all();
+    if shortcut.is_empty() {
+        return Ok(());
+    }
+
+    let normalized = shortcut
+        .replace("Ctrl", "CommandOrControl")
+        .replace("ctrl", "CommandOrControl");
+
+    let _ = app.global_shortcut().on_shortcut(normalized.as_str(), move |app_handle, _shortcut, event| {
+        if event.state == ShortcutState::Pressed {
+            if let Some(window) = app_handle.get_webview_window("main") {
+                if window.is_visible().unwrap_or(false) {
+                    let _ = window.hide();
+                } else {
+                    let _ = window.show();
+                    let _ = window.unminimize();
+                    let _ = window.set_focus();
+                }
+            }
+        }
+    });
+    Ok(())
 }
 
 #[tauri::command]
@@ -200,6 +255,11 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::AppleScript,
+            Some(vec!["--autostart"]),
+        ))
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(Mutex::new(AppState {
             process_manager: ProcessManager::new(),
         }))
@@ -314,6 +374,10 @@ pub fn run() {
             save_env_file,
             send_windows_notification,
             start_localtunnel_cmd,
+            ping_port_cmd,
+            set_autostart_cmd,
+            is_autostart_cmd,
+            register_global_shortcut_cmd,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -8,17 +8,19 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const isModalOpen = isOpen !== undefined ? isOpen : !!projectRoot;
+
   useEffect(() => {
-    if (isOpen && projectRoot) {
+    if (isModalOpen && projectRoot) {
       setLoading(true);
       invoke('read_env_file', { projectRoot })
         .then((res) => setContent(res || ''))
         .catch((err) => console.error(err))
         .finally(() => setLoading(false));
     }
-  }, [isOpen, projectRoot]);
+  }, [isModalOpen, projectRoot]);
 
-  if (!isOpen || !projectRoot) return null;
+  if (!isModalOpen || !projectRoot) return null;
 
   const handleSave = async () => {
     try {

@@ -8,6 +8,7 @@ export default function EditServerModal({ isOpen, onClose, target, editTarget, p
   const [command, setCommand] = useState('');
   const [port, setPort] = useState('3000');
   const [name, setName] = useState('');
+  const [ramLimit, setRamLimit] = useState('500');
   const [detectedScripts, setDetectedScripts] = useState([]);
 
   useEffect(() => {
@@ -15,6 +16,7 @@ export default function EditServerModal({ isOpen, onClose, target, editTarget, p
       setName(activeTarget.server.name || 'dev');
       setCommand(activeTarget.server.command || '');
       setPort(activeTarget.server.port ? String(activeTarget.server.port) : '3000');
+      setRamLimit(activeTarget.server.ramLimit ? String(activeTarget.server.ramLimit) : '500');
 
       if (activeTarget.project && activeTarget.project.root) {
         const scripts = ['npm run dev', 'npm start', 'node server.js', 'npx serve', 'python main.py', 'cargo run', 'pnpm dev', 'bun dev', 'yarn dev'];
@@ -39,6 +41,7 @@ export default function EditServerModal({ isOpen, onClose, target, editTarget, p
                 name: name.trim() || srv.name,
                 command: command.trim() || srv.command,
                 port: parseInt(port) || srv.port,
+                ramLimit: parseInt(ramLimit) || 500,
               };
             }
             return srv;
@@ -167,6 +170,26 @@ export default function EditServerModal({ isOpen, onClose, target, editTarget, p
                 className="w-full bg-transparent px-3.5 py-2.5 text-xs text-amber-300 font-mono font-bold focus:outline-none"
               />
             </div>
+          </div>
+
+          {/* RAM Auto-Guard Limit */}
+          <div>
+            <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5 font-mono">
+              <Shield className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Auto-Guard : Limite RAM Max (MB)</span>
+            </label>
+            <div className="relative rounded-xl bg-white/[0.03] border border-white/10 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all duration-200 shadow-inner">
+              <input
+                type="number"
+                value={ramLimit}
+                onChange={(e) => setRamLimit(e.target.value)}
+                placeholder="ex: 500"
+                className="w-full bg-transparent px-3.5 py-2.5 text-xs text-emerald-300 font-mono font-bold focus:outline-none"
+              />
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1 font-sans">
+              Si ce serveur dépasse cette limite de mémoire RAM, Portly le redémarrera automatiquement.
+            </p>
           </div>
 
           {/* Actions */}

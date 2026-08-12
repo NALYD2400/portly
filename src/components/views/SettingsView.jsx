@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Settings, Palette, Zap, Monitor, Shield, Check, Sparkles, RefreshCw, Hash, Bell, Terminal, Activity, FileArchive, Folder, ChevronRight, Sliders, Laptop, Download, Upload, FileJson, Bot, Copy, Pipette } from 'lucide-react';
+import { Settings, Palette, Zap, Monitor, Shield, Check, Sparkles, RefreshCw, Hash, Bell, Terminal, Activity, FileArchive, Folder, ChevronRight, Sliders, Laptop, Download, Upload, FileJson, Bot, Copy, Pipette, Keyboard } from 'lucide-react';
 import ToggleSwitch from '../ui/ToggleSwitch';
 
 function hexToRgbStr(hex) {
@@ -10,6 +10,47 @@ function hexToRgbStr(hex) {
   const num = parseInt(c, 16);
   if (isNaN(num)) return '168, 85, 247';
   return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
+}
+
+function ShortcutRecorder({ value, onChange }) {
+  const [isRecording, setIsRecording] = useState(false);
+
+  const handleKeyDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+
+    const parts = [];
+    if (e.ctrlKey) parts.push('Ctrl');
+    if (e.altKey) parts.push('Alt');
+    if (e.shiftKey) parts.push('Shift');
+
+    let keyName = e.key.toUpperCase();
+    if (keyName === ' ') keyName = 'Space';
+
+    parts.push(keyName);
+    const newShortcut = parts.join('+');
+
+    onChange(newShortcut);
+    setIsRecording(false);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => setIsRecording(true)}
+      onKeyDown={isRecording ? handleKeyDown : undefined}
+      onBlur={() => setIsRecording(false)}
+      className={`px-4 py-2 rounded-xl border text-xs font-mono font-bold transition-all duration-200 cursor-pointer shadow-inner min-w-[150px] text-center ${
+        isRecording
+          ? 'bg-purple-500/20 text-purple-300 border-purple-500 animate-pulse'
+          : 'bg-white/[0.05] hover:bg-white/[0.1] theme-accent-text border-white/10'
+      }`}
+    >
+      {isRecording ? '⌨️ Appuyez sur les touches...' : value || 'Cliquer pour enregistrer'}
+    </button>
+  );
 }
 
 export default function SettingsView({ projects = [] }) {
@@ -29,6 +70,19 @@ export default function SettingsView({ projects = [] }) {
   const [notifWindows, setNotifWindows] = useState(() => localStorage.getItem('portly_cfg_notif_windows') !== 'false');
   const [notifApp, setNotifApp] = useState(() => localStorage.getItem('portly_cfg_notif_app') !== 'false');
   const [autoStart, setAutoStart] = useState(false);
+  const [globalShortcut, setGlobalShortcut] = useState(
+    () => localStorage.getItem('portly_cfg_shortcut') || 'Ctrl+Alt+P'
+  );
+
+  useEffect(() => {
+    invoke('register_global_shortcut_cmd', { shortcut: globalShortcut }).catch(() => {});
+  }, [globalShortcut]);
+
+  const handleUpdateShortcut = (value) => {
+    setGlobalShortcut(value);
+    localStorage.setItem('portly_cfg_shortcut', value);
+    showAutoSaved();
+  };
 
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [copiedSkill, setCopiedSkill] = useState(false);
@@ -202,9 +256,20 @@ When the user types \`/portly\` or requests to configure a project in Portly:
     showAutoSaved();
   };
 
-  const toggleAutoStart = (val) => {
+  useEffect(() => {
+    invoke('is_autostart_cmd')
+      .then((enabled) => setAutoStart(!!enabled))
+      .catch(() => {});
+  }, []);
+
+  const toggleAutoStart = async (val) => {
     setAutoStart(val);
     localStorage.setItem('portly_cfg_autostart', val ? 'true' : 'false');
+    try {
+      await invoke('set_autostart_cmd', { enable: val });
+    } catch (e) {
+      console.error('Failed to update autostart:', e);
+    }
     showAutoSaved();
   };
 
@@ -504,10 +569,27 @@ When the user types \`/portly\` or requests to configure a project in Portly:
                   <div>
                     <div className="text-xs font-semibold text-white">Démarrage Automatique avec Windows</div>
                     <div className="text-[11px] text-gray-400 mt-0.5">
-                      Lancer Portly automatiquement à l'ouverture de votre session Windows
+                      Inscrire Portly dans le Registre OS Windows pour se lancer automatiquement à l'ouverture de session
                     </div>
                   </div>
                   <ToggleSwitch checked={autoStart} onChange={toggleAutoStart} />
+                </div>
+
+                {/* Global Keyboard Shortcut Switcher */}
+                <div className="glass-card p-4 rounded-xl flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-xs font-semibold text-white flex items-center gap-2">
+                      <Keyboard className="w-4 h-4 text-purple-400" />
+                      <span>Raccourci Clavier Global OS (Show / Hide)</span>
+                    </div>
+                    <div className="text-[11px] text-gray-400 mt-0.5">
+                      Afficher ou masquer Portly depuis n'importe quelle application Windows
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <ShortcutRecorder value={globalShortcut} onChange={handleUpdateShortcut} />
+                  </div>
                 </div>
               </div>
             </div>
