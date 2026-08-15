@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import ColorBendsBackground from './components/ui/ColorBendsBackground';
 import TitleBar from './components/layout/TitleBar';
 import Sidebar from './components/layout/Sidebar';
@@ -12,8 +13,7 @@ import AddProjectModal from './components/modals/AddProjectModal';
 import CommandPaletteModal from './components/modals/CommandPaletteModal';
 import EnvEditorModal from './components/modals/EnvEditorModal';
 import EditProjectModal from './components/modals/EditProjectModal';
-import EditServerModal from './components/modals/EditServerModal';
-import AddServerModal from './components/modals/AddServerModal';
+import ServerFormModal from './components/modals/ServerFormModal';
 import AutoUpdateModal from './components/modals/AutoUpdateModal';
 import ToastContainer from './components/ui/ToastContainer';
 import { useProjects, useSystemMetrics } from './hooks/useTauriIPC';
@@ -21,6 +21,7 @@ import { useProjects, useSystemMetrics } from './hooks/useTauriIPC';
 import pkg from '../package.json';
 
 const CURRENT_APP_VERSION = pkg.version;
+const GITHUB_REPO = 'NALYD2400/portly';
 
 function isNewerVersion(latest, current) {
   if (!latest || !current) return false;
@@ -45,18 +46,17 @@ export default function App() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [envModalRoot, setEnvModalRoot] = useState(null);
   const [editProjectTarget, setEditProjectTarget] = useState(null);
-  const [editServerTarget, setEditServerTarget] = useState(null);
-  const [addServerProject, setAddServerProject] = useState(null);
+  const [serverForm, setServerForm] = useState(null); // { mode: 'add'|'edit', project, server }
   const [selectedTerminal, setSelectedTerminal] = useState({ id: null, name: null });
 
-  const { projects, setProjects, saveProjects, loading } = useProjects();
+  const { projects, saveProjects, reload: reloadProjects, loading } = useProjects();
   const metrics = useSystemMetrics();
 
   // Check for updates on GitHub Releases silently at app launch
   useEffect(() => {
     const checkUpdateOnLaunch = async () => {
       try {
-        const res = await fetch('https://api.github.com/repos/NALYD2400/portly/releases/latest', {
+        const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
           headers: { Accept: 'application/vnd.github.v3+json' },
         });
         if (res.ok) {
@@ -88,11 +88,12 @@ export default function App() {
     }
 
     const savedShortcut = localStorage.getItem('portly_cfg_shortcut') || 'Ctrl+Alt+P';
-    setTimeout(() => {
+    const shortcutTimer = setTimeout(() => {
       invoke('register_global_shortcut_cmd', { shortcut: savedShortcut }).catch((e) => {
         console.warn('Non-critical: Global shortcut registration fallback:', e);
       });
     }, 500);
+    return () => clearTimeout(shortcutTimer);
   }, []);
 
   // Global Ctrl+K / Cmd+K Command Palette Shortcut Listener
@@ -186,8 +187,10 @@ export default function App() {
                   onOpenEnvModal={(root) => setEnvModalRoot(root)}
                   onAddProject={() => setIsAddModalOpen(true)}
                   onEditProject={(project) => setEditProjectTarget(project)}
-                  onEditServer={(target) => setEditServerTarget(target)}
-                  onAddServer={(project) => setAddServerProject(project)}
+                  onEditServer={({ project, server }) =>
+                    setServerForm({ mode: 'edit', project, server })
+                  }
+                  onAddServer={(project) => setServerForm({ mode: 'add', project })}
                 />
               )}
 
@@ -205,6 +208,7 @@ export default function App() {
                 <SettingsView
                   projects={projects}
                   onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
+                  reloadProjects={reloadProjects}
                 />
               )}
             </>
@@ -242,19 +246,14 @@ export default function App() {
         onClose={() => setEditProjectTarget(null)}
       />
 
-      <EditServerModal
-        editTarget={editServerTarget}
+      <ServerFormModal
+        mode={serverForm?.mode || 'add'}
+        isOpen={!!serverForm}
+        project={serverForm?.project}
+        server={serverForm?.server}
         projects={projects}
         saveProjects={saveProjects}
-        onClose={() => setEditServerTarget(null)}
-      />
-
-      <AddServerModal
-        isOpen={!!addServerProject}
-        onClose={() => setAddServerProject(null)}
-        project={addServerProject}
-        projects={projects}
-        saveProjects={saveProjects}
+        onClose={() => setServerForm(null)}
       />
 
       <AutoUpdateModal

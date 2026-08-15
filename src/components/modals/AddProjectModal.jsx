@@ -2,16 +2,22 @@ import React, { useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { Folder, X, Plus, Sparkles, Server } from 'lucide-react';
+import Modal from '../ui/Modal';
+
+const isValidPort = (value) => {
+  const n = parseInt(value, 10);
+  return Number.isInteger(n) && n >= 1 && n <= 65535;
+};
 
 export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
   const [folderPath, setFolderPath] = useState('');
   const [projectName, setProjectName] = useState('');
   const [stackInfo, setStackInfo] = useState(null);
+  const [detecting, setDetecting] = useState(false);
   const [serverCommand, setServerCommand] = useState('npm run dev');
   const [serverPort, setServerPort] = useState('3000');
   const [color, setColor] = useState('#a855f7');
-
-  if (!isOpen) return null;
+  const [error, setError] = useState('');
 
   const handleSelectFolder = async () => {
     try {
@@ -22,13 +28,22 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
       });
       if (selected) {
         setFolderPath(selected);
+        setError('');
         const name = selected.split(/[\\/]/).pop() || 'Nouveau Projet';
         setProjectName(name);
 
-        const detected = await invoke('detect_stack_cmd', { path: selected });
-        setStackInfo(detected);
-        if (detected.default_dev_cmd) {
-          setServerCommand(detected.default_dev_cmd);
+        setDetecting(true);
+        try {
+          const detected = await invoke('detect_stack_cmd', { path: selected });
+          setStackInfo(detected);
+          if (detected.default_dev_cmd) {
+            setServerCommand(detected.default_dev_cmd);
+          }
+        } catch (e) {
+          setStackInfo(null);
+          console.error('Stack detection failed:', e);
+        } finally {
+          setDetecting(false);
         }
       }
     } catch (e) {
@@ -40,8 +55,13 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
     e.preventDefault();
     if (!folderPath || !projectName) return;
 
+    if (!isValidPort(serverPort)) {
+      setError('Le port TCP doit être un nombre entre 1 et 65535.');
+      return;
+    }
+
     const newProject = {
-      id: `prj_${Math.random().toString(36).substr(2, 8)}`,
+      id: `prj_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`}`,
       name: projectName,
       root: folderPath,
       color,
@@ -49,10 +69,11 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
       framework: stackInfo?.framework || 'Node.js',
       servers: [
         {
-          id: `srv_${Math.random().toString(36).substr(2, 8)}`,
+          id: `srv_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`}`,
           name: 'dev',
           command: serverCommand,
-          port: parseInt(serverPort) || 3000,
+          port: parseInt(serverPort, 10),
+          ramLimit: 500,
           state: 'stopped',
           healthy: false,
           env: {},
@@ -65,14 +86,8 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
   };
 
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 select-none cursor-pointer"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="glass-panel w-full max-w-lg rounded-2xl p-6 border theme-accent-border shadow-2xl space-y-5 animate-scaleUp cursor-default"
-      >
+    <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
+      <div className="p-6 space-y-5">
         <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg theme-accent-badge flex items-center justify-center">
@@ -84,7 +99,9 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Fermer"
             className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -94,9 +111,10 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           {/* Folder Selector */}
           <div>
-            <label className="block font-medium text-gray-300 mb-1.5">Dossier du Projet</label>
+            <label htmlFor="prj-folder" className="block font-medium text-gray-300 mb-1.5">Dossier du Projet</label>
             <div className="flex gap-2">
               <input
+                id="prj-folder"
                 type="text"
                 readOnly
                 value={folderPath}
@@ -118,8 +136,9 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-medium text-gray-300 mb-1.5">Nom du Projet</label>
+                  <label htmlFor="prj-name" className="block font-medium text-gray-300 mb-1.5">Nom du Projet</label>
                   <input
+                    id="prj-name"
                     type="text"
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
@@ -127,8 +146,9 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-gray-300 mb-1.5">Couleur d'accent</label>
+                  <label htmlFor="prj-color" className="block font-medium text-gray-300 mb-1.5">Couleur d'accent</label>
                   <input
+                    id="prj-color"
                     type="color"
                     value={color}
                     onChange={(e) => setColor(e.target.value)}
@@ -137,13 +157,20 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
                 </div>
               </div>
 
-              {stackInfo && (
+              {detecting && (
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 flex items-center gap-2 text-gray-400">
+                  <Sparkles className="w-4 h-4 animate-pulse theme-accent-text" />
+                  <span>Détection du stack en cours...</span>
+                </div>
+              )}
+
+              {stackInfo && !detecting && (
                 <div className="p-3 rounded-xl theme-accent-badge flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 theme-accent-text" />
                     <span>Stack Détecté : <strong>{stackInfo.framework}</strong></span>
                   </div>
-                  <span className="font-mono text-[10px] theme-accent-badge px-2 py-0.5 rounded">
+                  <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-black/40">
                     {stackInfo.package_manager}
                   </span>
                 </div>
@@ -157,8 +184,9 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="col-span-2">
-                    <label className="block text-[11px] text-gray-400 mb-1">Commande</label>
+                    <label htmlFor="prj-cmd" className="block text-[11px] text-gray-400 mb-1">Commande</label>
                     <input
+                      id="prj-cmd"
                       type="text"
                       value={serverCommand}
                       onChange={(e) => setServerCommand(e.target.value)}
@@ -166,9 +194,12 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] text-gray-400 mb-1">Port</label>
+                    <label htmlFor="prj-port" className="block text-[11px] text-gray-400 mb-1">Port</label>
                     <input
+                      id="prj-port"
                       type="number"
+                      min="1"
+                      max="65535"
                       value={serverPort}
                       onChange={(e) => setServerPort(e.target.value)}
                       className="w-full px-3 py-1.5 rounded-lg bg-black/40 border border-white/[0.1] text-white font-mono focus:outline-none"
@@ -177,6 +208,12 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
                 </div>
               </div>
             </>
+          )}
+
+          {error && (
+            <div role="alert" className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl px-3.5 py-2.5">
+              {error}
+            </div>
           )}
 
           {/* Action Buttons */}
@@ -191,13 +228,14 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
             <button
               type="submit"
               disabled={!folderPath || !projectName}
-              className="px-4 py-2 rounded-xl theme-accent-btn text-white font-medium transition-colors disabled:opacity-50 cursor-pointer"
+              className="px-4 py-2 rounded-xl theme-accent-btn text-white font-medium transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
             >
+              <Plus className="w-3.5 h-3.5" />
               Ajouter le Projet
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

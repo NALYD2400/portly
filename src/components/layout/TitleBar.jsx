@@ -9,7 +9,7 @@ export default function TitleBar() {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         return getCurrentWindow();
       }
-    } catch (e) {
+    } catch {
       console.warn('Failed to get Tauri window:', e);
     }
     return null;
@@ -19,7 +19,7 @@ export default function TitleBar() {
     try {
       const win = await getWin();
       if (win) await win.minimize();
-    } catch (e) {}
+    } catch {}
   };
 
   const handleMaximize = async () => {
@@ -33,19 +33,26 @@ export default function TitleBar() {
           await win.maximize();
         }
       }
-    } catch (e) {}
+    } catch {}
   };
 
   const handleClose = async () => {
+    const minimizeToTray = localStorage.getItem('portly_cfg_minimizetotray') !== 'false';
     try {
-      await invoke('hide_window_cmd');
-    } catch (e) {
+      if (minimizeToTray) {
+        // Masque dans le tray (réouverture via raccourci global ou icône tray)
+        await invoke('hide_window_cmd');
+      } else {
+        // Fermeture complète : quitte et nettoie tous les process gérés
+        await invoke('exit_app');
+      }
+    } catch {
       try {
         const win = await getWin();
         if (win && typeof win.hide === 'function') {
           await win.hide();
         }
-      } catch (err) {}
+      } catch {}
     }
   };
 
@@ -93,7 +100,11 @@ export default function TitleBar() {
           type="button"
           onClick={handleClose}
           className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-red-500/80 text-gray-400 hover:text-white transition-colors cursor-pointer"
-          title="Réduire dans la barre des tâches"
+          title={
+            localStorage.getItem('portly_cfg_minimizetotray') !== 'false'
+              ? 'Réduire dans la barre des tâches'
+              : 'Quitter Portly complètement'
+          }
         >
           <X className="w-3.5 h-3.5" />
         </button>

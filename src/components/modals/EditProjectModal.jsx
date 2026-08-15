@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit3, Save, Palette, Box, Zap, Package, Code, Terminal, Layers, Cpu, Globe, Check } from 'lucide-react';
+import { X, Edit3, Save, Palette, Check } from 'lucide-react';
+import Modal from '../ui/Modal';
 
 const COLOR_PRESETS = [
   '#a855f7', // Violet
@@ -23,8 +24,6 @@ export default function EditProjectModal({ isOpen, onClose, project, projects, s
     }
   }, [project]);
 
-  if (!isOpen || !project) return null;
-
   const handleSubmit = (e) => {
     e.preventDefault();
     const updatedProjects = projects.map((p) => {
@@ -43,14 +42,8 @@ export default function EditProjectModal({ isOpen, onClose, project, projects, s
   };
 
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 select-none cursor-pointer animate-fadeIn"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="glass-panel w-full max-w-md rounded-3xl p-6 border border-white/10 shadow-2xl space-y-5 animate-scaleUp cursor-default bg-[#0d0b1c]"
-      >
+    <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-md">
+      <div className="p-6 space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <div className="flex items-center gap-3">
@@ -70,7 +63,9 @@ export default function EditProjectModal({ isOpen, onClose, project, projects, s
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Fermer"
             className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -81,12 +76,14 @@ export default function EditProjectModal({ isOpen, onClose, project, projects, s
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Project Name */}
           <div>
-            <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5 font-mono">
+            <label htmlFor="edit-prj-name" className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5 font-mono">
               Nom du Projet
             </label>
             <input
+              id="edit-prj-name"
               type="text"
               required
+              autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white font-mono focus:outline-none theme-accent-border shadow-inner"
@@ -106,6 +103,8 @@ export default function EditProjectModal({ isOpen, onClose, project, projects, s
                   <button
                     key={presetHex}
                     type="button"
+                    aria-label={`Couleur ${presetHex}`}
+                    aria-pressed={isSelected}
                     onClick={() => setColor(presetHex)}
                     className={`h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
                       isSelected ? 'ring-2 ring-white scale-105 shadow-lg' : 'hover:scale-95 border-white/10'
@@ -138,6 +137,6 @@ export default function EditProjectModal({ isOpen, onClose, project, projects, s
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

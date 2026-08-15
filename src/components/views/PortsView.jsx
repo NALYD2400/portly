@@ -1,44 +1,75 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Network, RefreshCw, Skull, ExternalLink, Search, Sparkles, Radio, Server, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Network, RefreshCw, Skull, ExternalLink, Search, Sparkles, Radio, ShieldAlert } from 'lucide-react';
 
 import { triggerToast } from '../ui/ToastContainer';
+import ConfirmDialog from '../ui/ConfirmDialog';
+
+const POLL_INTERVAL_MS = 3000;
 
 export default function PortsView({ projects = [] }) {
   const [ports, setPorts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [fetchError, setFetchError] = useState('');
+  const [confirmKill, setConfirmKill] = useState(null); // { pid, processName, port }
+  const manualRefreshRef = useRef(false);
 
-  const fetchPorts = async () => {
+  const fetchPorts = useCallback(async () => {
     setLoading(true);
     try {
       const res = await invoke('get_ports_cmd');
       setPorts(res || []);
+      setFetchError('');
     } catch (e) {
-      console.error('Failed to fetch active ports:', e);
+      setFetchError(String(e));
     } finally {
       setLoading(false);
+      manualRefreshRef.current = false;
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchPorts();
-    const interval = setInterval(fetchPorts, 3000);
-    return () => clearInterval(interval);
-  }, []);
 
-  const handleKillPort = async (pid) => {
+    // Le scan des ports ne tourne que quand la fenêtre est visible
+    let interval = setInterval(fetchPorts, POLL_INTERVAL_MS);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        if (!interval) interval = setInterval(fetchPorts, POLL_INTERVAL_MS);
+        fetchPorts();
+      } else if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [fetchPorts]);
+
+  const handleManualRefresh = () => {
+    manualRefreshRef.current = true;
+    fetchPorts();
+  };
+
+  const executeKill = async () => {
+    if (!confirmKill) return;
+    const { pid, processName } = confirmKill;
+    setConfirmKill(null);
     try {
       await invoke('kill_port_cmd', { pid });
       triggerToast({
         title: '☠️ Processus Terminé',
-        message: `Le processus PID ${pid} a été libéré.`,
+        message: `${processName} (PID ${pid}) a été arrêté.`,
         type: 'warning',
       });
       fetchPorts();
     } catch (e) {
-      console.error('Failed to kill process:', e);
       triggerToast({
         title: '⚠️ Échec de la Fermeture',
         message: String(e),
@@ -77,10 +108,12 @@ export default function PortsView({ projects = [] }) {
     return (
       p.port.toString().includes(q) ||
       p.process_name.toLowerCase().includes(q) ||
-      p.pid.toString().includes(q) ||
+      String(p.pid ?? '').includes(q) ||
       (isPortly && portlyServersMap[p.port].projectName.toLowerCase().includes(q))
     );
   });
+
+  const showSpinner = loading && manualRefreshRef.current;
 
   return (
     <div className="space-y-6 animate-fadeIn select-none pb-8">
@@ -100,7 +133,7 @@ export default function PortsView({ projects = [] }) {
           </div>
 
           <p className="text-xs text-gray-400 mt-1.5">
-            Moniteur des ports d'écoute actifs du système. Les serveurs gérés par Portly sont automatiquement identifiés.
+            Moniteur natif des ports d'écoute actifs du système. Les serveurs gérés par Portly sont automatiquement identifiés.
           </p>
         </div>
 
@@ -118,15 +151,21 @@ export default function PortsView({ projects = [] }) {
           </div>
 
           <button
-            onClick={fetchPorts}
-            disabled={loading}
+            onClick={handleManualRefresh}
             className="px-4 py-2 rounded-2xl theme-accent-btn text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-lg active:scale-95 hover:brightness-110"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${showSpinner ? 'animate-spin' : ''}`} />
             <span>Actualiser</span>
           </button>
         </div>
       </div>
+
+      {fetchError && (
+        <div role="alert" className="glass-panel p-4 rounded-2xl border border-red-500/30 bg-red-500/10 text-xs text-red-300 flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 shrink-0" />
+          <span className="break-words">Erreur de scan des ports : {fetchError}</span>
+        </div>
+      )}
 
       {/* Filter Tabs Bar */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -177,12 +216,12 @@ export default function PortsView({ projects = [] }) {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-white/10 bg-white/[0.02] text-gray-400 font-mono text-[11px] uppercase tracking-wider">
-                <th className="py-3.5 px-5">Port</th>
-                <th className="py-3.5 px-5">Processus / Application</th>
-                <th className="py-3.5 px-5">PID</th>
-                <th className="py-3.5 px-5">Adresse Locale</th>
-                <th className="py-3.5 px-5">Protocole</th>
-                <th className="py-3.5 px-5 text-right">Actions</th>
+                <th scope="col" className="py-3.5 px-5">Port</th>
+                <th scope="col" className="py-3.5 px-5">Processus / Application</th>
+                <th scope="col" className="py-3.5 px-5">PID</th>
+                <th scope="col" className="py-3.5 px-5">Adresse Locale</th>
+                <th scope="col" className="py-3.5 px-5">Protocole</th>
+                <th scope="col" className="py-3.5 px-5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04] font-mono text-gray-300">
@@ -190,7 +229,11 @@ export default function PortsView({ projects = [] }) {
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-gray-500 font-sans italic space-y-2">
                     <div className="text-sm font-semibold text-gray-400">Aucun port d'écoute actif trouvé</div>
-                    <div className="text-xs text-gray-500">Essayez de réinitialiser vos critères de recherche.</div>
+                    <div className="text-xs text-gray-500">
+                      {search || filterType !== 'all'
+                        ? 'Essayez de réinitialiser vos critères de recherche.'
+                        : 'Aucun port TCP en écoute détecté sur ce système.'}
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -248,7 +291,7 @@ export default function PortsView({ projects = [] }) {
                       {/* PID */}
                       <td className="py-3 px-5">
                         <span className="text-xs font-mono text-gray-400 bg-white/[0.04] border border-white/10 px-2 py-0.5 rounded-lg">
-                          {entry.pid}
+                          {entry.pid ?? '—'}
                         </span>
                       </td>
 
@@ -271,14 +314,22 @@ export default function PortsView({ projects = [] }) {
                             onClick={() => invoke('open_browser', { url: `http://localhost:${entry.port}` })}
                             className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-300 hover:text-white border border-white/[0.08] transition-all cursor-pointer active:scale-95"
                             title="Ouvrir dans le navigateur"
+                            aria-label="Ouvrir dans le navigateur"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                           </button>
 
                           <button
-                            onClick={() => handleKillPort(entry.pid)}
+                            onClick={() =>
+                              setConfirmKill({
+                                pid: entry.pid,
+                                processName: entry.process_name,
+                                port: entry.port,
+                                isPortly: !!portlyMatch,
+                              })
+                            }
                             className="px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs flex items-center gap-1.5 border border-red-500/40 shadow-lg shadow-red-500/10 transition-all cursor-pointer active:scale-95"
-                            title="Tuer le processus"
+                            title={`Tuer le processus ${entry.process_name} (PID ${entry.pid})`}
                           >
                             <Skull className="w-3.5 h-3.5 fill-red-400 text-red-400" />
                             <span>Tuer ({entry.pid})</span>
@@ -293,6 +344,20 @@ export default function PortsView({ projects = [] }) {
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmKill}
+        title={confirmKill?.isPortly ? 'Arrêter ce serveur Portly ?' : 'Terminer ce processus système ?'}
+        message={
+          confirmKill?.isPortly
+            ? `Vous allez forcer l'arrêt de « ${confirmKill?.processName} » (PID ${confirmKill?.pid}) qui écoute sur le port ${confirmKill?.port} et qui appartient à un de vos projets Portly.`
+            : `Attention : « ${confirmKill?.processName} » (PID ${confirmKill?.pid}) sur le port ${confirmKill?.port} n'appartient PAS à Portly. Forcer son arrêt peut déstabiliser l'application ou le service qui l'utilise.`
+        }
+        confirmLabel={`Tuer le processus ${confirmKill ? `(${confirmKill.pid})` : ''}`.trim()}
+        danger
+        onConfirm={executeKill}
+        onCancel={() => setConfirmKill(null)}
+      />
     </div>
   );
 }

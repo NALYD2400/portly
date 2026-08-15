@@ -1,6 +1,11 @@
 import React from 'react';
-import { Cpu, Activity, Zap, FolderCode, Play, Square, ExternalLink, Terminal, ArrowUpRight } from 'lucide-react';
+import { Cpu, Activity, Zap, Square, ExternalLink, ArrowUpRight } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { triggerToast } from '../ui/ToastContainer';
+import { markManualStop } from '../../hooks/useTauriIPC';
+
+// Échelle de référence pour la barre RAM cumulative (2 Go)
+const RAM_SCALE_MB = 2048;
 
 export default function DashboardView({ metrics, projects, onSelectTab }) {
   const totalProjects = projects.length;
@@ -25,15 +30,27 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
     });
   });
 
-  const handleStopServer = async (serverId) => {
+  const handleStopServer = async (serverId, serverName) => {
+    markManualStop(serverId);
     try {
       await invoke('stop_server_cmd', { serverId });
     } catch (e) {
-      console.error('Error stopping server:', e);
+      if (!String(e).includes("n'est pas en cours")) {
+        triggerToast({
+          title: '⚠️ Échec de l\'Arrêt',
+          message: `Impossible d'arrêter ${serverName}: ${String(e)}`,
+          type: 'error',
+        });
+      }
     }
   };
 
-  const handleOpenBrowser = (url) => invoke('open_browser', { url });
+  const handleOpenBrowser = (url) =>
+    invoke('open_browser', { url }).catch((e) =>
+      triggerToast({ title: '⚠️ Navigateur', message: String(e), type: 'error' })
+    );
+
+  const ramPct = Math.min(100, ((metrics.managed_ram_mb || 0) / RAM_SCALE_MB) * 100);
 
   return (
     <div className="space-y-6 animate-fadeIn select-none pb-8">
@@ -59,9 +76,9 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
         </button>
       </div>
 
-      {/* UNIFIED METRICS BENTO PANEL (Synchronized with User Selected Theme Accent Color) */}
-      <div className="glass-panel rounded-3xl border border-white/10 p-6 shadow-2xl bg-gradient-to-br from-[#0e0c1f] via-[#130f2c] to-[#0e0c1f] relative overflow-hidden group hover:theme-accent-border transition-all duration-300">
-        {/* Glow backdrop synchronized with theme accent color */}
+      {/* UNIFIED METRICS BENTO PANEL */}
+      <div className="glass-panel rounded-3xl border border-white/10 p-6 shadow-2xl bg-gradient-to-br from-[#0e0c1f] via-[#130f2c] to-[#0e0c1f] relative overflow-hidden group">
+        {/* Glow backdrop synchronisé avec l'accent */}
         <div
           className="pointer-events-none absolute -right-20 -top-20 w-80 h-80 rounded-full blur-3xl transition-all duration-500"
           style={{ background: 'rgba(var(--accent-color-rgb), 0.15)' }}
@@ -93,7 +110,14 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
 
             <p className="text-[11px] text-gray-400 font-mono">Total CPU utilisé par vos serveurs de dev</p>
 
-            <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden border border-white/10 p-0.5">
+            <div
+              role="progressbar"
+              aria-label="CPU total des serveurs"
+              aria-valuenow={Math.round(metrics.managed_cpu_pct || 0)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              className="w-full bg-black/50 h-2 rounded-full overflow-hidden border border-white/10 p-0.5"
+            >
               <div
                 className="theme-accent-btn h-full rounded-full transition-all duration-500 shadow-[0_0_10px_var(--accent-color)]"
                 style={{ width: `${Math.min(100, metrics.managed_cpu_pct || 0)}%` }}
@@ -122,10 +146,18 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
 
             <p className="text-[11px] text-gray-400 font-mono">Mémoire RAM cumulée de vos processus</p>
 
-            <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden border border-white/10 p-0.5">
+            <div
+              role="progressbar"
+              aria-label="RAM cumulée des serveurs"
+              aria-valuenow={Math.round(ramPct)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              title={`Échelle de référence : ${RAM_SCALE_MB / 1024} Go`}
+              className="w-full bg-black/50 h-2 rounded-full overflow-hidden border border-white/10 p-0.5"
+            >
               <div
                 className="theme-accent-btn h-full rounded-full transition-all duration-500 shadow-[0_0_10px_var(--accent-color)]"
-                style={{ width: `${Math.min(100, (metrics.managed_ram_mb || 0) / 50)}%` }}
+                style={{ width: `${ramPct}%` }}
               />
             </div>
           </div>
@@ -147,16 +179,23 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
               <span className="text-3xl font-extrabold text-white font-mono tracking-tight">
                 {metrics.active_servers_count || 0}
               </span>
-              <span className="text-xs text-gray-400 font-mono">/ {totalProjects} projet(s) inscrits</span>
+              <span className="text-xs text-gray-400 font-mono">serveurs / {totalProjects} projet(s)</span>
             </div>
 
             <p className="text-[11px] text-gray-400 font-mono">Processus de dev actifs en arrière-plan</p>
 
-            <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden border border-white/10 p-0.5">
+            <div
+              role="progressbar"
+              aria-label="Serveurs actifs"
+              aria-valuenow={metrics.active_servers_count || 0}
+              aria-valuemin={0}
+              aria-valuemax={Math.max(1, totalProjects)}
+              className="w-full bg-black/50 h-2 rounded-full overflow-hidden border border-white/10 p-0.5"
+            >
               <div
                 className="theme-accent-btn h-full rounded-full transition-all duration-500 shadow-[0_0_10px_var(--accent-color)]"
                 style={{
-                  width: totalProjects > 0 ? `${((metrics.active_servers_count || 0) / totalProjects) * 100}%` : '0%',
+                  width: totalProjects > 0 ? `${Math.min(100, ((metrics.active_servers_count || 0) / totalProjects) * 100)}%` : '0%',
                 }}
               />
             </div>
@@ -168,7 +207,7 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
       <div className="glass-panel p-6 rounded-3xl space-y-4 border border-white/10 shadow-2xl">
         <div className="flex items-center justify-between border-b border-white/[0.08] pb-3.5">
           <h2 className="text-sm font-bold text-white flex items-center gap-2 tracking-tight">
-            <Zap className="w-4.5 h-4.5 theme-accent-text" />
+            <Zap className="w-4 h-4 theme-accent-text" />
             <span>Processus & Serveurs Lancés en Temps Réel ({runningServersList.length})</span>
           </h2>
           <span className="text-[11px] text-gray-400 font-mono">Actualisation 2s</span>
@@ -179,7 +218,7 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
             <div>Aucun serveur de dev n'est actuellement lancé.</div>
             <button
               onClick={() => onSelectTab('projects')}
-              className="px-3.5 py-1.5 rounded-xl theme-accent-badge text-xs transition-colors cursor-pointer font-bold"
+              className="px-3.5 py-1.5 rounded-xl theme-accent-badge text-xs transition-colors cursor-pointer font-bold not-italic"
             >
               Lancer un serveur de projet →
             </button>
@@ -189,9 +228,9 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
             {runningServersList.map((srv) => (
               <div
                 key={srv.id}
-                className="glass-card p-4 rounded-2xl flex items-center justify-between border border-white/[0.08] hover:theme-accent-border transition-all duration-200"
+                className="glass-card p-4 rounded-2xl flex items-center justify-between border border-white/[0.08] hover-accent-border transition-all duration-200"
               >
-                <div className="flex items-center gap-3.5">
+                <div className="flex items-center gap-3.5 min-w-0">
                   <div
                     className="w-3.5 h-3.5 rounded-full shadow-lg shrink-0"
                     style={{
@@ -199,7 +238,7 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
                       boxShadow: `0 0 12px ${srv.projectColor || 'var(--accent-color)'}`,
                     }}
                   />
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-sm font-bold text-white tracking-tight">{srv.projectName}</h3>
                       <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full theme-accent-badge">
@@ -211,7 +250,7 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] font-mono text-gray-400 mt-1 select-all">{srv.command}</p>
+                    <p className="text-[11px] font-mono text-gray-400 mt-1 select-all truncate">{srv.command}</p>
                   </div>
                 </div>
 
@@ -237,13 +276,14 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
                         onClick={() => handleOpenBrowser(`http://localhost:${srv.port}`)}
                         className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-300 hover:text-white border border-white/[0.08] transition-all cursor-pointer active:scale-95"
                         title="Ouvrir dans le navigateur"
+                        aria-label="Ouvrir dans le navigateur"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                       </button>
                     )}
 
                     <button
-                      onClick={() => handleStopServer(srv.id)}
+                      onClick={() => handleStopServer(srv.id, srv.name)}
                       className="px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs flex items-center gap-1.5 border border-red-500/40 shadow-lg shadow-red-500/10 transition-all cursor-pointer active:scale-95"
                     >
                       <Square className="w-3.5 h-3.5 fill-red-400 text-red-400" />

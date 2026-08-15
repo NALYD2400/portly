@@ -101,7 +101,7 @@ pub fn get_git_branch(project_root: &str) -> Option<String> {
             let trimmed = content.trim();
             if trimmed.starts_with("ref: refs/heads/") {
                 return Some(trimmed.replace("ref: refs/heads/", ""));
-            } else if trimmed.len() >= 7 {
+            } else if trimmed.len() >= 7 && trimmed.is_char_boundary(7) {
                 return Some(trimmed[..7].to_string());
             }
         }

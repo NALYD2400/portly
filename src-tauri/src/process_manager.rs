@@ -1,10 +1,11 @@
+use parking_lot::Mutex;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::os::windows::process::CommandExt;
 use std::process::Stdio;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::BufReader;
 use tokio::process::Child;
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -26,6 +27,29 @@ pub struct ProcessManager {
     processes: Arc<Mutex<HashMap<String, u32>>>,
 }
 
+/// Lit les lignes d'un flux de sortie en tolérant l'encodage non-UTF-8
+/// (cp850/cp1252 courant sur Windows FR). `read_until` + `from_utf8_lossy`
+/// remplacent `lines()` qui abandonne silencieusement sur des octets invalides.
+async fn stream_output<R: tokio::io::AsyncBufRead + Unpin, F: Fn(String)>(mut reader: R, emit_line: F) {
+    use tokio::io::AsyncBufReadExt;
+
+    let mut buf = Vec::with_capacity(512);
+    loop {
+        buf.clear();
+        match reader.read_until(b'\n', &mut buf).await {
+            Ok(0) => break,
+            Ok(_) => {
+                let line = String::from_utf8_lossy(&buf);
+                let line = line.trim_end_matches(['\n', '\r']);
+                if !line.is_empty() {
+                    emit_line(line.to_string());
+                }
+            }
+            Err(_) => break,
+        }
+    }
+}
+
 impl ProcessManager {
     pub fn new() -> Self {
         Self {
@@ -33,6 +57,7 @@ impl ProcessManager {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn start_server(
         &self,
         app: AppHandle,
@@ -41,10 +66,10 @@ impl ProcessManager {
         command: String,
         env: HashMap<String, String>,
     ) -> Result<u32, String> {
-        let mut processes = self.processes.lock().unwrap();
+        let mut processes = self.processes.lock();
 
         if processes.contains_key(&server_id) {
-            return Err("Server is already running".to_string());
+            return Err("Ce serveur est déjà en cours d'exécution.".to_string());
         }
 
         let mut cmd = tokio::process::Command::new("cmd.exe");
@@ -58,9 +83,11 @@ impl ProcessManager {
             cmd.env(k, v);
         }
 
-        let mut child: Child = cmd.spawn().map_err(|e| format!("Failed to spawn process: {}", e))?;
+        let mut child: Child = cmd
+            .spawn()
+            .map_err(|e| format!("Impossible de lancer le processus: {}", e))?;
 
-        let pid = child.id().ok_or("Failed to get PID")?;
+        let pid = child.id().ok_or("Impossible d'obtenir le PID")?;
         processes.insert(server_id.clone(), pid);
 
         let app_handle = app.clone();
@@ -84,8 +111,8 @@ impl ProcessManager {
             let app_out = app_handle.clone();
             let s_out = s_id.clone();
             tauri::async_runtime::spawn(async move {
-                let mut reader = BufReader::new(stdout).lines();
-                while let Ok(Some(line)) = reader.next_line().await {
+                let reader = BufReader::new(stdout);
+                stream_output(reader, move |line| {
                     let _ = app_out.emit(
                         "server-log-line",
                         LogPayload {
@@ -93,7 +120,8 @@ impl ProcessManager {
                             line,
                         },
                     );
-                }
+                })
+                .await;
             });
         }
 
@@ -102,8 +130,8 @@ impl ProcessManager {
             let app_err = app_handle.clone();
             let s_err = s_id.clone();
             tauri::async_runtime::spawn(async move {
-                let mut reader = BufReader::new(stderr).lines();
-                while let Ok(Some(line)) = reader.next_line().await {
+                let reader = BufReader::new(stderr);
+                stream_output(reader, move |line| {
                     let _ = app_err.emit(
                         "server-log-line",
                         LogPayload {
@@ -111,7 +139,8 @@ impl ProcessManager {
                             line,
                         },
                     );
-                }
+                })
+                .await;
             });
         }
 
@@ -122,7 +151,7 @@ impl ProcessManager {
         tauri::async_runtime::spawn(async move {
             let _ = child.wait().await;
             {
-                let mut map = processes_ref.lock().unwrap();
+                let mut map = processes_ref.lock();
                 map.remove(&s_exit);
             }
             let _ = app_exit.emit(
@@ -140,7 +169,7 @@ impl ProcessManager {
 
     pub fn stop_server(&self, server_id: &str) -> Result<(), String> {
         let pid_opt = {
-            let mut processes = self.processes.lock().unwrap();
+            let mut processes = self.processes.lock();
             processes.remove(server_id)
         };
 
@@ -149,15 +178,24 @@ impl ProcessManager {
             kill_cmd
                 .args(["/F", "/T", "/PID", &pid.to_string()])
                 .creation_flags(CREATE_NO_WINDOW);
-            let _ = kill_cmd.output();
+            let output = kill_cmd
+                .output()
+                .map_err(|e| format!("Erreur d'exécution de taskkill: {}", e))?;
+            if !output.status.success() {
+                return Err(format!(
+                    "Échec de l'arrêt du processus {}: {}",
+                    pid,
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ));
+            }
             Ok(())
         } else {
-            Err("Server not running".to_string())
+            Err("Ce serveur n'est pas en cours d'exécution.".to_string())
         }
     }
 
     pub fn stop_all_servers(&self) {
-        let mut processes = self.processes.lock().unwrap();
+        let mut processes = self.processes.lock();
         for (_id, pid) in processes.drain() {
             let mut kill_cmd = std::process::Command::new("taskkill");
             kill_cmd
@@ -168,12 +206,12 @@ impl ProcessManager {
     }
 
     pub fn is_running(&self, server_id: &str) -> bool {
-        let processes = self.processes.lock().unwrap();
+        let processes = self.processes.lock();
         processes.contains_key(server_id)
     }
 
     pub fn get_active_pids(&self) -> HashMap<String, u32> {
-        let processes = self.processes.lock().unwrap();
+        let processes = self.processes.lock();
         processes.clone()
     }
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, AlertTriangle, XCircle, Info, X, Zap } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle, X, Zap } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 
 export default function ToastContainer() {

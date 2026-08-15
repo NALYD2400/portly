@@ -7,7 +7,12 @@ export default function ToggleSwitch({ checked, onChange, disabled = false, size
       role="switch"
       aria-checked={checked}
       disabled={disabled}
-      onClick={() => !disabled && onChange(!checked)}
+      onClick={(e) => {
+        // Empêche le double-déclenchement quand le switch est imbriqué
+        // dans une rangée cliquable (parent + enfant)
+        e.stopPropagation();
+        if (!disabled) onChange(!checked);
+      }}
       className={`relative inline-flex shrink-0 cursor-pointer items-center rounded-full border transition-all duration-300 ease-out focus:outline-none ${
         disabled ? 'opacity-40 cursor-not-allowed' : 'hover:scale-[1.04] active:scale-95'
       } ${

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Settings, Palette, Zap, Monitor, Shield, Check, Sparkles, RefreshCw, Hash, ChevronRight, Download, Upload, Bot, Copy, Pipette, Keyboard } from 'lucide-react';
 import ToggleSwitch from '../ui/ToggleSwitch';
+import { triggerToast } from '../ui/ToastContainer';
 
 import pkg from '../../../package.json';
 
@@ -14,64 +15,121 @@ function hexToRgbStr(hex) {
   return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
 
+function isValidHex(hex) {
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex);
+}
+
 function ShortcutRecorder({ value, onChange }) {
   const [isRecording, setIsRecording] = useState(false);
 
-  const handleKeyDown = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  useEffect(() => {
+    if (!isRecording) return undefined;
 
-    if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+    const handleKeyDown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-    const parts = [];
-    if (e.ctrlKey) parts.push('Ctrl');
-    if (e.altKey) parts.push('Alt');
-    if (e.shiftKey) parts.push('Shift');
+      if (e.key === 'Escape') {
+        setIsRecording(false);
+        return;
+      }
+      if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
 
-    if (!e.ctrlKey && !e.altKey) {
-      parts.unshift('Ctrl');
-    }
+      const parts = [];
+      if (e.ctrlKey) parts.push('Ctrl');
+      if (e.altKey) parts.push('Alt');
+      if (e.shiftKey) parts.push('Shift');
 
-    let keyName = e.key.toUpperCase();
-    if (keyName === ' ') keyName = 'Space';
+      // Un raccourci global OS nécessite au moins un modificateur
+      if (!e.ctrlKey && !e.altKey) {
+        parts.unshift('Ctrl');
+      }
 
-    parts.push(keyName);
-    const newShortcut = parts.join('+');
+      let keyName = e.key.toUpperCase();
+      if (keyName === ' ') keyName = 'Space';
 
-    onChange(newShortcut);
-    setIsRecording(false);
-  };
+      parts.push(keyName);
+      onChange(parts.join('+'));
+      setIsRecording(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [isRecording, onChange]);
 
   return (
-    <button
-      type="button"
-      onClick={() => setIsRecording(true)}
-      onKeyDown={isRecording ? handleKeyDown : undefined}
-      onBlur={() => setIsRecording(false)}
-      className={`px-4 py-2 rounded-xl border text-xs font-mono font-bold transition-all duration-200 cursor-pointer shadow-inner min-w-[150px] text-center ${
-        isRecording
-          ? 'bg-purple-500/20 text-purple-300 border-purple-500 animate-pulse'
-          : 'bg-white/[0.05] hover:bg-white/[0.1] theme-accent-text border-white/10'
-      }`}
-    >
-      {isRecording ? '⌨️ Appuyez sur les touches...' : value || 'Cliquer pour enregistrer'}
-    </button>
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setIsRecording(!isRecording)}
+        className={`px-4 py-2 rounded-xl border text-xs font-mono font-bold transition-all duration-200 cursor-pointer shadow-inner min-w-[150px] text-center ${
+          isRecording
+            ? 'theme-accent-active animate-pulse border-white/30'
+            : 'bg-white/[0.05] hover:bg-white/[0.1] theme-accent-text border-white/10'
+        }`}
+      >
+        {isRecording ? '⌨️ Touches... (Esc pour annuler)' : value || 'Cliquer pour enregistrer'}
+      </button>
+    </div>
   );
 }
 
-export default function SettingsView({ projects = [], onOpenUpdateModal }) {
+// Généré une seule fois au chargement du module — chemins génériques, plus de
+// dossier personnel en dur, version synchronisée avec package.json.
+const SKILL_MARKDOWN = `---
+name: portly
+description: Automatically adds, registers, and manages codebases/projects in Portly (the high-performance Rust-powered developer process supervisor). Use when the user types /portly or asks to register, track, configure, or inspect projects in Portly.
+---
+
+# Portly v${pkg.version} Project Supervisor Skill
+
+This skill registers, configures, and manages active codebase projects in **Portly** (\`%APPDATA%\\portly\\projects.json\`).
+
+## System Architecture
+
+- **GitHub Repository**: [NALYD2400/portly](https://github.com/NALYD2400/portly)
+- **Config Storage**: \`%APPDATA%\\portly\\projects.json\`
+- **Native Rust Engine**: Process manager with asynchronous stdout/stderr log streaming and real-time CPU/RAM telemetry polling (every 2s).
+- **Auto-Stop Child Processes on Exit**: On app exit or tray quit, Portly terminates all spawned dev servers (taskkill /F /T) to prevent orphaned processes.
+- **Auto-Restart & RAM Guard**: Servers that crash (or exceed their configured RAM limit) are automatically restarted with a cooldown.
+- **In-App Auto-Updater**: Connects to GitHub Releases with signature-domain validation and an animated progress modal.
+
+---
+
+## Workflow: Registering a Project (/portly)
+
+1. **Detect Stack & Dev Commands**:
+   - **Root Path**: Workspace root directory.
+   - **Project Name**: Folder basename or \`name\` field in \`package.json\` / \`Cargo.toml\`.
+   - **Framework Detection Rules**:
+     - **Next.js / Vite / React / Vue / Svelte**: \`npm run dev\` (Port 3000 or 5173)
+     - **Tauri / Rust**: \`npm run tauri dev\` or \`cargo run\`
+     - **Express / Node**: \`node server.js\`
+     - **Python (FastAPI/Flask/Django)**: \`python main.py\` or \`uvicorn main:app --reload\` (Port 8000)
+     - **Go**: \`go run .\` (Port 8080)
+
+2. **Update projects.json**:
+   - Read \`%APPDATA%\\portly\\projects.json\`.
+   - If \`root == current_workspace_root\` exists, update dev commands if needed.
+   - If missing, append a new project configuration with servers.
+   - Save formatted JSON back.
+
+3. **User Confirmation**:
+   - Return a concise markdown summary confirming project registration, detected stack, assigned port, and dev command.`;
+
+export default function SettingsView({ projects = [], onOpenUpdateModal, reloadProjects }) {
   const [activeSubTab, setActiveSubTab] = useState('appearance');
 
   // Theme Accent
-  const [hexColor, setHexColor] = useState(() => {
-    return localStorage.getItem('portly_custom_hex') || '#a855f7';
-  });
+  const [hexColor, setHexColor] = useState(() => localStorage.getItem('portly_custom_hex') || '#a855f7');
+  const [hexDraft, setHexDraft] = useState(hexColor);
+  const [hexError, setHexError] = useState(false);
 
   // Toggles State
   const [canvasBg, setCanvasBg] = useState(() => localStorage.getItem('portly_cfg_canvas') !== 'false');
   const [autoRestart, setAutoRestart] = useState(() => localStorage.getItem('portly_cfg_autorestart') === 'true');
   const [hideStoppedServers, setHideStoppedServers] = useState(() => localStorage.getItem('portly_cfg_hidestopped') !== 'false');
-  const [cleanAnsiLogs, setCleanAnsiLogs] = useState(true);
+  const [cleanAnsiLogs, setCleanAnsiLogs] = useState(() => localStorage.getItem('portly_cfg_cleanansi') !== 'false');
   const [minimizeToTray, setMinimizeToTray] = useState(() => localStorage.getItem('portly_cfg_minimizetotray') !== 'false');
   const [notifWindows, setNotifWindows] = useState(() => localStorage.getItem('portly_cfg_notif_windows') !== 'false');
   const [notifApp, setNotifApp] = useState(() => localStorage.getItem('portly_cfg_notif_app') !== 'false');
@@ -80,65 +138,69 @@ export default function SettingsView({ projects = [], onOpenUpdateModal }) {
     () => localStorage.getItem('portly_cfg_shortcut') || 'Ctrl+Alt+P'
   );
 
-  useEffect(() => {
-    invoke('register_global_shortcut_cmd', { shortcut: globalShortcut }).catch(() => {});
-  }, [globalShortcut]);
-
-  const handleUpdateShortcut = (value) => {
-    setGlobalShortcut(value);
-    localStorage.setItem('portly_cfg_shortcut', value);
-    showAutoSaved();
-  };
-
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [copiedSkill, setCopiedSkill] = useState(false);
+  const savedTimerRef = useRef(null);
+  const copiedTimerRef = useRef(null);
 
-  const skillMarkdown = `---
-name: portly
-description: Automatically adds, registers, and manages codebases/projects in Portly (the high-performance Rust-powered developer process supervisor). Use when the user types /portly or asks to register, track, configure, or inspect projects in Portly.
----
+  useEffect(
+    () => () => {
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    },
+    []
+  );
 
-# Portly v0.2.0 Project Supervisor Skill
+  // Applique la couleur sauvegardée silencieusement au montage (pas de toast parasite)
+  useEffect(() => {
+    applyAccentColor(hexColor);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-This skill registers, configures, and manages active codebase projects in **Portly** (\`C:\\Users\\dylan\\AppData\\Roaming\\portly\\projects.json\`).
+  const showAutoSaved = () => {
+    setSavedSuccess(true);
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    savedTimerRef.current = setTimeout(() => setSavedSuccess(false), 2000);
+  };
 
-## Portly v0.2.0 System Architecture
+  const applyAccentColor = (color) => {
+    document.documentElement.style.setProperty('--accent-color', color);
+    document.documentElement.style.setProperty('--accent-color-rgb', hexToRgbStr(color));
+  };
 
-- **GitHub Repository**: [NALYD2400/portly](https://github.com/NALYD2400/portly)
-- **Local Application Path**: \`C:\\Users\\dylan\\AppData\\Local\\Portly\\portly.exe\`
-- **Config Storage**: \`C:\\Users\\dylan\\AppData\\Roaming\\portly\\projects.json\`
-- **Native Rust Engine**: High-performance process manager with asynchronous stdout/stderr log streaming and real-time CPU/RAM telemetry polling (every 2s).
-- **Auto-Stop Child Processes on Exit**: On app exit or tray quit, Portly automatically terminates all spawned dev child server processes (\`taskkill /F /T\`) to prevent orphaned processes.
-- **In-App Auto-Updater**: Directly connects to GitHub Releases (\`NALYD2400/portly\`) with an animated download progress modal (\`AutoUpdateModal.jsx\`).
-- **Glassmorphism Motion UI System**: Fully responsive dark mode with dynamic theme accent color synchronization (\`--accent-color\` and \`--accent-color-rgb\`) for badges, spotlight glows, specular buttons, and background canvas waves.
+  const commitHexColor = (candidate) => {
+    const trimmed = candidate.trim();
+    if (isValidHex(trimmed)) {
+      setHexError(false);
+      setHexColor(trimmed);
+      setHexDraft(trimmed);
+      localStorage.setItem('portly_custom_hex', trimmed);
+      applyAccentColor(trimmed);
+      showAutoSaved();
+    } else {
+      setHexError(true);
+    }
+  };
 
----
-
-## Workflow: Registering a Project (\`/portly\`)
-
-When the user types \`/portly\` or requests to configure a project in Portly:
-
-1. **Detect Stack & Dev Commands**:
-   - **Root Path**: Workspace root directory.
-   - **Project Name**: Folder basename or \`name\` field in \`package.json\` / \`Cargo.toml\`.
-   - **Framework Detection Rules**:
-     - **Next.js / Vite / React / Vue / Svelte**: \`npm run dev\` (Port \`3000\` or \`5173\`)
-     - **Tauri / Rust**: \`npm run tauri dev\` or \`cargo run\` (Port \`4313\` / \`8080\`)
-     - **Express / Node**: \`node server.js\` (Port \`7737\` or \`3000\`)
-     - **Python (FastAPI/Flask/Django)**: \`python main.py\` or \`uvicorn main:app --reload\` (Port \`8000\`)
-     - **Go**: \`go run .\` (Port \`8080\`)
-
-2. **Update \`projects.json\`**:
-   - Read \`C:\\Users\\dylan\\AppData\\Roaming\\portly\\projects.json\`.
-   - If \`root == current_workspace_root\` exists, update dev commands if needed.
-   - If missing, append a new project configuration with servers.
-   - Save formatted JSON back to \`C:\\Users\\dylan\\AppData\\Roaming\\portly\\projects.json\`.
-
-3. **User Confirmation**:
-   - Return a concise markdown summary confirming project registration, detected stack, assigned port, and dev command.`;
+  const handleUpdateShortcut = (value) => {
+    // N'enregistre le raccourci que si l'OS l'a réellement accepté
+    invoke('register_global_shortcut_cmd', { shortcut: value })
+      .then(() => {
+        setGlobalShortcut(value);
+        localStorage.setItem('portly_cfg_shortcut', value);
+        showAutoSaved();
+      })
+      .catch((e) => {
+        triggerToast({
+          title: '⚠️ Raccourci Refusé',
+          message: String(e),
+          type: 'error',
+        });
+      });
+  };
 
   const handleDownloadSkill = () => {
-    const blob = new Blob([skillMarkdown], { type: 'text/markdown' });
+    const blob = new Blob([SKILL_MARKDOWN], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -148,9 +210,10 @@ When the user types \`/portly\` or requests to configure a project in Portly:
   };
 
   const handleCopySkill = () => {
-    navigator.clipboard.writeText(skillMarkdown);
+    navigator.clipboard.writeText(SKILL_MARKDOWN);
     setCopiedSkill(true);
-    setTimeout(() => setCopiedSkill(false), 2000);
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = setTimeout(() => setCopiedSkill(false), 2000);
   };
 
   const handleExportConfig = async () => {
@@ -164,27 +227,51 @@ When the user types \`/portly\` or requests to configure a project in Portly:
       a.download = `portly_config_backup_${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
+      triggerToast({
+        title: '📦 Export Réussi',
+        message: 'Sauvegarde de vos projets téléchargée.',
+        type: 'success',
+      });
     } catch (e) {
-      console.error('Failed to export config:', e);
+      triggerToast({
+        title: '⚠️ Échec de l\'Export',
+        message: String(e),
+        type: 'error',
+      });
     }
   };
 
   const handleImportConfig = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    event.target.value = '';
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
         const importedData = JSON.parse(e.target.result);
-        if (Array.isArray(importedData)) {
-          await invoke('save_projects_cmd', { projects: importedData });
-          alert('Configuration importée avec succès !');
-          window.location.reload();
-        } else {
-          alert('Format de fichier de sauvegarde invalide.');
+        if (!Array.isArray(importedData)) {
+          triggerToast({
+            title: '⚠️ Format Invalide',
+            message: 'Le fichier de sauvegarde ne contient pas une liste de projets.',
+            type: 'error',
+          });
+          return;
         }
-      } catch (err) {
-        alert('Erreur lors de la lecture du fichier JSON.');
+        await invoke('save_projects_cmd', { projects: importedData });
+        if (reloadProjects) {
+          await reloadProjects();
+        }
+        triggerToast({
+          title: '✅ Configuration Importée',
+          message: `${importedData.length} projet(s) restauré(s) avec succès.`,
+          type: 'success',
+        });
+      } catch {
+        triggerToast({
+          title: '⚠️ Échec de l\'Import',
+          message: 'Impossible de lire le fichier JSON fourni.',
+          type: 'error',
+        });
       }
     };
     reader.readAsText(file);
@@ -199,68 +286,24 @@ When the user types \`/portly\` or requests to configure a project in Portly:
     { name: 'Bleu Électrique', hex: '#3b82f6' },
   ];
 
-  const showAutoSaved = () => {
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2000);
+  // Tous les toggles acceptent un flag `silent` (utilisé par le reset global
+  // pour éviter 8 toasts d'un coup).
+  const makeToggle = (setter, storageKey, transform = (v) => v, after) => (val, silent = false) => {
+    setter(val);
+    localStorage.setItem(storageKey, val ? 'true' : 'false');
+    if (after) after(val);
+    if (!silent) showAutoSaved();
   };
 
-  const applyHexColor = (color) => {
-    if (!color || !color.startsWith('#')) return;
-    setHexColor(color);
-    localStorage.setItem('portly_custom_hex', color);
-
-    const rgbStr = hexToRgbStr(color);
-    document.documentElement.style.setProperty('--accent-color', color);
-    document.documentElement.style.setProperty('--accent-color-rgb', rgbStr);
-    showAutoSaved();
-  };
-
-  useEffect(() => {
-    applyHexColor(hexColor);
-  }, []);
-
-  const toggleCanvasBg = (val) => {
-    setCanvasBg(val);
-    localStorage.setItem('portly_cfg_canvas', val ? 'true' : 'false');
-    window.dispatchEvent(new Event('portly_canvas_toggle'));
-    showAutoSaved();
-  };
-
-  const toggleAutoRestart = (val) => {
-    setAutoRestart(val);
-    localStorage.setItem('portly_cfg_autorestart', val ? 'true' : 'false');
-    showAutoSaved();
-  };
-
-  const toggleHideStoppedServers = (val) => {
-    setHideStoppedServers(val);
-    localStorage.setItem('portly_cfg_hidestopped', val ? 'true' : 'false');
-    showAutoSaved();
-  };
-
-  const toggleCleanAnsiLogs = (val) => {
-    setCleanAnsiLogs(val);
-    localStorage.setItem('portly_cfg_cleanansi', val ? 'true' : 'false');
-    showAutoSaved();
-  };
-
-  const toggleMinimizeToTray = (val) => {
-    setMinimizeToTray(val);
-    localStorage.setItem('portly_cfg_minimizetotray', val ? 'true' : 'false');
-    showAutoSaved();
-  };
-
-  const toggleNotifWindows = (val) => {
-    setNotifWindows(val);
-    localStorage.setItem('portly_cfg_notif_windows', val ? 'true' : 'false');
-    showAutoSaved();
-  };
-
-  const toggleNotifApp = (val) => {
-    setNotifApp(val);
-    localStorage.setItem('portly_cfg_notif_app', val ? 'true' : 'false');
-    showAutoSaved();
-  };
+  const toggleCanvasBg = makeToggle(setCanvasBg, 'portly_cfg_canvas', undefined, () =>
+    window.dispatchEvent(new Event('portly_canvas_toggle'))
+  );
+  const toggleAutoRestart = makeToggle(setAutoRestart, 'portly_cfg_autorestart');
+  const toggleHideStoppedServers = makeToggle(setHideStoppedServers, 'portly_cfg_hidestopped');
+  const toggleCleanAnsiLogs = makeToggle(setCleanAnsiLogs, 'portly_cfg_cleanansi');
+  const toggleMinimizeToTray = makeToggle(setMinimizeToTray, 'portly_cfg_minimizetotray');
+  const toggleNotifWindows = makeToggle(setNotifWindows, 'portly_cfg_notif_windows');
+  const toggleNotifApp = makeToggle(setNotifApp, 'portly_cfg_notif_app');
 
   useEffect(() => {
     invoke('is_autostart_cmd')
@@ -273,29 +316,53 @@ When the user types \`/portly\` or requests to configure a project in Portly:
     localStorage.setItem('portly_cfg_autostart', val ? 'true' : 'false');
     try {
       await invoke('set_autostart_cmd', { enable: val });
+      showAutoSaved();
     } catch (e) {
-      console.error('Failed to update autostart:', e);
+      triggerToast({
+        title: '⚠️ Échec du Réglage OS',
+        message: `Impossible de modifier le démarrage automatique: ${String(e)}`,
+        type: 'error',
+      });
     }
-    showAutoSaved();
   };
 
   const handleResetDefaults = () => {
-    applyHexColor('#a855f7');
-    toggleCanvasBg(true);
-    toggleAutoRestart(false);
-    toggleHideStoppedServers(true);
-    toggleCleanAnsiLogs(true);
-    toggleNotifications(true);
-    toggleMinimizeToTray(true);
+    commitHexColor('#a855f7');
+    toggleCanvasBg(true, true);
+    toggleAutoRestart(false, true);
+    toggleHideStoppedServers(true, true);
+    toggleCleanAnsiLogs(true, true);
+    toggleMinimizeToTray(true, true);
+    toggleNotifWindows(true, true);
+    toggleNotifApp(true, true);
     toggleAutoStart(false);
+    showAutoSaved();
   };
 
   const menuNav = [
     { id: 'appearance', label: 'Apparence & Couleurs (#HEX)', icon: Palette, desc: 'Thèmes, variables CSS et canvas' },
     { id: 'process', label: 'Serveurs & Auto-Restart', icon: Zap, desc: 'Gestion des crashs et logs' },
     { id: 'system', label: 'Système & Fenêtres', icon: Monitor, desc: 'Bouton X, notifications et autorun' },
-    { id: 'backup', label: 'Sauvegarde & Diagnostic', icon: Shield, desc: 'Backup ZIP bureau et stockage' },
+    { id: 'backup', label: 'Sauvegarde & Diagnostic', icon: Shield, desc: 'Backup JSON et stockage' },
   ];
+
+  const SettingRow = ({ title, description, checked, onToggle, inverted = false, children }) => (
+    <div
+      onClick={() => onToggle(!checked)}
+      className="glass-card p-4 rounded-xl flex items-center justify-between cursor-pointer select-none"
+    >
+      <div>
+        <div className="text-xs font-semibold text-white">{title}</div>
+        <div className="text-[11px] text-gray-400 mt-0.5">{description}</div>
+      </div>
+      {children || (
+        <ToggleSwitch
+          checked={inverted ? !checked : checked}
+          onChange={(val) => onToggle(inverted ? !val : val)}
+        />
+      )}
+    </div>
+  );
 
   return (
     <div className="w-full space-y-6 animate-fadeIn select-none pb-8">
@@ -311,6 +378,11 @@ When the user types \`/portly\` or requests to configure a project in Portly:
               <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full theme-accent-badge border border-white/10">
                 v{pkg.version}
               </span>
+              {savedSuccess && (
+                <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 font-sans animate-fadeIn">
+                  <Check className="w-3.5 h-3.5" /> Enregistré
+                </span>
+              )}
             </h1>
             <p className="text-xs text-gray-400">
               Personnalisation avancée de l'interface, des processus et des préférences système.
@@ -319,7 +391,7 @@ When the user types \`/portly\` or requests to configure a project in Portly:
         </div>
       </div>
 
-      {/* Sub-Pages Settings Layout (Sidebar Navigation + Dedicated Page) */}
+      {/* Sub-Pages Settings Layout */}
       <div className="flex flex-col md:flex-row gap-6 min-h-[480px] w-full">
         {/* Settings Navigation Sidebar */}
         <div className="w-full md:w-64 lg:w-72 glass-panel p-2.5 rounded-2xl border border-white/[0.08] bg-black/40 space-y-1.5 flex-shrink-0">
@@ -370,7 +442,7 @@ When the user types \`/portly\` or requests to configure a project in Portly:
 
               <div className="space-y-5">
                 <div>
-                  <label className="text-xs font-medium text-gray-300 block mb-2">
+                  <label htmlFor="hex-input" className="text-xs font-medium text-gray-300 block mb-2">
                     Code Couleur d'Accentuation (#HEX) :
                   </label>
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -386,8 +458,8 @@ When the user types \`/portly\` or requests to configure a project in Portly:
                         <Pipette className="w-4 h-4 text-white drop-shadow-md opacity-80 group-hover:opacity-100 transition-all" />
                         <input
                           type="color"
-                          value={hexColor}
-                          onChange={(e) => applyHexColor(e.target.value)}
+                          value={isValidHex(hexColor) ? hexColor : '#a855f7'}
+                          onChange={(e) => commitHexColor(e.target.value)}
                           className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                           title="Choisir une couleur"
                         />
@@ -397,11 +469,22 @@ When the user types \`/portly\` or requests to configure a project in Portly:
                     <div className="relative flex-1">
                       <Hash className="w-4 h-4 text-gray-400 absolute left-3 top-3.5" />
                       <input
+                        id="hex-input"
                         type="text"
-                        value={hexColor}
-                        onChange={(e) => applyHexColor(e.target.value)}
-                        placeholder="#a855f7"
-                        className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.1] text-xs font-mono text-white focus:outline-none theme-accent-border uppercase shadow-inner"
+                        value={hexDraft}
+                        onChange={(e) => {
+                          setHexDraft(e.target.value);
+                          setHexError(false);
+                        }}
+                        onBlur={() => commitHexColor(hexDraft)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') commitHexColor(hexDraft);
+                        }}
+                        placeholder="#a855f7 (Entrée pour valider)"
+                        aria-invalid={hexError}
+                        className={`w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/[0.04] border text-xs font-mono text-white focus:outline-none shadow-inner uppercase ${
+                          hexError ? 'border-red-500/60' : 'border-white/[0.1] theme-accent-border'
+                        }`}
                       />
                     </div>
 
@@ -412,6 +495,11 @@ When the user types \`/portly\` or requests to configure a project in Portly:
                       Aperçu Thème
                     </div>
                   </div>
+                  {hexError && (
+                    <p className="text-[11px] text-red-400 mt-1.5 font-mono">
+                      Format invalide — utilisez #RGB ou #RRGGBB (ex: #a855f7).
+                    </p>
+                  )}
                 </div>
 
                 {/* Presets Grid */}
@@ -423,7 +511,7 @@ When the user types \`/portly\` or requests to configure a project in Portly:
                     {presetColors.map((p) => (
                       <button
                         key={p.hex}
-                        onClick={() => applyHexColor(p.hex)}
+                        onClick={() => commitHexColor(p.hex)}
                         className={`p-3 rounded-xl flex items-center justify-between border transition-all cursor-pointer ${
                           hexColor.toLowerCase() === p.hex.toLowerCase()
                             ? 'border-white bg-white/10 shadow-lg scale-[1.02]'
@@ -447,18 +535,12 @@ When the user types \`/portly\` or requests to configure a project in Portly:
 
                 {/* Background Canvas Toggle */}
                 <div className="pt-4 border-t border-white/[0.08]">
-                  <div
-                    onClick={() => toggleCanvasBg(!canvasBg)}
-                    className="glass-card p-4 rounded-xl flex items-center justify-between cursor-pointer select-none"
-                  >
-                    <div>
-                      <div className="text-xs font-semibold text-white">Fond Canvas Animé Réactif</div>
-                      <div className="text-[11px] text-gray-400 mt-0.5">
-                        Afficher les vagues de lumière colorées réactives en arrière-plan
-                      </div>
-                    </div>
-                    <ToggleSwitch checked={canvasBg} onChange={toggleCanvasBg} />
-                  </div>
+                  <SettingRow
+                    title="Fond Canvas Animé Réactif"
+                    description="Afficher les vagues de lumière colorées réactives en arrière-plan"
+                    checked={canvasBg}
+                    onToggle={toggleCanvasBg}
+                  />
                 </div>
               </div>
             </div>
@@ -478,44 +560,26 @@ When the user types \`/portly\` or requests to configure a project in Portly:
               </div>
 
               <div className="space-y-4">
-                <div
-                  onClick={() => toggleAutoRestart(!autoRestart)}
-                  className="glass-card p-4 rounded-xl flex items-center justify-between cursor-pointer select-none"
-                >
-                  <div>
-                    <div className="text-xs font-semibold text-white">Auto-Restart Anti-Crash</div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">
-                      Relancer automatiquement un serveur local s'il plante ou s'arrête brutalement
-                    </div>
-                  </div>
-                  <ToggleSwitch checked={autoRestart} onChange={toggleAutoRestart} />
-                </div>
+                <SettingRow
+                  title="Auto-Restart Anti-Crash"
+                  description="Relancer automatiquement un serveur local s'il plante ou s'arrête brutalement (max 3 relances / 2 min)"
+                  checked={autoRestart}
+                  onToggle={toggleAutoRestart}
+                />
 
-                <div
-                  onClick={() => toggleHideStoppedServers(!hideStoppedServers)}
-                  className="glass-card p-4 rounded-xl flex items-center justify-between cursor-pointer select-none"
-                >
-                  <div>
-                    <div className="text-xs font-semibold text-white">Filtrage des Serveurs Arrêtés (Terminal)</div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">
-                      N'afficher dans la barre d'onglets du terminal que les serveurs actuellement en cours d'exécution
-                    </div>
-                  </div>
-                  <ToggleSwitch checked={hideStoppedServers} onChange={toggleHideStoppedServers} />
-                </div>
+                <SettingRow
+                  title="Filtrage des Serveurs Arrêtés (Terminal)"
+                  description="N'afficher dans la barre d'onglets du terminal que les serveurs actuellement en cours d'exécution"
+                  checked={hideStoppedServers}
+                  onToggle={toggleHideStoppedServers}
+                />
 
-                <div
-                  onClick={() => toggleCleanAnsiLogs(!cleanAnsiLogs)}
-                  className="glass-card p-4 rounded-xl flex items-center justify-between cursor-pointer select-none"
-                >
-                  <div>
-                    <div className="text-xs font-semibold text-white">Nettoyage Automatique des Codes ANSI</div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">
-                      Formater et nettoyer les caractères de couleurs bruts dans le flux de logs
-                    </div>
-                  </div>
-                  <ToggleSwitch checked={cleanAnsiLogs} onChange={toggleCleanAnsiLogs} />
-                </div>
+                <SettingRow
+                  title="Nettoyage Automatique des Codes ANSI"
+                  description="Formater et nettoyer les caractères de couleurs bruts dans le flux de logs"
+                  checked={cleanAnsiLogs}
+                  onToggle={toggleCleanAnsiLogs}
+                />
               </div>
             </div>
           )}
@@ -535,10 +599,10 @@ When the user types \`/portly\` or requests to configure a project in Portly:
 
               <div className="space-y-4">
                 {/* Auto Update Action Card */}
-                <div className="glass-card p-4.5 rounded-xl flex items-center justify-between border border-purple-500/20 bg-purple-500/5">
+                <div className="glass-card p-4 rounded-xl flex items-center justify-between border theme-accent-border bg-white/[0.02]">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl theme-accent-badge flex items-center justify-center shadow-md">
-                      <Download className="w-4.5 h-4.5 theme-accent-text" />
+                      <Download className="w-4 h-4 theme-accent-text" />
                     </div>
                     <div>
                       <div className="text-xs font-semibold text-white flex items-center gap-2">
@@ -561,63 +625,39 @@ When the user types \`/portly\` or requests to configure a project in Portly:
                   )}
                 </div>
 
-                <div
-                  onClick={() => toggleMinimizeToTray(!minimizeToTray)}
-                  className="glass-card p-4 rounded-xl flex items-center justify-between cursor-pointer select-none"
-                >
-                  <div>
-                    <div className="text-xs font-semibold text-white">Fermeture Complète Directe (Bouton Croix X)</div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">
-                      Fermer et quitter 100% complètement Portly lors du clic sur le bouton X (sans zone de notification)
-                    </div>
-                  </div>
-                  <ToggleSwitch checked={!minimizeToTray} onChange={(val) => toggleMinimizeToTray(!val)} />
-                </div>
+                <SettingRow
+                  title="Réduire dans la Barre des Tâches (Bouton Croix X)"
+                  description="Le bouton X masque Portly dans le tray (décochez pour quitter complètement l'application)"
+                  checked={minimizeToTray}
+                  onToggle={toggleMinimizeToTray}
+                />
 
-                <div
-                  onClick={() => toggleNotifWindows(!notifWindows)}
-                  className="glass-card p-4 rounded-xl flex items-center justify-between cursor-pointer select-none"
-                >
-                  <div>
-                    <div className="text-xs font-semibold text-white">Notifications Systèmes Windows OS</div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">
-                      Transmettre les alertes dans le Centre de Notifications de Windows (en bas à droite de la barre des tâches)
-                    </div>
-                  </div>
-                  <ToggleSwitch checked={notifWindows} onChange={toggleNotifWindows} />
-                </div>
+                <SettingRow
+                  title="Notifications Systèmes Windows OS"
+                  description="Transmettre les alertes dans le Centre de Notifications de Windows (en bas à droite de la barre des tâches)"
+                  checked={notifWindows}
+                  onToggle={toggleNotifWindows}
+                />
 
-                <div
-                  onClick={() => toggleNotifApp(!notifApp)}
-                  className="glass-card p-4 rounded-xl flex items-center justify-between cursor-pointer select-none"
-                >
-                  <div>
-                    <div className="text-xs font-semibold text-white">Notifications In-App (Toasts Néons)</div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">
-                      Afficher les alertes visuelles flottantes en bas à droite de l'application Portly
-                    </div>
-                  </div>
-                  <ToggleSwitch checked={notifApp} onChange={toggleNotifApp} />
-                </div>
+                <SettingRow
+                  title="Notifications In-App (Toasts Néons)"
+                  description="Afficher les alertes visuelles flottantes en bas à droite de l'application Portly"
+                  checked={notifApp}
+                  onToggle={toggleNotifApp}
+                />
 
-                <div
-                  onClick={() => toggleAutoStart(!autoStart)}
-                  className="glass-card p-4 rounded-xl flex items-center justify-between cursor-pointer select-none"
-                >
-                  <div>
-                    <div className="text-xs font-semibold text-white">Démarrage Automatique avec Windows</div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">
-                      Inscrire Portly dans le Registre OS Windows pour se lancer automatiquement à l'ouverture de session
-                    </div>
-                  </div>
-                  <ToggleSwitch checked={autoStart} onChange={toggleAutoStart} />
-                </div>
+                <SettingRow
+                  title="Démarrage Automatique avec Windows"
+                  description="Inscrire Portly dans le Registre OS Windows pour se lancer automatiquement à l'ouverture de session"
+                  checked={autoStart}
+                  onToggle={toggleAutoStart}
+                />
 
                 {/* Global Keyboard Shortcut Switcher */}
                 <div className="glass-card p-4 rounded-xl flex items-center justify-between gap-4">
                   <div>
                     <div className="text-xs font-semibold text-white flex items-center gap-2">
-                      <Keyboard className="w-4 h-4 text-purple-400" />
+                      <Keyboard className="w-4 h-4 theme-accent-text" />
                       <span>Raccourci Clavier Global OS (Show / Hide)</span>
                     </div>
                     <div className="text-[11px] text-gray-400 mt-0.5">
@@ -633,7 +673,7 @@ When the user types \`/portly\` or requests to configure a project in Portly:
             </div>
           )}
 
-          {/* Sub-Page 4: Sauvegarde & Restauration de Données */}
+          {/* Sub-Page 4: Sauvegarde & Restauration */}
           {activeSubTab === 'backup' && (
             <div className="space-y-6 animate-fadeIn">
               <div className="border-b border-white/[0.08] pb-4">
@@ -648,15 +688,15 @@ When the user types \`/portly\` or requests to configure a project in Portly:
 
               <div className="space-y-4">
                 {/* AI Skill Download Card */}
-                <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 space-y-3">
+                <div className="p-4 rounded-2xl bg-white/[0.03] border theme-accent-border space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
-                        <Bot className="w-5 h-5" />
+                      <div className="w-9 h-9 rounded-xl theme-accent-badge flex items-center justify-center shrink-0">
+                        <Bot className="w-5 h-5 theme-accent-text" />
                       </div>
                       <div>
                         <div className="text-xs font-bold text-white">Skill IA (Claude, Antigravity, Cursor)</div>
-                        <div className="text-[10px] text-purple-300 font-mono">
+                        <div className="text-[10px] theme-accent-text font-mono">
                           Instruction /portly pour vos agents IA
                         </div>
                       </div>
@@ -681,7 +721,7 @@ When the user types \`/portly\` or requests to configure a project in Portly:
                     </div>
                   </div>
                   <p className="text-[11px] text-gray-300">
-                    Ajoutez ce fichier <code className="text-purple-300 font-mono">SKILL.md</code> dans votre assistant IA (Claude Code, Antigravity, Cursor) pour qu'il puisse inscrire vos nouveaux projets dans Portly en tapant simplement <code className="text-purple-300 font-mono">/portly</code>.
+                    Ajoutez ce fichier <code className="theme-accent-text font-mono">SKILL.md</code> dans votre assistant IA (Claude Code, Antigravity, Cursor) pour qu'il puisse inscrire vos nouveaux projets dans Portly en tapant simplement <code className="theme-accent-text font-mono">/portly</code>.
                   </p>
                 </div>
 
@@ -731,7 +771,7 @@ When the user types \`/portly\` or requests to configure a project in Portly:
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.05]">
                     <div className="text-xs text-gray-400 font-medium">Projets Inscrits</div>
-                    <div className="text-lg font-bold text-white font-[#a855f7] font-mono mt-1">{projects.length} projet(s)</div>
+                    <div className="text-lg font-bold text-white theme-accent-text font-mono mt-1">{projects.length} projet(s)</div>
                   </div>
 
                   <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.05]">

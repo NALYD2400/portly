@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Play, Square, RotateCw, ExternalLink, Code2, Folder, FileText, Trash2, Plus, Terminal, Edit3, ChevronDown, ChevronRight, Sparkles, Activity, Layers, Globe, Share2, Clock } from 'lucide-react';
+import { Play, Square, ExternalLink, Code2, Folder, FileText, Trash2, Plus, Terminal, Edit3, ChevronDown, Globe, Clock, Search } from 'lucide-react';
 import { triggerToast } from '../ui/ToastContainer';
+import ConfirmDialog from '../ui/ConfirmDialog';
+import { markManualStop } from '../../hooks/useTauriIPC';
 
 const serverStartTimestamps = {};
 
@@ -12,7 +14,7 @@ function ServerUptimeBadge({ serverId, isRunning }) {
     if (!isRunning) {
       delete serverStartTimestamps[serverId];
       setUptimeStr('0s');
-      return;
+      return undefined;
     }
 
     if (!serverStartTimestamps[serverId]) {
@@ -41,8 +43,8 @@ function ServerUptimeBadge({ serverId, isRunning }) {
   }, [serverId, isRunning]);
 
   return (
-    <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 flex items-center gap-1.5 shadow-sm">
-      <Clock className="w-3.5 h-3.5 text-purple-400" />
+    <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold theme-accent-badge flex items-center gap-1.5 shadow-sm">
+      <Clock className="w-3.5 h-3.5 theme-accent-text" />
       <span>{uptimeStr}</span>
     </span>
   );
@@ -66,13 +68,16 @@ export default function ProjectsView({
       return {};
     }
   });
+  const [search, setSearch] = useState('');
+  const [copiedPath, setCopiedPath] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null); // { type: 'project'|'server', projectId, serverId?, name }
 
   const toggleProjectCollapse = (projectId) => {
     setCollapsedProjects((prev) => {
       const updated = { ...prev, [projectId]: !prev[projectId] };
       try {
         localStorage.setItem('portly_collapsed_projects', JSON.stringify(updated));
-      } catch (e) {}
+      } catch {}
       return updated;
     });
   };
@@ -86,7 +91,7 @@ export default function ProjectsView({
     setCollapsedProjects(nextState);
     try {
       localStorage.setItem('portly_collapsed_projects', JSON.stringify(nextState));
-    } catch (e) {}
+    } catch {}
   };
 
   const handleStartServer = async (projectId, serverId, cwd, command, env) => {
@@ -103,7 +108,6 @@ export default function ProjectsView({
         type: 'success',
       });
     } catch (e) {
-      console.error('Error starting server:', e);
       triggerToast({
         title: '⚠️ Échec du Démarrage',
         message: String(e),
@@ -112,46 +116,37 @@ export default function ProjectsView({
     }
   };
 
-  const handleStopServer = async (projectId, serverId, pid) => {
+  const handleStopServer = async (projectId, serverId) => {
+    markManualStop(serverId);
     try {
-      await invoke('stop_server_cmd', { serverId, pid: pid ? Number(pid) : null });
+      await invoke('stop_server_cmd', { serverId });
+      triggerToast({
+        title: '⏹ Serveur Arrêté',
+        message: 'Le serveur a été arrêté avec succès.',
+        type: 'info',
+      });
     } catch (e) {
-      console.warn('Error stopping server:', e);
-    }
-
-    if (pid) {
-      try {
-        await invoke('kill_port_cmd', { pid: Number(pid) });
-      } catch (e) {}
-    }
-
-    const updatedProjects = projects.map((p) => {
-      if (p.id === projectId) {
-        return {
-          ...p,
-          servers: (p.servers || []).map((s) => {
-            if (s.id === serverId) {
-              return { ...s, state: 'stopped', pid: null };
-            }
-            return s;
-          }),
-        };
+      // "pas en cours d'exécution" = état déjà conforme, pas une erreur utilisateur
+      if (String(e).includes("n'est pas en cours")) {
+        triggerToast({
+          title: '⏹ Serveur déjà arrêté',
+          message: 'Le processus ne tournait plus.',
+          type: 'info',
+        });
+      } else {
+        triggerToast({
+          title: '⚠️ Échec de l\'Arrêt',
+          message: String(e),
+          type: 'error',
+        });
       }
-      return p;
-    });
-
-    saveProjects(updatedProjects);
-    triggerToast({
-      title: '⏹ Serveur Arrêté',
-      message: `Le serveur a été arrêté avec succès.`,
-      type: 'info',
-    });
+    }
   };
 
-  const handleShareTunnel = async (port, serverName) => {
+  const handleShareTunnel = async (port) => {
     if (!port) return;
     triggerToast({
-      title: `🌐 Génération du Tunnel...`,
+      title: '🌐 Génération du Tunnel...',
       message: `Création de l'URL publique pour le port :${port}`,
       type: 'info',
       duration: 3000,
@@ -162,7 +157,7 @@ export default function ProjectsView({
       if (publicUrl) {
         navigator.clipboard.writeText(publicUrl);
         triggerToast({
-          title: `🌐 Tunnel Public Actif !`,
+          title: '🌐 Tunnel Public Actif !',
           message: `${publicUrl} (Copié dans le presse-papier !)`,
           type: 'success',
           duration: 7000,
@@ -170,33 +165,27 @@ export default function ProjectsView({
         invoke('open_browser', { url: publicUrl });
       }
     } catch (e) {
-      console.error('Error generating tunnel:', e);
+      triggerToast({
+        title: '⚠️ Échec du Tunnel',
+        message: String(e),
+        type: 'error',
+        duration: 7000,
+      });
     }
   };
 
-  const handleOpenVSCode = (path) => invoke('open_vscode', { path });
-  const handleOpenExplorer = (path) => invoke('open_explorer', { path });
-  const handleOpenBrowser = (url) => invoke('open_browser', { url });
-
-  const handleDeleteProject = (projectId) => {
-    const updated = projects.filter((p) => p.id !== projectId);
-    saveProjects(updated);
-  };
-
-  const handleDeleteServer = (projectId, serverId) => {
-    const updatedProjects = projects.map((prj) => {
-      if (prj.id === projectId) {
-        return {
-          ...prj,
-          servers: (prj.servers || []).filter((s) => s.id !== serverId),
-        };
-      }
-      return prj;
-    });
-    saveProjects(updatedProjects);
-  };
-
-  const [copiedPath, setCopiedPath] = useState(null);
+  const handleOpenVSCode = (path) =>
+    invoke('open_vscode', { path }).catch((e) =>
+      triggerToast({ title: '⚠️ VS Code', message: String(e), type: 'error' })
+    );
+  const handleOpenExplorer = (path) =>
+    invoke('open_explorer', { path }).catch((e) =>
+      triggerToast({ title: '⚠️ Explorateur', message: String(e), type: 'error' })
+    );
+  const handleOpenBrowser = (url) =>
+    invoke('open_browser', { url }).catch((e) =>
+      triggerToast({ title: '⚠️ Navigateur', message: String(e), type: 'error' })
+    );
 
   const handleStartProjectServers = (project) => {
     (project.servers || []).forEach((srv) => {
@@ -210,37 +199,15 @@ export default function ProjectsView({
     const runningServers = (project.servers || []).filter((srv) => srv.state === 'running');
     if (runningServers.length === 0) return;
 
-    const stoppedIds = new Set(runningServers.map((s) => s.id));
-
     for (const srv of runningServers) {
+      markManualStop(srv.id);
       try {
-        await invoke('stop_server_cmd', { serverId: srv.id, pid: srv.pid ? Number(srv.pid) : null });
-      } catch (e) {
+        await invoke('stop_server_cmd', { serverId: srv.id });
+      } catch {
         console.warn('Error stopping server:', e);
-      }
-      if (srv.pid) {
-        try {
-          await invoke('kill_port_cmd', { pid: Number(srv.pid) });
-        } catch (e) {}
       }
     }
 
-    const updatedProjects = projects.map((p) => {
-      if (p.id === project.id) {
-        return {
-          ...p,
-          servers: (p.servers || []).map((s) => {
-            if (stoppedIds.has(s.id)) {
-              return { ...s, state: 'stopped', pid: null };
-            }
-            return s;
-          }),
-        };
-      }
-      return p;
-    });
-
-    saveProjects(updatedProjects);
     triggerToast({
       title: '⏹ Serveurs Arrêtés',
       message: `Tous les serveurs du projet "${project.name}" ont été arrêtés.`,
@@ -254,10 +221,65 @@ export default function ProjectsView({
     setTimeout(() => setCopiedPath(null), 2000);
   };
 
+  const confirmDeleteTarget = confirmDelete || {};
+  const confirmDeleteMessage =
+    confirmDeleteTarget.type === 'server'
+      ? `Supprimer le serveur « ${confirmDeleteTarget.name} » de « ${confirmDeleteTarget.projectName} » ? Sa configuration (commande, port, .env du serveur) sera définitivement perdue.`
+      : `Supprimer le projet « ${confirmDeleteTarget.name} » et ses ${confirmDeleteTarget.serverCount ?? 0} serveur(s) configurés ? Les fichiers du projet ne seront PAS touchés, mais la configuration Portly sera définitivement perdue.`;
+
+  const executeConfirmedDelete = () => {
+    if (!confirmDelete) return;
+
+    if (confirmDelete.type === 'project') {
+      saveProjects(projects.filter((p) => p.id !== confirmDelete.projectId));
+      triggerToast({
+        title: '🗑 Projet Supprimé',
+        message: `« ${confirmDelete.name} » a été retiré de Portly.`,
+        type: 'warning',
+      });
+    } else if (confirmDelete.type === 'server') {
+      const updatedProjects = projects.map((prj) => {
+        if (prj.id === confirmDelete.projectId) {
+          return {
+            ...prj,
+            servers: (prj.servers || []).filter((s) => s.id !== confirmDelete.serverId),
+          };
+        }
+        return prj;
+      });
+      saveProjects(updatedProjects);
+      triggerToast({
+        title: '🗑 Serveur Supprimé',
+        message: `« ${confirmDelete.name} » a été retiré du projet.`,
+        type: 'warning',
+      });
+    }
+
+    setConfirmDelete(null);
+  };
+
+  // Recherche : nom du projet, chemin, framework, noms de serveurs
+  const q = search.trim().toLowerCase();
+  const filteredProjects = q
+    ? projects.filter((p) => {
+        const inProject =
+          p.name.toLowerCase().includes(q) ||
+          (p.root || '').toLowerCase().includes(q) ||
+          (p.framework || '').toLowerCase().includes(q);
+        const inServers = (p.servers || []).some(
+          (s) =>
+            s.name.toLowerCase().includes(q) ||
+            (s.command || '').toLowerCase().includes(q) ||
+            String(s.port || '').includes(q)
+        );
+        return inProject || inServers;
+      })
+    : projects;
+
   return (
     <div className="space-y-6 animate-fadeIn select-none pb-8">
       {/* Header Bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2.5">
             <span>Projets & Serveurs</span>
@@ -272,18 +294,31 @@ export default function ProjectsView({
 
         <div className="flex items-center gap-2">
           {projects.length > 0 && (
-            <button
-              onClick={handleToggleAll}
-              className="px-3.5 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white text-xs font-medium transition-all duration-200 cursor-pointer flex items-center gap-1.5 border border-white/[0.08] active:scale-95"
-              title="Déplier ou replier tous les projets"
-            >
-              <ChevronDown
-                className={`w-3.5 h-3.5 transition-transform duration-300 ${
-                  projects.every((p) => collapsedProjects[p.id]) ? '-rotate-90' : 'rotate-0'
-                }`}
-              />
-              <span>{projects.every((p) => collapsedProjects[p.id]) ? 'Tout déplier' : 'Tout replier'}</span>
-            </button>
+            <>
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Rechercher un projet, serveur, port..."
+                  className="pl-9 pr-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none theme-accent-border w-64 shadow-inner"
+                />
+              </div>
+
+              <button
+                onClick={handleToggleAll}
+                className="px-3.5 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white text-xs font-medium transition-all duration-200 cursor-pointer flex items-center gap-1.5 border border-white/[0.08] active:scale-95"
+                title="Déplier ou replier tous les projets"
+              >
+                <ChevronDown
+                  className={`w-3.5 h-3.5 transition-transform duration-300 ${
+                    projects.every((p) => collapsedProjects[p.id]) ? '-rotate-90' : 'rotate-0'
+                  }`}
+                />
+                <span>{projects.every((p) => collapsedProjects[p.id]) ? 'Tout déplier' : 'Tout replier'}</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -307,9 +342,17 @@ export default function ProjectsView({
             Sélectionner un Dossier
           </button>
         </div>
+      ) : filteredProjects.length === 0 ? (
+        <div className="glass-panel p-10 rounded-2xl text-center border border-white/[0.08]">
+          <Search className="w-8 h-8 text-gray-500 mx-auto mb-3" />
+          <h3 className="text-sm font-bold text-white">Aucun projet ne correspond</h3>
+          <p className="text-xs text-gray-400 mt-1">
+            Aucun résultat pour « {search} ». Essayez un autre nom, chemin ou port.
+          </p>
+        </div>
       ) : (
         <div className="space-y-4">
-          {projects.map((project) => {
+          {filteredProjects.map((project) => {
             const isCollapsed = !!collapsedProjects[project.id];
             const servers = project.servers || [];
             const activeServersCount = servers.filter((s) => s.state === 'running').length;
@@ -318,18 +361,19 @@ export default function ProjectsView({
             return (
               <div
                 key={project.id}
-                className={`glass-panel p-5 rounded-2xl border border-white/[0.08] hover:border-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/5 transition-all duration-300 ${
+                className={`glass-panel p-5 rounded-2xl border border-white/[0.08] hover-accent-border hover:shadow-2xl transition-all duration-300 ${
                   isCollapsed ? '' : 'space-y-4'
                 }`}
               >
                 {/* Project Header */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3.5">
+                  <div className="flex items-center gap-3.5 min-w-0">
                     {/* Accordion Collapse Trigger */}
                     <button
                       onClick={() => toggleProjectCollapse(project.id)}
                       className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-400 hover:text-white transition-all cursor-pointer group shrink-0"
                       title={isCollapsed ? 'Déplier les serveurs' : 'Replier le projet'}
+                      aria-label={isCollapsed ? 'Déplier les serveurs' : 'Replier le projet'}
                     >
                       <ChevronDown
                         className={`w-4 h-4 text-gray-300 transition-transform duration-300 ${
@@ -348,10 +392,10 @@ export default function ProjectsView({
                       onClick={() => toggleProjectCollapse(project.id)}
                     />
 
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2.5 flex-wrap">
                         <h2
-                          className="text-base font-bold text-white cursor-pointer hover:theme-accent-text transition-colors"
+                          className="text-base font-bold text-white cursor-pointer hover-accent transition-colors"
                           onClick={() => toggleProjectCollapse(project.id)}
                         >
                           {project.name}
@@ -392,11 +436,11 @@ export default function ProjectsView({
 
                       <p
                         onClick={() => handleCopyPath(project.root)}
-                        className="text-[11px] text-gray-400 font-mono mt-1 cursor-pointer hover:text-purple-300 transition-colors flex items-center gap-1.5 group/path"
+                        className="text-[11px] text-gray-400 font-mono mt-1 cursor-pointer hover-accent transition-colors flex items-center gap-1.5 group/path"
                         title="Cliquer pour copier le chemin du dossier"
                       >
                         <span className="truncate">{project.root}</span>
-                        <span className="text-[10px] opacity-0 group-hover/path:opacity-100 text-purple-400 font-sans transition-opacity shrink-0 font-medium">
+                        <span className="text-[10px] opacity-0 group-hover/path:opacity-100 theme-accent-text font-sans transition-opacity shrink-0 font-medium">
                           {copiedPath === project.root ? '✓ Copié !' : '📋 Copier'}
                         </span>
                       </p>
@@ -431,6 +475,7 @@ export default function ProjectsView({
                       onClick={() => handleOpenVSCode(project.root)}
                       className="p-2 rounded-xl bg-white/[0.04] hover:bg-blue-500/20 text-gray-300 hover:text-blue-400 border border-white/[0.06] hover:border-blue-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
                       title="Ouvrir dans VS Code"
+                      aria-label="Ouvrir dans VS Code"
                     >
                       <Code2 className="w-4 h-4" />
                     </button>
@@ -439,6 +484,7 @@ export default function ProjectsView({
                       onClick={() => handleOpenExplorer(project.root)}
                       className="p-2 rounded-xl bg-white/[0.04] hover:bg-amber-500/20 text-gray-300 hover:text-amber-400 border border-white/[0.06] hover:border-amber-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
                       title="Ouvrir l'explorateur de fichiers"
+                      aria-label="Ouvrir l'explorateur de fichiers"
                     >
                       <Folder className="w-4 h-4" />
                     </button>
@@ -447,29 +493,39 @@ export default function ProjectsView({
                       onClick={() => onOpenEnvModal(project.root)}
                       className="p-2 rounded-xl bg-white/[0.04] hover:bg-emerald-500/20 text-gray-300 hover:text-emerald-400 border border-white/[0.06] hover:border-emerald-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
                       title="Éditer le fichier .env"
+                      aria-label="Éditer le fichier .env"
                     >
                       <FileText className="w-4 h-4" />
                     </button>
 
                     <button
                       onClick={() => onEditProject && onEditProject(project)}
-                      className="p-2 rounded-xl bg-white/[0.04] hover:bg-purple-500/20 text-gray-300 hover:text-purple-300 border border-white/[0.06] hover:border-purple-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
+                      className="p-2 rounded-xl bg-white/[0.04] hover-accent-bg text-gray-300 theme-accent-text border border-white/[0.06] hover-accent-border transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
                       title="Modifier le nom et la couleur du projet"
+                      aria-label="Modifier le projet"
                     >
                       <Edit3 className="w-4 h-4" />
                     </button>
 
                     <button
-                      onClick={() => handleDeleteProject(project.id)}
+                      onClick={() =>
+                        setConfirmDelete({
+                          type: 'project',
+                          projectId: project.id,
+                          name: project.name,
+                          serverCount: servers.length,
+                        })
+                      }
                       className="p-2 rounded-xl bg-white/[0.04] hover:bg-red-500/20 text-gray-400 hover:text-red-400 border border-white/[0.06] hover:border-red-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
                       title="Supprimer le projet de Portly"
+                      aria-label="Supprimer le projet"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                {/* Accordion Content with Smooth Motion Transition */}
+                {/* Accordion Content */}
                 <div
                   className={`grid transition-all duration-300 ease-in-out ${
                     isCollapsed
@@ -478,7 +534,6 @@ export default function ProjectsView({
                   }`}
                 >
                   <div className="overflow-hidden space-y-3">
-                    {/* Smooth Animated Gradient Divider */}
                     <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent mb-2" />
 
                     {servers.map((srv) => {
@@ -532,7 +587,7 @@ export default function ProjectsView({
                                 {srv.pid && (
                                   <span
                                     className="text-xs font-mono text-gray-400 bg-white/[0.04] px-2.5 py-0.5 rounded-full border border-white/10"
-                                    title={`PID ${srv.pid} | Guard RAM Max: ${srv.ramLimit || 500} MB`}
+                                    title={`PID ${srv.pid} | Auto-Guard RAM Max: ${srv.ramLimit || 500} MB`}
                                   >
                                     PID {srv.pid}
                                   </span>
@@ -549,7 +604,7 @@ export default function ProjectsView({
                           <div className="flex items-center gap-2 shrink-0">
                             {isRunning ? (
                               <button
-                                onClick={() => handleStopServer(project.id, srv.id, srv.pid)}
+                                onClick={() => handleStopServer(project.id, srv.id)}
                                 className="px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs flex items-center gap-1.5 border border-red-500/40 shadow-lg shadow-red-500/10 transition-all duration-200 cursor-pointer active:scale-95 group"
                               >
                                 <Square className="w-3.5 h-3.5 fill-red-400 text-red-400 group-hover:scale-110 transition-transform" />
@@ -573,6 +628,7 @@ export default function ProjectsView({
                                   onClick={() => handleOpenBrowser(`http://localhost:${srv.port}`)}
                                   className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-300 hover:text-white border border-white/[0.08] transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 group"
                                   title={`Ouvrir http://localhost:${srv.port}`}
+                                  aria-label="Ouvrir dans le navigateur"
                                 >
                                   <ExternalLink className="w-3.5 h-3.5 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
                                 </button>
@@ -581,6 +637,7 @@ export default function ProjectsView({
                                   onClick={() => handleShareTunnel(srv.port, srv.name)}
                                   className="p-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 group"
                                   title="Partager un lien Tunnel Web/Mobile public"
+                                  aria-label="Créer un tunnel public"
                                 >
                                   <Globe className="w-3.5 h-3.5 group-hover:rotate-45 transition-transform" />
                                 </button>
@@ -589,8 +646,9 @@ export default function ProjectsView({
 
                             <button
                               onClick={() => onEditServer && onEditServer({ projectId: project.id, project, server: srv })}
-                              className="p-2 rounded-xl bg-white/[0.04] hover:bg-purple-500/20 text-gray-300 hover:text-purple-300 border border-white/[0.08] hover:border-purple-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
+                              className="p-2 rounded-xl bg-white/[0.04] hover-accent-bg text-gray-300 theme-accent-text border border-white/[0.08] hover-accent-border transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
                               title="Modifier la commande ou le port"
+                              aria-label="Modifier le serveur"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
@@ -599,14 +657,24 @@ export default function ProjectsView({
                               onClick={() => onOpenTerminal(srv.id, srv.name)}
                               className="p-2 rounded-xl theme-accent-badge hover:bg-white/[0.1] transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
                               title="Consulter les logs en temps réel"
+                              aria-label="Consulter les logs"
                             >
                               <Terminal className="w-3.5 h-3.5" />
                             </button>
 
                             <button
-                              onClick={() => handleDeleteServer(project.id, srv.id)}
+                              onClick={() =>
+                                setConfirmDelete({
+                                  type: 'server',
+                                  projectId: project.id,
+                                  serverId: srv.id,
+                                  name: srv.name,
+                                  projectName: project.name,
+                                })
+                              }
                               className="p-2 rounded-xl bg-white/[0.04] hover:bg-red-500/20 text-gray-400 hover:text-red-400 border border-white/[0.06] hover:border-red-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
                               title="Supprimer ce serveur du projet"
+                              aria-label="Supprimer le serveur"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -618,9 +686,9 @@ export default function ProjectsView({
                     {/* Interactive Dashed Add Server Button */}
                     <button
                       onClick={() => onAddServer && onAddServer(project)}
-                      className="w-full py-3 px-4 rounded-2xl border-2 border-dashed border-white/10 hover:border-purple-500/40 bg-white/[0.01] hover:bg-purple-500/[0.07] text-gray-400 hover:text-purple-300 text-xs font-semibold flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer group shadow-inner"
+                      className="w-full py-3 px-4 rounded-2xl border-2 border-dashed border-white/10 hover-accent-border bg-white/[0.01] hover-accent-bg text-gray-400 theme-accent-text text-xs font-semibold flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer group shadow-inner"
                     >
-                      <Plus className="w-4 h-4 text-purple-400 group-hover:rotate-90 group-hover:scale-110 transition-all duration-300" />
+                      <Plus className="w-4 h-4 group-hover:rotate-90 group-hover:scale-110 transition-all duration-300" />
                       <span>Ajouter un serveur à ce projet</span>
                     </button>
                   </div>
@@ -630,6 +698,16 @@ export default function ProjectsView({
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title={confirmDeleteTarget.type === 'server' ? 'Supprimer ce serveur ?' : 'Supprimer ce projet ?'}
+        message={confirmDeleteMessage}
+        confirmLabel="Supprimer définitivement"
+        danger
+        onConfirm={executeConfirmedDelete}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }
