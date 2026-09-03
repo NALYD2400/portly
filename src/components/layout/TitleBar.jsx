@@ -69,9 +69,7 @@ export default function TitleBar({ onOpenCommandPalette }) {
     >
       {/* Brand & Logo */}
       <div data-tauri-drag-region className="flex items-center gap-2.5 pointer-events-none">
-        <div className="w-5 h-5 rounded-md theme-accent-btn flex items-center justify-center shadow-lg">
-          <Terminal className="w-3 h-3 text-white" />
-        </div>
+        <img src="/icon.png" alt="Sprint" className="w-5 h-5 rounded-md object-cover shadow-sm" />
         <span className="font-bold tracking-wide text-white text-sm font-sans">Sprint</span>
       </div>
 
