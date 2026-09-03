@@ -1,8 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Play, Square, ExternalLink, Code2, Folder, FileText, Trash2, Plus, Terminal, Edit3, ChevronDown, Globe, Clock, Search } from 'lucide-react';
-import { triggerToast } from '../ui/ToastContainer';
+import {
+  Play,
+  Square,
+  ExternalLink,
+  Code2,
+  Folder,
+  FileText,
+  Trash2,
+  Plus,
+  Terminal,
+  Edit3,
+  ChevronDown,
+  Globe,
+  Clock,
+  Search,
+  Monitor,
+  MoreHorizontal,
+  GitBranch,
+} from 'lucide-react';
+import { triggerToast } from '../../services/toastBus';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import IframePreviewModal from '../modals/IframePreviewModal';
 import { markManualStop } from '../../hooks/useTauriIPC';
 
 const serverStartTimestamps = {};
@@ -43,8 +62,8 @@ function ServerUptimeBadge({ serverId, isRunning }) {
   }, [serverId, isRunning]);
 
   return (
-    <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold theme-accent-badge flex items-center gap-1.5 shadow-sm">
-      <Clock className="w-3.5 h-3.5 theme-accent-text" />
+    <span className="text-[11px] font-mono text-emerald-400 font-medium flex items-center gap-1">
+      <Clock className="w-3 h-3 text-emerald-400" />
       <span>{uptimeStr}</span>
     </span>
   );
@@ -54,6 +73,7 @@ export default function ProjectsView({
   projects,
   saveProjects,
   onOpenTerminal,
+  onOpenBrowser,
   onOpenEnvModal,
   onAddProject,
   onEditProject,
@@ -62,7 +82,7 @@ export default function ProjectsView({
 }) {
   const [collapsedProjects, setCollapsedProjects] = useState(() => {
     try {
-      const saved = localStorage.getItem('portly_collapsed_projects');
+      const saved = localStorage.getItem('sprint_collapsed_projects') || localStorage.getItem('portly_collapsed_projects');
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
@@ -70,13 +90,38 @@ export default function ProjectsView({
   });
   const [search, setSearch] = useState('');
   const [copiedPath, setCopiedPath] = useState(null);
-  const [confirmDelete, setConfirmDelete] = useState(null); // { type: 'project'|'server', projectId, serverId?, name }
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [iframeTarget, setIframeTarget] = useState(null);
+  const [openMenu, setOpenMenu] = useState(null); // { type: 'project'|'server', id: string } | null
+
+  // Fermer le menu au clic a l'exterieur ou via la touche Echap
+  useEffect(() => {
+    if (!openMenu) return undefined;
+
+    const handlePointerDown = (e) => {
+      if (!e.target.closest('[data-dropdown-container]')) {
+        setOpenMenu(null);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setOpenMenu(null);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openMenu]);
 
   const toggleProjectCollapse = (projectId) => {
     setCollapsedProjects((prev) => {
       const updated = { ...prev, [projectId]: !prev[projectId] };
       try {
-        localStorage.setItem('portly_collapsed_projects', JSON.stringify(updated));
+        localStorage.setItem('sprint_collapsed_projects', JSON.stringify(updated));
       } catch {}
       return updated;
     });
@@ -90,7 +135,7 @@ export default function ProjectsView({
     });
     setCollapsedProjects(nextState);
     try {
-      localStorage.setItem('portly_collapsed_projects', JSON.stringify(nextState));
+      localStorage.setItem('sprint_collapsed_projects', JSON.stringify(nextState));
     } catch {}
   };
 
@@ -126,7 +171,6 @@ export default function ProjectsView({
         type: 'info',
       });
     } catch (e) {
-      // "pas en cours d'exécution" = état déjà conforme, pas une erreur utilisateur
       if (String(e).includes("n'est pas en cours")) {
         triggerToast({
           title: '⏹ Serveur déjà arrêté',
@@ -203,8 +247,8 @@ export default function ProjectsView({
       markManualStop(srv.id);
       try {
         await invoke('stop_server_cmd', { serverId: srv.id });
-      } catch {
-        console.warn('Error stopping server:', e);
+      } catch (err) {
+        console.warn('Error stopping server:', err);
       }
     }
 
@@ -225,7 +269,7 @@ export default function ProjectsView({
   const confirmDeleteMessage =
     confirmDeleteTarget.type === 'server'
       ? `Supprimer le serveur « ${confirmDeleteTarget.name} » de « ${confirmDeleteTarget.projectName} » ? Sa configuration (commande, port, .env du serveur) sera définitivement perdue.`
-      : `Supprimer le projet « ${confirmDeleteTarget.name} » et ses ${confirmDeleteTarget.serverCount ?? 0} serveur(s) configurés ? Les fichiers du projet ne seront PAS touchés, mais la configuration Portly sera définitivement perdue.`;
+      : `Supprimer le projet « ${confirmDeleteTarget.name} » et ses ${confirmDeleteTarget.serverCount ?? 0} serveur(s) configurés ? Les fichiers du projet ne seront PAS touchés, mais la configuration Sprint sera définitivement perdue.`;
 
   const executeConfirmedDelete = () => {
     if (!confirmDelete) return;
@@ -234,7 +278,7 @@ export default function ProjectsView({
       saveProjects(projects.filter((p) => p.id !== confirmDelete.projectId));
       triggerToast({
         title: '🗑 Projet Supprimé',
-        message: `« ${confirmDelete.name} » a été retiré de Portly.`,
+        message: `« ${confirmDelete.name} » a été retiré de Sprint.`,
         type: 'warning',
       });
     } else if (confirmDelete.type === 'server') {
@@ -258,7 +302,6 @@ export default function ProjectsView({
     setConfirmDelete(null);
   };
 
-  // Recherche : nom du projet, chemin, framework, noms de serveurs
   const q = search.trim().toLowerCase();
   const filteredProjects = q
     ? projects.filter((p) => {
@@ -276,39 +319,50 @@ export default function ProjectsView({
       })
     : projects;
 
+  const totalRunningServers = projects.reduce(
+    (acc, p) => acc + (p.servers || []).filter((s) => s.state === 'running').length,
+    0
+  );
+
   return (
-    <div className="space-y-6 animate-fadeIn select-none pb-8">
+    <div className="space-y-4 animate-fadeIn select-none pb-12 max-w-6xl mx-auto">
       {/* Header Bar */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2.5">
             <span>Projets & Serveurs</span>
             <span className="text-xs font-mono font-normal px-2.5 py-0.5 rounded-full bg-white/[0.06] text-gray-300 border border-white/10">
-              {projects.length} projet(s)
+              {projects.length} projet{projects.length > 1 ? 's' : ''}
             </span>
+            {totalRunningServers > 0 && (
+              <span className="text-xs font-mono font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>{totalRunningServers} actif{totalRunningServers > 1 ? 's' : ''}</span>
+              </span>
+            )}
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            Supervisez vos micro-services, apps front & back en temps réel.
+            Supervisez vos applications et processus locaux en temps réel.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 flex-wrap">
           {projects.length > 0 && (
             <>
               <div className="relative">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5 pointer-events-none" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Rechercher un projet, serveur, port..."
-                  className="pl-9 pr-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none theme-accent-border w-64 shadow-inner"
+                  placeholder="Filtrer projets, ports..."
+                  className="pl-9 pr-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none theme-accent-border w-44 sm:w-52 shadow-inner transition-all"
                 />
               </div>
 
               <button
                 onClick={handleToggleAll}
-                className="px-3.5 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white text-xs font-medium transition-all duration-200 cursor-pointer flex items-center gap-1.5 border border-white/[0.08] active:scale-95"
+                className="px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white text-xs font-medium transition-all duration-200 cursor-pointer flex items-center gap-1.5 border border-white/[0.08] active:scale-95 shrink-0"
                 title="Déplier ou replier tous les projets"
               >
                 <ChevronDown
@@ -320,6 +374,15 @@ export default function ProjectsView({
               </button>
             </>
           )}
+
+          <button
+            onClick={onAddProject}
+            className="px-3.5 py-2 rounded-xl theme-accent-btn text-white text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95 shrink-0"
+            title="Ajouter un nouveau projet dans Sprint"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Nouveau Projet</span>
+          </button>
         </div>
       </div>
 
@@ -332,7 +395,7 @@ export default function ProjectsView({
           <div>
             <h3 className="text-base font-bold text-white">Aucun projet trouvé</h3>
             <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1">
-              Sélectionnez un dossier de votre ordinateur pour ajouter un projet et détecter son framework automatiquement.
+              Sélectionnez un dossier de votre ordinateur pour ajouter un projet et détecter ses commandes automatiquement.
             </p>
           </div>
           <button
@@ -351,96 +414,96 @@ export default function ProjectsView({
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           {filteredProjects.map((project) => {
             const isCollapsed = !!collapsedProjects[project.id];
             const servers = project.servers || [];
             const activeServersCount = servers.filter((s) => s.state === 'running').length;
-            const projColor = project.color || 'var(--accent-color)';
+           const projColor = project.color || 'var(--accent-color)';
+           const isProjectMenuOpen = openMenu?.type === 'project' && openMenu.id === project.id;
+            const hasActiveMenu = isProjectMenuOpen || (openMenu?.type === 'server' && servers.some((s) => s.id === openMenu?.id));
 
-            return (
-              <div
-                key={project.id}
-                className={`glass-panel p-5 rounded-2xl border border-white/[0.08] hover-accent-border hover:shadow-2xl transition-all duration-300 ${
-                  isCollapsed ? '' : 'space-y-4'
-                }`}
-              >
+           return (
+             <div
+               key={project.id}
+               className={`rounded-2xl border transition-all duration-200 bg-[#0d0e17]/90 backdrop-blur-md ${
+                  hasActiveMenu
+                   ? 'border-white/25 shadow-2xl relative z-30'
+                   : 'border-white/[0.07] hover:border-white/[0.14]'
+               } ${isCollapsed ? 'p-3.5' : 'p-4 space-y-3'}`}
+             >
                 {/* Project Header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3.5 min-w-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     {/* Accordion Collapse Trigger */}
                     <button
                       onClick={() => toggleProjectCollapse(project.id)}
-                      className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-400 hover:text-white transition-all cursor-pointer group shrink-0"
+                      className="p-1 rounded-lg hover:bg-white/[0.06] text-gray-400 hover:text-white transition-all cursor-pointer shrink-0"
                       title={isCollapsed ? 'Déplier les serveurs' : 'Replier le projet'}
                       aria-label={isCollapsed ? 'Déplier les serveurs' : 'Replier le projet'}
                     >
                       <ChevronDown
-                        className={`w-4 h-4 text-gray-300 transition-transform duration-300 ${
+                        className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
                           isCollapsed ? '-rotate-90 text-gray-500' : 'rotate-0 text-white'
                         }`}
                       />
                     </button>
 
-                    {/* Color Dot with Aura Glow */}
+                    {/* Color Dot */}
                     <div
-                      className="w-4 h-4 rounded-full shadow-lg cursor-pointer hover:scale-125 transition-transform duration-200 shrink-0"
+                      className="w-3 h-3 rounded-full cursor-pointer hover:scale-125 transition-transform duration-200 shrink-0"
                       style={{
                         backgroundColor: projColor,
-                        boxShadow: `0 0 14px ${projColor}`,
+                        boxShadow: `0 0 8px ${projColor}80`,
                       }}
                       onClick={() => toggleProjectCollapse(project.id)}
                     />
 
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2.5 flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h2
-                          className="text-base font-bold text-white cursor-pointer hover-accent transition-colors"
+                          className="text-sm font-semibold text-white cursor-pointer hover:text-white/90 transition-colors truncate"
                           onClick={() => toggleProjectCollapse(project.id)}
                         >
                           {project.name}
                         </h2>
 
                         {project.framework && (
-                          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full theme-accent-badge font-mono tracking-wide">
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.04] text-gray-400 border border-white/[0.06]">
                             {project.framework}
                           </span>
                         )}
 
                         {project.branch && (
                           <span
-                            className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-pink-500/15 text-pink-300 font-mono border border-pink-500/30 flex items-center gap-1 shadow-sm max-w-[150px] truncate"
+                            className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.03] text-gray-400 border border-white/[0.06] flex items-center gap-1 max-w-[140px] truncate"
                             title={`git branch: ${project.branch}`}
                           >
-                            <span className="w-1.5 h-1.5 rounded-full bg-pink-400 shrink-0"></span>
+                            <GitBranch className="w-2.5 h-2.5 text-gray-400 shrink-0" />
                             <span className="truncate">git: {project.branch}</span>
                           </span>
                         )}
 
                         {/* Active Servers Count Badge */}
-                        <span
-                          className={`text-[10px] font-mono font-medium px-2.5 py-0.5 rounded-full border transition-all ${
-                            activeServersCount > 0
-                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 font-bold shadow-[0_0_12px_rgba(16,185,129,0.2)]'
-                              : 'bg-white/[0.04] text-gray-400 border-white/[0.08]'
-                          }`}
-                        >
-                          {servers.length} serveur{servers.length > 1 ? 's' : ''}
-                          {activeServersCount > 0 && (
-                            <span className="text-emerald-400 font-bold ml-1.5">
-                              • {activeServersCount} en cours
-                            </span>
-                          )}
-                        </span>
+                        {activeServersCount > 0 ? (
+                          <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span>{activeServersCount}/{servers.length} actif{activeServersCount > 1 ? 's' : ''}</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-gray-500 px-1.5 py-0.5 rounded bg-white/[0.02]">
+                            {servers.length} serveur{servers.length > 1 ? 's' : ''}
+                          </span>
+                        )}
                       </div>
 
                       <p
                         onClick={() => handleCopyPath(project.root)}
-                        className="text-[11px] text-gray-400 font-mono mt-1 cursor-pointer hover-accent transition-colors flex items-center gap-1.5 group/path"
+                        className="text-[11px] text-gray-500 font-mono mt-0.5 cursor-pointer hover:text-gray-300 transition-colors flex items-center gap-1.5 group/path truncate max-w-lg"
                         title="Cliquer pour copier le chemin du dossier"
                       >
                         <span className="truncate">{project.root}</span>
-                        <span className="text-[10px] opacity-0 group-hover/path:opacity-100 theme-accent-text font-sans transition-opacity shrink-0 font-medium">
+                        <span className="text-[10px] opacity-0 group-hover/path:opacity-100 theme-accent-text font-sans transition-opacity shrink-0">
                           {copiedPath === project.root ? '✓ Copié !' : '📋 Copier'}
                         </span>
                       </p>
@@ -448,166 +511,212 @@ export default function ProjectsView({
                   </div>
 
                   {/* Project Quick Action Tools */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {servers.length > 1 && (
                       activeServersCount > 0 ? (
                         <button
                           onClick={() => handleStopProjectServers(project)}
-                          className="px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs flex items-center gap-1.5 border border-red-500/40 shadow-lg shadow-red-500/10 transition-all duration-200 cursor-pointer active:scale-95 group"
-                          title="Arrêter tous les serveurs de ce projet"
+                          className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-medium text-xs flex items-center gap-1.5 border border-rose-500/20 transition-all cursor-pointer active:scale-95"
+                          title="Arrêter tous les serveurs"
                         >
-                          <Square className="w-3.5 h-3.5 fill-red-400 text-red-400 group-hover:scale-110 transition-transform" />
-                          <span>Arrêter Tout</span>
+                          <Square className="w-3 h-3 fill-rose-400 text-rose-400" />
+                          <span>Tout arrêter</span>
                         </button>
                       ) : (
                         <button
                           onClick={() => handleStartProjectServers(project)}
-                          className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center gap-1.5 border border-emerald-500/40 shadow-lg shadow-emerald-500/10 transition-all duration-200 cursor-pointer active:scale-95 group"
-                          title="Lancer tous les serveurs de ce projet"
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-medium text-xs flex items-center gap-1.5 border border-emerald-500/20 transition-all cursor-pointer active:scale-95"
+                          title="Lancer tous les serveurs"
                         >
-                          <Play className="w-3.5 h-3.5 fill-emerald-400 text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
-                          <span>Lancer Tout</span>
+                          <Play className="w-3 h-3 fill-emerald-400 text-emerald-400" />
+                          <span>Tout lancer</span>
                         </button>
                       )
                     )}
 
-                    <button
-                      onClick={() => handleOpenVSCode(project.root)}
-                      className="p-2 rounded-xl bg-white/[0.04] hover:bg-blue-500/20 text-gray-300 hover:text-blue-400 border border-white/[0.06] hover:border-blue-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
-                      title="Ouvrir dans VS Code"
-                      aria-label="Ouvrir dans VS Code"
-                    >
-                      <Code2 className="w-4 h-4" />
-                    </button>
+                    {/* More Actions Dropdown for Project */}
+                    <div className="relative" data-dropdown-container>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenu((prev) =>
+                            prev?.type === 'project' && prev?.id === project.id
+                              ? null
+                              : { type: 'project', id: project.id }
+                          );
+                        }}
+                        className={`p-1.5 rounded-lg border transition-all cursor-pointer active:scale-95 ${
+                          isProjectMenuOpen
+                            ? 'bg-white/[0.12] text-white border-white/25 shadow-lg'
+                            : 'bg-white/[0.02] hover:bg-white/[0.06] text-gray-400 hover:text-white border-white/[0.06]'
+                        }`}
+                        title="Options du projet"
+                        aria-label="Options du projet"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
 
-                    <button
-                      onClick={() => handleOpenExplorer(project.root)}
-                      className="p-2 rounded-xl bg-white/[0.04] hover:bg-amber-500/20 text-gray-300 hover:text-amber-400 border border-white/[0.06] hover:border-amber-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
-                      title="Ouvrir l'explorateur de fichiers"
-                      aria-label="Ouvrir l'explorateur de fichiers"
-                    >
-                      <Folder className="w-4 h-4" />
-                    </button>
+                      {isProjectMenuOpen && (
+                        <div
+                          className="absolute right-0 top-full mt-1.5 w-56 rounded-xl p-1.5 shadow-2xl z-50 text-xs font-sans animate-scaleUp select-none bg-[#131224]/95 backdrop-blur-xl border border-white/15"
+                        >
+                          <button
+                            onClick={() => {
+                              setOpenMenu(null);
+                              handleOpenVSCode(project.root);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                          >
+                            <Code2 className="w-3.5 h-3.5 text-blue-400" />
+                            <span>Ouvrir dans VS Code</span>
+                          </button>
 
-                    <button
-                      onClick={() => onOpenEnvModal(project.root)}
-                      className="p-2 rounded-xl bg-white/[0.04] hover:bg-emerald-500/20 text-gray-300 hover:text-emerald-400 border border-white/[0.06] hover:border-emerald-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
-                      title="Éditer le fichier .env"
-                      aria-label="Éditer le fichier .env"
-                    >
-                      <FileText className="w-4 h-4" />
-                    </button>
+                          <button
+                            onClick={() => {
+                              setOpenMenu(null);
+                              handleOpenExplorer(project.root);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                          >
+                            <Folder className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Ouvrir le dossier</span>
+                          </button>
 
-                    <button
-                      onClick={() => onEditProject && onEditProject(project)}
-                      className="p-2 rounded-xl bg-white/[0.04] hover-accent-bg text-gray-300 theme-accent-text border border-white/[0.06] hover-accent-border transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
-                      title="Modifier le nom et la couleur du projet"
-                      aria-label="Modifier le projet"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
+                          <button
+                            onClick={() => {
+                              setOpenMenu(null);
+                              onOpenEnvModal(project.root);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Variables .env</span>
+                          </button>
 
-                    <button
-                      onClick={() =>
-                        setConfirmDelete({
-                          type: 'project',
-                          projectId: project.id,
-                          name: project.name,
-                          serverCount: servers.length,
-                        })
-                      }
-                      className="p-2 rounded-xl bg-white/[0.04] hover:bg-red-500/20 text-gray-400 hover:text-red-400 border border-white/[0.06] hover:border-red-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
-                      title="Supprimer le projet de Portly"
-                      aria-label="Supprimer le projet"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                          {(project.url || (servers[0] && (servers[0].url || servers[0].port > 0))) && (
+                            <button
+                              onClick={() => {
+                                setOpenMenu(null);
+                                const targetUrl =
+                                  project.url || servers[0]?.url || `http://localhost:${servers[0]?.port}`;
+                                if (onOpenBrowser) {
+                                  onOpenBrowser(servers[0]?.id, targetUrl);
+                                } else {
+                                  setIframeTarget({ url: targetUrl, title: project.name });
+                                }
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                            >
+                              <Monitor className="w-3.5 h-3.5 text-purple-400" />
+                              <span>Aperçu Web & Devices</span>
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => {
+                              setOpenMenu(null);
+                              onEditProject && onEditProject(project);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
+                            <span>Modifier le projet</span>
+                          </button>
+
+                          <div className="my-1 border-t border-white/[0.08]" />
+
+                          <button
+                            onClick={() => {
+                              setOpenMenu(null);
+                              setConfirmDelete({
+                                type: 'project',
+                                projectId: project.id,
+                                name: project.name,
+                                serverCount: servers.length,
+                              });
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer text-left"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                            <span>Supprimer le projet</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* Accordion Content */}
-                <div
-                  className={`grid transition-all duration-300 ease-in-out ${
-                    isCollapsed
-                      ? 'grid-rows-[0fr] opacity-0 pointer-events-none mt-0'
-                      : 'grid-rows-[1fr] opacity-100 mt-3'
-                  }`}
-                >
-                  <div className="overflow-hidden space-y-3">
-                    <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent mb-2" />
-
+                {!isCollapsed && (
+                  <div className="space-y-1.5 pt-2 border-t border-white/[0.04]">
                     {servers.map((srv) => {
                       const isRunning = srv.state === 'running';
+                      const isServerMenuOpen = openMenu?.type === 'server' && openMenu.id === srv.id;
 
                       return (
                         <div
                           key={srv.id}
-                          className={`p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all duration-200 border ${
-                            isRunning
-                              ? 'bg-emerald-500/[0.05] border-emerald-500/30 shadow-lg shadow-emerald-500/5'
-                              : 'glass-card border-white/[0.06] hover:border-white/15'
+                          className={`px-3.5 py-2.5 rounded-xl flex items-center justify-between gap-3 transition-all duration-150 border ${
+                            isServerMenuOpen
+                              ? 'bg-white/[0.05] border-white/20 shadow-lg relative z-40'
+                              : isRunning
+                              ? 'bg-emerald-500/[0.03] border-emerald-500/20 hover:border-emerald-500/30'
+                              : 'bg-white/[0.015] border-white/[0.04] hover:bg-white/[0.03] hover:border-white/[0.08]'
                           }`}
                         >
-                          <div className="flex items-center gap-3.5">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
                             {/* Animated Dual Pulse Status Indicator */}
                             <div className="shrink-0 flex items-center justify-center">
                               {isRunning ? (
-                                <span className="relative flex h-3 w-3">
+                                <span className="relative flex h-2.5 w-2.5">
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 shadow-[0_0_10px_#10b981]"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
                                 </span>
                               ) : (
-                                <span className="w-3 h-3 rounded-full bg-gray-600/70 border border-gray-500/40"></span>
+                                <span className="w-2.5 h-2.5 rounded-full bg-gray-600/50"></span>
                               )}
                             </div>
 
-                            <div>
-                              <div className="flex items-center gap-2.5 flex-wrap">
-                                <span className="text-sm font-bold text-white tracking-tight">{srv.name}</span>
-
-                                <span className="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold theme-accent-badge">
-                                  :{srv.port}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-semibold text-white tracking-tight truncate">
+                                  {srv.name}
                                 </span>
 
-                                {isRunning ? (
-                                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono tracking-wide flex items-center gap-1.5 shadow-sm">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                    <span>EN COURS</span>
-                                  </span>
-                                ) : (
-                                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/[0.04] text-gray-400 border border-white/[0.08] font-mono">
-                                    ARRÊTÉ
+                                {srv.port > 0 && (
+                                  <span className="px-1.5 py-0.5 rounded text-[11px] font-mono font-semibold theme-accent-badge">
+                                    :{srv.port}
                                   </span>
                                 )}
 
-                                {isRunning && (
+                                {isRunning ? (
                                   <ServerUptimeBadge serverId={srv.id} isRunning={isRunning} />
+                                ) : (
+                                  <span className="text-[10px] font-mono text-gray-500">
+                                    Arrêté
+                                  </span>
                                 )}
 
                                 {srv.pid && (
-                                  <span
-                                    className="text-xs font-mono text-gray-400 bg-white/[0.04] px-2.5 py-0.5 rounded-full border border-white/10"
-                                    title={`PID ${srv.pid} | Auto-Guard RAM Max: ${srv.ramLimit || 500} MB`}
-                                  >
-                                    PID {srv.pid}
-                                  </span>
+                                  <span className="text-[10px] font-mono text-gray-500">PID {srv.pid}</span>
                                 )}
                               </div>
 
-                              <p className="text-xs font-mono text-gray-400 mt-1 selection:bg-purple-500/30">
+                              <p className="text-[11px] font-mono text-gray-400 truncate mt-0.5 max-w-lg">
                                 {srv.command}
                               </p>
                             </div>
                           </div>
 
                           {/* Server Action Controls */}
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center gap-1.5 shrink-0">
                             {isRunning ? (
                               <button
                                 onClick={() => handleStopServer(project.id, srv.id)}
-                                className="px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs flex items-center gap-1.5 border border-red-500/40 shadow-lg shadow-red-500/10 transition-all duration-200 cursor-pointer active:scale-95 group"
+                                className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 font-semibold text-xs flex items-center gap-1.5 border border-rose-500/30 transition-all cursor-pointer active:scale-95 shadow-sm"
+                                title="Arrêter ce serveur"
                               >
-                                <Square className="w-3.5 h-3.5 fill-red-400 text-red-400 group-hover:scale-110 transition-transform" />
+                                <Square className="w-3 h-3 fill-rose-400 text-rose-400" />
                                 <span>Arrêter</span>
                               </button>
                             ) : (
@@ -615,84 +724,148 @@ export default function ProjectsView({
                                 onClick={() =>
                                   handleStartServer(project.id, srv.id, project.root, srv.command, srv.env)
                                 }
-                                className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center gap-1.5 border border-emerald-500/40 shadow-lg shadow-emerald-500/10 transition-all duration-200 cursor-pointer active:scale-95 group"
+                                className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-semibold text-xs flex items-center gap-1.5 border border-emerald-500/40 transition-all cursor-pointer active:scale-95 shadow-sm"
+                                title="Démarrer ce serveur"
                               >
-                                <Play className="w-3.5 h-3.5 fill-emerald-400 text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
+                                <Play className="w-3 h-3 fill-emerald-400 text-emerald-400" />
                                 <span>Lancer</span>
                               </button>
                             )}
 
-                            {srv.port > 0 && (
-                              <>
-                                <button
-                                  onClick={() => handleOpenBrowser(`http://localhost:${srv.port}`)}
-                                  className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-300 hover:text-white border border-white/[0.08] transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 group"
-                                  title={`Ouvrir http://localhost:${srv.port}`}
-                                  aria-label="Ouvrir dans le navigateur"
-                                >
-                                  <ExternalLink className="w-3.5 h-3.5 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
-                                </button>
-
-                                <button
-                                  onClick={() => handleShareTunnel(srv.port, srv.name)}
-                                  className="p-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 group"
-                                  title="Partager un lien Tunnel Web/Mobile public"
-                                  aria-label="Créer un tunnel public"
-                                >
-                                  <Globe className="w-3.5 h-3.5 group-hover:rotate-45 transition-transform" />
-                                </button>
-                              </>
+                            {/* Open in Browser (if running and has port) */}
+                            {srv.port > 0 && isRunning && (
+                              <button
+                                onClick={() => handleOpenBrowser(`http://localhost:${srv.port}`)}
+                                className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white border border-white/[0.08] transition-all cursor-pointer active:scale-95"
+                                title={`Ouvrir http://localhost:${srv.port}`}
+                                aria-label="Ouvrir dans le navigateur"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </button>
                             )}
 
-                            <button
-                              onClick={() => onEditServer && onEditServer({ projectId: project.id, project, server: srv })}
-                              className="p-2 rounded-xl bg-white/[0.04] hover-accent-bg text-gray-300 theme-accent-text border border-white/[0.08] hover-accent-border transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
-                              title="Modifier la commande ou le port"
-                              aria-label="Modifier le serveur"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-
+                            {/* Open Terminal / Logs */}
                             <button
                               onClick={() => onOpenTerminal(srv.id, srv.name)}
-                              className="p-2 rounded-xl theme-accent-badge hover:bg-white/[0.1] transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
-                              title="Consulter les logs en temps réel"
-                              aria-label="Consulter les logs"
+                              className="p-1.5 rounded-xl bg-white/[0.04] hover-accent-bg text-gray-300 theme-accent-text border border-white/[0.08] hover-accent-border transition-all cursor-pointer active:scale-95"
+                              title="Voir les logs en direct"
+                              aria-label="Logs du terminal"
                             >
                               <Terminal className="w-3.5 h-3.5" />
                             </button>
 
-                            <button
-                              onClick={() =>
-                                setConfirmDelete({
-                                  type: 'server',
-                                  projectId: project.id,
-                                  serverId: srv.id,
-                                  name: srv.name,
-                                  projectName: project.name,
-                                })
-                              }
-                              className="p-2 rounded-xl bg-white/[0.04] hover:bg-red-500/20 text-gray-400 hover:text-red-400 border border-white/[0.06] hover:border-red-500/30 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
-                              title="Supprimer ce serveur du projet"
-                              aria-label="Supprimer le serveur"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            {/* Server More Actions Dropdown */}
+                            <div className="relative" data-dropdown-container>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenu((prev) =>
+                                    prev?.type === 'server' && prev?.id === srv.id
+                                      ? null
+                                      : { type: 'server', id: srv.id }
+                                  );
+                                }}
+                                className={`p-1.5 rounded-xl border transition-all cursor-pointer active:scale-95 ${
+                                  isServerMenuOpen
+                                    ? 'bg-white/[0.1] text-white border-white/20'
+                                    : 'bg-white/[0.03] hover:bg-white/[0.08] text-gray-400 hover:text-white border-white/[0.06]'
+                                }`}
+                                title="Options du serveur"
+                                aria-label="Options du serveur"
+                              >
+                                <MoreHorizontal className="w-3.5 h-3.5" />
+                              </button>
+
+                              {isServerMenuOpen && (
+                                <div
+                                  className="absolute right-0 top-full mt-1.5 w-52 rounded-xl p-1.5 shadow-2xl z-50 text-xs font-sans animate-scaleUp select-none bg-[#131224]/95 backdrop-blur-xl border border-white/15"
+                                >
+                                  {(srv.url || srv.port > 0) && (
+                                    <button
+                                      onClick={() => {
+                                        setOpenMenu(null);
+                                        const targetUrl = srv.url || `http://localhost:${srv.port}`;
+                                        if (onOpenBrowser) {
+                                          onOpenBrowser(srv.id, targetUrl);
+                                        } else {
+                                          setIframeTarget({
+                                            url: targetUrl,
+                                            title: `${project.name} - ${srv.name}`,
+                                          });
+                                        }
+                                      }}
+                                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                                    >
+                                      <Monitor className="w-3.5 h-3.5 text-purple-400" />
+                                      <span>Aperçu Web & Devices</span>
+                                    </button>
+                                  )}
+
+                                  {srv.port > 0 && (
+                                    <button
+                                      onClick={() => {
+                                        setOpenMenu(null);
+                                        handleShareTunnel(srv.port, srv.name);
+                                      }}
+                                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                                    >
+                                      <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                                      <span>Créer un tunnel public</span>
+                                    </button>
+                                  )}
+
+                                  <button
+                                    onClick={() => {
+                                      setOpenMenu(null);
+                                      onEditServer &&
+                                        onEditServer({
+                                          projectId: project.id,
+                                          project,
+                                          server: srv,
+                                        });
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
+                                    <span>Modifier le serveur</span>
+                                  </button>
+
+                                  <div className="my-1 border-t border-white/[0.08]" />
+
+                                  <button
+                                    onClick={() => {
+                                      setOpenMenu(null);
+                                      setConfirmDelete({
+                                        type: 'server',
+                                        projectId: project.id,
+                                        serverId: srv.id,
+                                        name: srv.name,
+                                        projectName: project.name,
+                                      });
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer text-left"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                                    <span>Supprimer le serveur</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
                     })}
 
-                    {/* Interactive Dashed Add Server Button */}
-                    <button
-                      onClick={() => onAddServer && onAddServer(project)}
-                      className="w-full py-3 px-4 rounded-2xl border-2 border-dashed border-white/10 hover-accent-border bg-white/[0.01] hover-accent-bg text-gray-400 theme-accent-text text-xs font-semibold flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer group shadow-inner"
-                    >
-                      <Plus className="w-4 h-4 group-hover:rotate-90 group-hover:scale-110 transition-all duration-300" />
-                      <span>Ajouter un serveur à ce projet</span>
-                    </button>
-                  </div>
-                </div>
+                    {/* Discreet Add Server Button */}
+                   <button
+                     onClick={() => onAddServer && onAddServer(project)}
+                     className="w-full py-2 px-3 rounded-xl border border-dashed border-white/10 hover:border-white/20 bg-white/[0.01] hover:bg-white/[0.03] text-gray-400 hover:text-white text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+                   >
+                     <Plus className="w-3.5 h-3.5" />
+                     <span>Ajouter un serveur</span>
+                   </button>
+                 </div>
+                )}
               </div>
             );
           })}
@@ -707,6 +880,13 @@ export default function ProjectsView({
         danger
         onConfirm={executeConfirmedDelete}
         onCancel={() => setConfirmDelete(null)}
+      />
+
+      <IframePreviewModal
+        isOpen={!!iframeTarget}
+        onClose={() => setIframeTarget(null)}
+        url={iframeTarget?.url}
+        title={iframeTarget?.title}
       />
     </div>
   );

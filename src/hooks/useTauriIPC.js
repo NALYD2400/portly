@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { triggerToast } from '../services/toastBus';
 
 const isTauriEnv = () => typeof window !== 'undefined' && (!!window.__TAURI_INTERNALS__ || !!window.__TAURI__);
 
@@ -6,7 +7,7 @@ const MAX_LOG_LINES = 2000;
 const LOG_BATCH_MS = 100;
 
 // ---------------------------------------------------------------------------
-// Cache global de logs : les lignes sont pré-paréisées une seule fois à l'arrivée
+// Cache global de logs : les lignes sont pré-parsées une seule fois à l'arrivée
 // (regex ANSI + détection error/success/info), puis regroupées par lot de ~100ms
 // pour éviter un re-render complet par ligne reçue.
 // ---------------------------------------------------------------------------
@@ -21,8 +22,8 @@ export function parseLogLine(rawText) {
   if (!rawText) {
     return { clean: '', isError: false, isSuccess: false, isInfo: false };
   }
-  // eslint-disable-next-line no-control-regex -- suppression volontaire des codes de couleur ANSI
-  const clean = rawText.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '');
+  // eslint-disable-next-line no-control-regex
+  const clean = rawText.replace(/\x1B(?:\[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '');
   const lower = clean.toLowerCase();
 
   return {
@@ -214,14 +215,12 @@ export function useProjects() {
             command: found.server.command,
             env: found.server.env || {},
           });
-          const { triggerToast } = await import('../components/ui/ToastContainer');
           triggerToast({
             title: '🔄 Auto-Restart Anti-Crash',
             message: `${found.server.name} s'est arrêté brutalement et a été relancé automatiquement.`,
             type: 'warning',
           });
         } catch (e) {
-          const { triggerToast } = await import('../components/ui/ToastContainer');
           triggerToast({
             title: '⚠️ Auto-Restart Échoué',
             message: `Impossible de relancer ${found.server.name}: ${String(e)}`,
@@ -302,3 +301,4 @@ export function useSystemMetrics() {
 
   return metrics;
 }
+

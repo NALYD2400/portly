@@ -4,7 +4,9 @@ mod process_manager;
 mod project_scanner;
 mod system_metrics;
 
-use config_store::{load_projects, save_projects, ProjectConfig};
+use config_store::{
+    load_projects, load_settings, save_projects, save_settings, AppSettings, ProjectConfig,
+};
 use parking_lot::Mutex;
 use port_inspector::{get_active_ports, kill_pid, PortEntry};
 use process_manager::ProcessManager;
@@ -105,6 +107,16 @@ fn save_projects_cmd(projects: Vec<ProjectConfig>) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn get_settings_cmd() -> AppSettings {
+    load_settings()
+}
+
+#[tauri::command]
+fn save_settings_cmd(settings: AppSettings) -> Result<(), String> {
+    save_settings(&settings)
+}
+
+#[tauri::command]
 fn detect_stack_cmd(path: String) -> DetectedStack {
     detect_stack(&path)
 }
@@ -168,8 +180,31 @@ fn open_explorer(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn get_local_ip_cmd() -> String {
+    if let Ok(socket) = std::net::UdpSocket::bind("0.0.0.0:0") {
+        if socket.connect("8.8.8.8:80").is_ok() {
+            if let Ok(addr) = socket.local_addr() {
+                return addr.ip().to_string();
+            }
+        }
+    }
+    "127.0.0.1".to_string()
+}
+
+#[tauri::command]
+fn open_config_dir_cmd() -> Result<String, String> {
+    let dir = config_store::get_config_dir();
+    let dir_str = dir.to_string_lossy().to_string();
+    std::process::Command::new("explorer")
+        .arg(&dir)
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(dir_str)
+}
+
+#[tauri::command]
 fn open_browser(url: String) -> Result<(), String> {
-    // N'autorise que les schémes ouvrables inoffensifs
     let lower = url.to_lowercase();
     if !lower.starts_with("http://") && !lower.starts_with("https://") {
         return Err("Seules les URLs http(s) peuvent être ouvertes.".into());
@@ -195,11 +230,11 @@ async fn download_update_cmd(app: AppHandle, url: String) -> Result<String, Stri
     use tokio::io::AsyncWriteExt;
 
     if !is_allowed_update_url(&url) {
-        return Err("URL de téléchargement refusée : seules les releases GitHub officielles de Portly sont autorisées.".into());
+        return Err("URL de téléchargement refusée : seules les releases GitHub officielles de Sprint sont autorisées.".into());
     }
 
     let client = reqwest::Client::builder()
-        .user_agent("Portly-Updater")
+        .user_agent("Sprint-Updater")
         .redirect(reqwest::redirect::Policy::limited(10))
         .build()
         .map_err(|e| format!("Erreur initialisation client HTTP: {}", e))?;
@@ -216,17 +251,15 @@ async fn download_update_cmd(app: AppHandle, url: String) -> Result<String, Stri
 
     let total_size = response.content_length().unwrap_or(0);
 
-    // Dossier de staging aléatoire : un autre processus ne peut pas prédire
-    // ni remplacer le fichier entre le téléchargement et l'exécution.
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let staging_dir = std::env::temp_dir().join(format!("portly_update_{}_{}", std::process::id(), nonce));
+    let staging_dir = std::env::temp_dir().join(format!("sprint_update_{}_{}", std::process::id(), nonce));
     tokio::fs::create_dir_all(&staging_dir)
         .await
         .map_err(|e| format!("Erreur création du dossier temporaire: {}", e))?;
-    let installer_path = staging_dir.join("Portly_setup.exe");
+    let installer_path = staging_dir.join("Sprint_setup.exe");
 
     let mut file = tokio::fs::File::create(&installer_path)
         .await
@@ -292,7 +325,6 @@ async fn install_update_and_relaunch_cmd(
 ) -> Result<(), String> {
     let path = PathBuf::from(&installer_path);
 
-    // Sécurité : n'exécute qu'un .exe situé dans notre zone de staging du temp
     let temp = std::env::temp_dir();
     let is_in_temp = path
         .parent()
@@ -300,7 +332,7 @@ async fn install_update_and_relaunch_cmd(
     let parent_name_ok = path
         .parent()
         .and_then(|p| p.file_name())
-        .map_or(false, |n| n.to_string_lossy().starts_with("portly_update_"));
+        .map_or(false, |n| n.to_string_lossy().starts_with("sprint_update_") || n.to_string_lossy().starts_with("portly_update_"));
     let is_exe = path
         .extension()
         .map_or(false, |e| e.eq_ignore_ascii_case("exe"));
@@ -320,8 +352,6 @@ async fn install_update_and_relaunch_cmd(
     let installer_clean = clean_path_str(&path);
     let exe_clean = clean_path_str(&current_exe);
 
-    // PowerShell : attend la fermeture, exécute l'installateur NSIS silencieux
-    // (avec relance UAC explicite si nécessaire), nettoie puis redémarre Portly.
     let ps_script = format!(
         "Start-Sleep -Seconds 2; $inst = '{}'; $exe = '{}'; try {{ $p = Start-Process -FilePath $inst -ArgumentList '/S' -PassThru -ErrorAction Stop; $p.WaitForExit() }} catch {{ Start-Process -FilePath $inst -ArgumentList '/S' -Verb RunAs -Wait }}; Remove-Item -LiteralPath (Split-Path $inst) -Recurse -Force -ErrorAction SilentlyContinue; if (Test-Path $exe) {{ Start-Process -FilePath $exe }}",
         installer_clean.replace("'", "''"),
@@ -340,22 +370,61 @@ async fn install_update_and_relaunch_cmd(
 
 #[tauri::command]
 async fn ping_port_cmd(port: u16) -> Result<bool, String> {
-    let addr = format!("127.0.0.1:{}", port);
-    match tokio::time::timeout(
-        std::time::Duration::from_millis(500),
-        tokio::net::TcpStream::connect(&addr),
+    let addr_v4 = format!("127.0.0.1:{}", port);
+    if let Ok(Ok(_)) = tokio::time::timeout(
+        std::time::Duration::from_millis(400),
+        tokio::net::TcpStream::connect(&addr_v4),
     )
     .await
     {
-        Ok(Ok(_)) => Ok(true),
-        _ => Ok(false),
+        return Ok(true);
     }
+
+    let addr_v6 = format!("[::1]:{}", port);
+    if let Ok(Ok(_)) = tokio::time::timeout(
+        std::time::Duration::from_millis(400),
+        tokio::net::TcpStream::connect(&addr_v6),
+    )
+    .await
+    {
+        return Ok(true);
+    }
+
+    Ok(false)
 }
 
 #[tauri::command]
-async fn read_env_file(project_root: String) -> Result<String, String> {
+async fn list_env_files_cmd(project_root: String) -> Result<Vec<String>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let path = std::path::Path::new(&project_root).join(".env");
+        let path = std::path::Path::new(&project_root);
+        if path.exists() {
+            Ok(config_store::list_env_files_in_dir(path))
+        } else {
+            Ok(vec![".env".to_string()])
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn sanitize_env_filename(file_name: Option<String>) -> Result<String, String> {
+    let name = file_name.unwrap_or_else(|| ".env".to_string());
+    let trimmed = name.trim();
+    if trimmed.contains("..")
+        || trimmed.contains('/')
+        || trimmed.contains('\\')
+        || (!trimmed.starts_with(".env") && !trimmed.ends_with(".env"))
+    {
+        return Err("Nom de fichier d'environnement non autorisé.".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
+#[tauri::command]
+async fn read_env_file(project_root: String, file_name: Option<String>) -> Result<String, String> {
+    let sanitized_name = sanitize_env_filename(file_name)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = std::path::Path::new(&project_root).join(sanitized_name);
         if path.exists() {
             std::fs::read_to_string(path).map_err(|e| e.to_string())
         } else {
@@ -367,9 +436,14 @@ async fn read_env_file(project_root: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn save_env_file(project_root: String, content: String) -> Result<(), String> {
+async fn save_env_file(
+    project_root: String,
+    file_name: Option<String>,
+    content: String,
+) -> Result<(), String> {
+    let sanitized_name = sanitize_env_filename(file_name)?;
     tauri::async_runtime::spawn_blocking(move || {
-        let path = std::path::Path::new(&project_root).join(".env");
+        let path = std::path::Path::new(&project_root).join(sanitized_name);
         config_store::atomic_write(&path, &content)
     })
     .await
@@ -487,8 +561,6 @@ async fn start_localtunnel_cmd(port: u16) -> Result<String, String> {
         }
     }
 
-    // Échec ou délai dépassé : on nettoie le process fantôme au lieu de
-    // renvoyer une URL fictive.
     let _ = child.start_kill();
     if pid > 0 {
         TUNNEL_PIDS.lock().retain(|&p| p != pid);
@@ -523,26 +595,24 @@ pub fn run() {
             }
             system_metrics::start_metrics_poller(app.handle().clone());
 
-            // Enregistre le raccourci global sauvegardé au démarrage
             let initial_shortcut = config_store::load_saved_shortcut();
             if let Err(e) = register_shortcut_internal(app.handle(), &initial_shortcut) {
-                eprintln!("Portly: {}", e);
+                eprintln!("Sprint: {}", e);
             }
 
-            // Menu du tray système
-            let show_item = MenuItemBuilder::with_id("show", "Ouvrir Portly").build(app)?;
+            let show_item = MenuItemBuilder::with_id("show", "Ouvrir Sprint").build(app)?;
             let start_all_item =
                 MenuItemBuilder::with_id("start_all", "🚀 Lancer Tous les Serveurs").build(app)?;
             let stop_all_item =
                 MenuItemBuilder::with_id("stop_all", "⏹️ Arrêter Tous les Serveurs").build(app)?;
-            let quit_item = MenuItemBuilder::with_id("quit", "Quitter Portly").build(app)?;
+            let quit_item = MenuItemBuilder::with_id("quit", "Quitter Sprint").build(app)?;
 
             let menu = MenuBuilder::new(app)
                 .items(&[&show_item, &start_all_item, &stop_all_item, &quit_item])
                 .build()?;
 
             let mut tray_builder = TrayIconBuilder::with_id("main_tray")
-                .tooltip("Portly - Gestionnaire de Serveurs")
+                .tooltip("Sprint - Gestionnaire de Serveurs")
                 .menu(&menu)
                 .show_menu_on_left_click(false);
 
@@ -622,6 +692,8 @@ pub fn run() {
             relaunch_app_cmd,
             get_projects_cmd,
             save_projects_cmd,
+            get_settings_cmd,
+            save_settings_cmd,
             detect_stack_cmd,
             start_server_cmd,
             stop_server_cmd,
@@ -629,7 +701,10 @@ pub fn run() {
             kill_port_cmd,
             open_vscode,
             open_explorer,
+            open_config_dir_cmd,
+            get_local_ip_cmd,
             open_browser,
+            list_env_files_cmd,
             read_env_file,
             save_env_file,
             send_windows_notification,
@@ -644,3 +719,4 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+

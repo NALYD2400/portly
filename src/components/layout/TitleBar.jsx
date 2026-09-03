@@ -1,8 +1,8 @@
 import React from 'react';
-import { Minus, Square, X, Terminal } from 'lucide-react';
+import { Minus, Square, X, Terminal, Search } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 
-export default function TitleBar() {
+export default function TitleBar({ onOpenCommandPalette }) {
   const getWin = async () => {
     try {
       if (typeof window !== 'undefined' && (window.__TAURI_INTERNALS__ || window.__TAURI__)) {
@@ -72,11 +72,30 @@ export default function TitleBar() {
         <div className="w-5 h-5 rounded-md theme-accent-btn flex items-center justify-center shadow-lg">
           <Terminal className="w-3 h-3 text-white" />
         </div>
-        <span className="font-bold tracking-wide text-white text-sm font-sans">Portly</span>
+        <span className="font-bold tracking-wide text-white text-sm font-sans">Sprint</span>
       </div>
 
-      {/* Middle Drag Space */}
-      <div data-tauri-drag-region className="flex-1 h-full" />
+      {/* Middle Drag Space & Global Command / Search Bar */}
+      <div data-tauri-drag-region className="flex-1 h-full flex items-center justify-center px-4">
+        {onOpenCommandPalette && (
+          <button
+            type="button"
+            onClick={onOpenCommandPalette}
+            className="flex items-center justify-between gap-3 px-3 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-gray-400 hover:text-white transition-all text-xs cursor-pointer group shadow-sm w-60 max-w-xs pointer-events-auto"
+            title="Rechercher ou exécuter une commande (Ctrl+K)"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <Search className="w-3 h-3 theme-accent-text group-hover:scale-110 transition-transform shrink-0" />
+              <span className="text-[11px] font-medium text-gray-400 group-hover:text-gray-200 truncate">
+                Rechercher...
+              </span>
+            </div>
+            <kbd className="font-mono font-bold text-[9px] px-1.5 py-0.5 rounded bg-white/[0.06] text-gray-400 border border-white/10 group-hover:border-white/20 shrink-0">
+              Ctrl K
+            </kbd>
+          </button>
+        )}
+      </div>
 
       {/* Window Action Buttons */}
       <div className="flex items-center gap-1">
@@ -103,7 +122,7 @@ export default function TitleBar() {
           title={
             localStorage.getItem('portly_cfg_minimizetotray') !== 'false'
               ? 'Réduire dans la barre des tâches'
-              : 'Quitter Portly complètement'
+              : 'Quitter Sprint complètement'
           }
         >
           <X className="w-3.5 h-3.5" />

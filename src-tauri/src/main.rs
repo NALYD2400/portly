@@ -4,12 +4,12 @@
 fn main() {
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
-        let msg = format!("Portly Panic Error: {}\n", info);
+        let msg = format!("Sprint Panic Error: {}\n", info);
         // Journalise dans le dossier de config de l'utilisateur au lieu d'un chemin en dur
-        let file = portly::config_store::get_crash_log_file();
+        let file = sprint_lib::config_store::get_crash_log_file();
         let _ = std::fs::write(file, &msg);
         default_hook(info);
     }));
 
-    portly::run();
+    sprint_lib::run();
 }

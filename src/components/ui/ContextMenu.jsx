@@ -84,7 +84,7 @@ export default function ContextMenu({ onOpenCommandPalette, onSelectTab }) {
     >
       <div className="px-2 py-1 mb-1 text-[10px] font-mono theme-accent-text uppercase tracking-wider font-bold border-b border-white/[0.08] flex items-center gap-1.5">
         <Sparkles className="w-3 h-3" />
-        <span>Portly Quick Menu</span>
+        <span>Sprint Quick Menu</span>
       </div>
 
       {items.map((item) => {

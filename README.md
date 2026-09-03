@@ -1,4 +1,4 @@
-# Portly
+# Sprint
 
 Superviseur de processus de développement local haute performance — moteur natif Rust (Tauri 2), interface React 19 + Tailwind 4.
 
@@ -7,7 +7,7 @@ Superviseur de processus de développement local haute performance — moteur na
 - **Gestion de projets & serveurs** : démarrez/arrêtez vos serveurs de dev (`npm run dev`, `cargo run`, `python main.py`...) avec détection automatique du stack, branche git et éditeur `.env` intégré.
 - **Logs temps réel** : streaming stdout/stderr multi-consoles (vue divisée), filtrage, tolérant aux encodages Windows non-UTF-8, batché pour rester fluide même sur un serveur bavard.
 - **Télémétrie CPU/RAM** : consommation par serveur (process racine + enfants), rafraîchie toutes les 2 s.
-- **Inspecteur de ports TCP** : scan natif via l'API Windows (`GetExtendedTcpTable`) — indépendant de la langue du système — avec identification des serveurs Portly.
+ - **Inspecteur de ports TCP** : scan natif via l'API Windows (`GetExtendedTcpTable`) — indépendant de la langue du système — avec identification des serveurs Sprint.
 - **Auto-Restart Anti-Crash** : relance automatique d'un serveur qui plante (max 3 relances / 2 min).
 - **Auto-Guard RAM** : redémarrage automatique d'un serveur qui dépasse sa limite de mémoire configurée (cooldown 30 s).
 - **Tunnels publics** : partage d'un port local via localtunnel en un clic, process tracké et nettoyé à la fermeture.

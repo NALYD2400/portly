@@ -1,51 +1,31 @@
 import React from 'react';
-import { LayoutDashboard, FolderCode, Network, Terminal, Settings, Plus, Search, Download } from 'lucide-react';
+import { LayoutDashboard, FolderCode, Network, Terminal, Settings, Download, Globe } from 'lucide-react';
 
 export default function Sidebar({
   activeTab,
   setActiveTab,
   activeServersCount,
-  onAddProject,
-  onOpenCommandPalette,
   onOpenUpdateModal,
   updateAvailable,
 }) {
   const navItems = [
     { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
     { id: 'projects', label: 'Projets & Serveurs', icon: FolderCode, badge: activeServersCount > 0 ? activeServersCount : null },
+    { id: 'browser', label: 'Aperçu Web & Devices', icon: Globe },
     { id: 'ports', label: 'Inspecteur de Ports', icon: Network },
     { id: 'terminal', label: 'Logs Temps Réel', icon: Terminal },
   ];
 
   return (
     <aside className="w-60 h-[calc(100vh-2.5rem)] glass-panel border-r border-white/[0.08] p-3 flex flex-col justify-between select-none z-10">
-      <div className="space-y-3">
-        {/* Add Project Quick Button */}
-        <button
-          onClick={onAddProject}
-          className="w-full py-2.5 px-3 rounded-xl theme-accent-btn text-white font-medium text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Nouveau Projet</span>
-        </button>
-
-        {/* Quick Command Center Search Button */}
-        <button
-          type="button"
-          onClick={onOpenCommandPalette}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-gray-400 hover:text-white transition-all text-xs cursor-pointer group shadow-sm"
-        >
-          <div className="flex items-center gap-2">
-            <Search className="w-3.5 h-3.5 theme-accent-text group-hover:scale-110 transition-transform" />
-            <span className="text-[11px] font-medium">Rechercher...</span>
-          </div>
-          <kbd className="font-mono font-bold text-[9px] px-1.5 py-0.5 rounded theme-accent-badge">
-            Ctrl K
-          </kbd>
-        </button>
+      <div className="space-y-4">
+        {/* Navigation Category Label */}
+        <div className="px-2 pt-1 text-[10px] font-bold tracking-wider text-gray-500 uppercase font-mono">
+          Navigation
+        </div>
 
         {/* Nav Links */}
-        <nav className="space-y-1 pt-1">
+        <nav className="space-y-1.5">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -96,17 +76,17 @@ export default function Sidebar({
           )}
         </button>
 
-        {updateAvailable && (
-          <button
-            onClick={onOpenUpdateModal}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold border border-emerald-500/30 transition-all cursor-pointer animate-fadeIn"
-            title="Mise à jour disponible ! Cliquez pour télécharger."
-          >
-            <Download className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Mise à jour disponible</span>
-          </button>
-        )}
-      </div>
-    </aside>
+       {updateAvailable && (
+         <button
+           onClick={onOpenUpdateModal}
+           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold border border-emerald-500/30 transition-all cursor-pointer animate-fadeIn"
+           title="Mise à jour disponible ! Cliquez pour télécharger."
+         >
+           <Download className="w-3.5 h-3.5 text-emerald-400" />
+           <span>Mise à jour disponible</span>
+         </button>
+       )}
+     </div>
+   </aside>
   );
 }

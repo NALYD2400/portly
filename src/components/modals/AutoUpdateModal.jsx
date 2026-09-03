@@ -161,7 +161,7 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
             </div>
             <div>
               <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
-                <span>Mise à Jour Portly</span>
+                <span>Mise à Jour Sprint</span>
                 <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full theme-accent-badge">
                   v{currentVersion}
                 </span>
@@ -208,7 +208,7 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
                 <CheckCircle2 className="w-7 h-7 theme-accent-text" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-white">Portly est déjà à jour !</h4>
+                <h4 className="text-sm font-bold text-white">Sprint est déjà à jour !</h4>
                 <p className="text-xs text-gray-400 mt-1">
                   Vous utilisez la dernière version <span className="theme-accent-text font-mono font-bold">v{currentVersion}</span>.
                 </p>
@@ -231,7 +231,7 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
                     Nouvelle Version Disponible
                   </span>
                   <h4 className="text-lg font-bold text-white mt-0.5 flex items-center gap-2">
-                    <span>Portly v{latestVersion}</span>
+                    <span>Sprint v{latestVersion}</span>
                     <span className="text-xs font-mono font-normal px-2 py-0.5 rounded-full theme-accent-badge">Nouveau</span>
                   </h4>
                 </div>
@@ -276,7 +276,7 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
                 <div>
                   <h4 className="text-sm font-bold text-white flex items-center gap-2">
                     <RefreshCw className="w-4 h-4 theme-accent-text animate-spin" />
-                    <span>Téléchargement de Portly v{latestVersion}</span>
+                    <span>Téléchargement de Sprint v{latestVersion}</span>
                   </h4>
                   <p className="text-xs text-gray-400 mt-0.5">Transfert sécurisé depuis GitHub Releases</p>
                 </div>
@@ -341,7 +341,7 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
                 className="w-full py-3 rounded-xl theme-accent-btn text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer active:scale-95"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>Installer & Relancer Portly</span>
+                <span>Installer & Relancer Sprint</span>
               </button>
             </div>
           )}

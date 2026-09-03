@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Portly",
-  "version": "0.4.0",
-  "identifier": "com.portly.desktop",
+  "productName": "Sprint",
+  "version": "0.4.1",
+  "identifier": "com.sprint.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5173",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Portly",
+        "title": "Sprint",
         "width": 1320,
         "height": 860,
         "minWidth": 960,
@@ -27,8 +27,8 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: asset: http://asset.localhost; connect-src 'self' ipc: http://ipc.localhost https://api.github.com https://github.com https://objects.githubusercontent.com https://release-assets.githubusercontent.com",
-      "devCsp": "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost ws://localhost:5173 http://localhost:5173 https://api.github.com https://github.com https://objects.githubusercontent.com https://release-assets.githubusercontent.com"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: asset: http://asset.localhost https:; frame-src 'self' http://localhost:* http://127.0.0.1:* http://[::1]:* http://*.localhost:* https:; child-src 'self' http://localhost:* http://127.0.0.1:* http://[::1]:* http://*.localhost:* https:; connect-src 'self' ipc: http://ipc.localhost http://localhost:* http://127.0.0.1:* https://api.github.com https://github.com https://objects.githubusercontent.com https://release-assets.githubusercontent.com",
+      "devCsp": "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https:; frame-src 'self' http://localhost:* http://127.0.0.1:* http://[::1]:* http://*.localhost:* https:; child-src 'self' http://localhost:* http://127.0.0.1:* http://[::1]:* http://*.localhost:* https:; connect-src 'self' ipc: http://ipc.localhost ws://localhost:5173 http://localhost:* http://127.0.0.1:* https://api.github.com https://github.com https://objects.githubusercontent.com https://release-assets.githubusercontent.com"
     }
   },
   "bundle": {

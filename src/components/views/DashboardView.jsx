@@ -1,13 +1,13 @@
 import React from 'react';
 import { Cpu, Activity, Zap, Square, ExternalLink, ArrowUpRight } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import { triggerToast } from '../ui/ToastContainer';
+import { triggerToast } from '../../services/toastBus';
 import { markManualStop } from '../../hooks/useTauriIPC';
 
 // Échelle de référence pour la barre RAM cumulative (2 Go)
 const RAM_SCALE_MB = 2048;
 
-export default function DashboardView({ metrics, projects, onSelectTab }) {
+export default function DashboardView({ metrics, projects, onSelectTab, onOpenBrowser }) {
   const totalProjects = projects.length;
   const runningServersList = [];
 
@@ -37,7 +37,7 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
     } catch (e) {
       if (!String(e).includes("n'est pas en cours")) {
         triggerToast({
-          title: '⚠️ Échec de l\'Arrêt',
+          title: "⚠️ Échec de l'Arrêt",
           message: `Impossible d'arrêter ${serverName}: ${String(e)}`,
           type: 'error',
         });
@@ -58,13 +58,13 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
       <div className="glass-panel p-6 rounded-3xl border theme-accent-border bg-gradient-to-r from-[#0d0b1a] via-[#120e29] to-[#0d0b1a] flex items-center justify-between shadow-2xl">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            <span>Portly Supervisor</span>
+            <span>Sprint Supervisor</span>
             <span className="text-xs px-2.5 py-0.5 rounded-full theme-accent-badge font-mono font-bold">
               Rust Engine Active
             </span>
           </h1>
           <p className="text-xs text-gray-400 mt-1">
-            Mesure exclusive de la consommation CPU & RAM des serveurs lancés par Portly.
+            Mesure exclusive de la consommation CPU & RAM des serveurs lancés par Sprint.
           </p>
         </div>
         <button
@@ -97,7 +97,7 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
                 <span>Consommation CPU</span>
               </span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full theme-accent-badge font-bold">
-                Portly
+                Sprint
               </span>
             </div>
 
@@ -273,12 +273,18 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
                   <div className="flex items-center gap-2 pl-3 border-l border-white/[0.08]">
                     {srv.port > 0 && (
                       <button
-                        onClick={() => handleOpenBrowser(`http://localhost:${srv.port}`)}
-                        className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-300 hover:text-white border border-white/[0.08] transition-all cursor-pointer active:scale-95"
-                        title="Ouvrir dans le navigateur"
-                        aria-label="Ouvrir dans le navigateur"
+                        onClick={() => {
+                          if (onOpenBrowser) {
+                            onOpenBrowser(srv.id, `http://localhost:${srv.port}`);
+                          } else {
+                            handleOpenBrowser(`http://localhost:${srv.port}`);
+                          }
+                        }}
+                        className="p-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-white border border-purple-500/30 transition-all cursor-pointer active:scale-95 flex items-center gap-1"
+                        title="Ouvrir dans l'Aperçu Web In-App"
+                        aria-label="Aperçu Web In-App"
                       >
-                        <ExternalLink className="w-3.5 h-3.5" />
+                        <ExternalLink className="w-3.5 h-3.5 text-purple-400" />
                       </button>
                     )}
 
@@ -299,3 +305,4 @@ export default function DashboardView({ metrics, projects, onSelectTab }) {
     </div>
   );
 }
+

@@ -7,6 +7,7 @@ import DashboardView from './components/views/DashboardView';
 import ProjectsView from './components/views/ProjectsView';
 import PortsView from './components/views/PortsView';
 import TerminalView from './components/views/TerminalView';
+import BrowserView from './components/views/BrowserView';
 import SettingsView from './components/views/SettingsView';
 import ContextMenu from './components/ui/ContextMenu';
 import AddProjectModal from './components/modals/AddProjectModal';
@@ -15,6 +16,7 @@ import EnvEditorModal from './components/modals/EnvEditorModal';
 import EditProjectModal from './components/modals/EditProjectModal';
 import ServerFormModal from './components/modals/ServerFormModal';
 import AutoUpdateModal from './components/modals/AutoUpdateModal';
+import IframePreviewModal from './components/modals/IframePreviewModal';
 import ToastContainer from './components/ui/ToastContainer';
 import { useProjects, useSystemMetrics } from './hooks/useTauriIPC';
 
@@ -48,6 +50,8 @@ export default function App() {
   const [editProjectTarget, setEditProjectTarget] = useState(null);
   const [serverForm, setServerForm] = useState(null); // { mode: 'add'|'edit', project, server }
   const [selectedTerminal, setSelectedTerminal] = useState({ id: null, name: null });
+  const [browserTarget, setBrowserTarget] = useState({ serverId: null, url: null });
+  const [iframeModalTarget, setIframeModalTarget] = useState(null); // { url, title }
 
   const { projects, saveProjects, reload: reloadProjects, loading } = useProjects();
   const metrics = useSystemMetrics();
@@ -132,6 +136,11 @@ export default function App() {
     setActiveTab('terminal');
   };
 
+  const handleOpenBrowser = (serverId, url) => {
+    setBrowserTarget({ serverId, url });
+    setActiveTab('browser');
+  };
+
   const handleAddProject = (newProject) => {
     const updated = [...projects, newProject];
     saveProjects(updated);
@@ -139,7 +148,7 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden relative font-sans text-gray-100 bg-[#07070c]">
-      {/* ReactBits Dynamic Animated ColorBends Canvas Background */}
+      {/* Dynamic Animated ColorBends Canvas Background */}
       {showCanvasBg && <ColorBendsBackground />}
 
       {/* Global Right-Click App Context Menu */}
@@ -149,7 +158,7 @@ export default function App() {
       />
 
       {/* Custom Frameless Windows TitleBar */}
-      <TitleBar />
+      <TitleBar onOpenCommandPalette={() => setIsPaletteOpen(true)} />
 
       {/* Main Workspace Layout */}
       <div className="flex-1 flex overflow-hidden z-10">
@@ -157,8 +166,6 @@ export default function App() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           activeServersCount={activeServersCount}
-          onAddProject={() => setIsAddModalOpen(true)}
-          onOpenCommandPalette={() => setIsPaletteOpen(true)}
           onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
           updateAvailable={updateAvailable}
         />
@@ -167,7 +174,7 @@ export default function App() {
         <main className="flex-1 p-6 overflow-y-auto">
           {loading ? (
             <div className="h-full flex items-center justify-center font-mono text-xs text-gray-400">
-              Chargement des projets Portly...
+              Chargement des projets Sprint...
             </div>
           ) : (
             <>
@@ -176,6 +183,7 @@ export default function App() {
                   metrics={metrics}
                   projects={projects}
                   onSelectTab={setActiveTab}
+                  onOpenBrowser={handleOpenBrowser}
                 />
               )}
 
@@ -184,6 +192,7 @@ export default function App() {
                   projects={projects}
                   saveProjects={saveProjects}
                   onOpenTerminal={handleOpenTerminal}
+                  onOpenBrowser={handleOpenBrowser}
                   onOpenEnvModal={(root) => setEnvModalRoot(root)}
                   onAddProject={() => setIsAddModalOpen(true)}
                   onEditProject={(project) => setEditProjectTarget(project)}
@@ -191,6 +200,16 @@ export default function App() {
                     setServerForm({ mode: 'edit', project, server })
                   }
                   onAddServer={(project) => setServerForm({ mode: 'add', project })}
+                  onOpenIframeModal={(target) => setIframeModalTarget(target)}
+                />
+              )}
+
+              {activeTab === 'browser' && (
+                <BrowserView
+                  projects={projects}
+                  initialServerId={browserTarget.serverId}
+                  initialUrl={browserTarget.url}
+                  onSelectTab={setActiveTab}
                 />
               )}
 
@@ -261,6 +280,15 @@ export default function App() {
         onClose={() => setIsUpdateModalOpen(false)}
         currentVersion={CURRENT_APP_VERSION}
       />
+
+      {iframeModalTarget && (
+        <IframePreviewModal
+          isOpen={!!iframeModalTarget}
+          onClose={() => setIframeModalTarget(null)}
+          url={iframeModalTarget.url}
+          title={iframeModalTarget.title}
+        />
+      )}
 
       <ToastContainer />
     </div>

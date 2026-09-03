@@ -125,7 +125,7 @@ pub fn start_metrics_poller(app: AppHandle) {
 
             for (server_id, pid) in to_restart {
                 eprintln!(
-                    "Portly Auto-Guard: le serveur {} (PID {}) dépasse sa limite RAM — redémarrage.",
+                    "Sprint Auto-Guard: le serveur {} (PID {}) dépasse sa limite RAM — redémarrage.",
                     server_id, pid
                 );
                 restart_server(&app, &server_id).await;
@@ -162,7 +162,7 @@ async fn restart_server(app: &AppHandle, server_id: &str) {
         srv.env,
     );
     if let Err(e) = result {
-        eprintln!("Portly Auto-Guard: échec du redémarrage de {}: {}", server_id, e);
+        eprintln!("Sprint Auto-Guard: échec du redémarrage de {}: {}", server_id, e);
     }
 }
 

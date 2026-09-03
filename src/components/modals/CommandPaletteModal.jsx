@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Network,
   Terminal,
+  Globe,
   Settings,
   Plus,
   Folder,
@@ -65,6 +66,14 @@ export default function CommandPaletteModal({
         subtitle: 'Gestion des projets locaux et micro-services',
         action: () => onSelectTab && onSelectTab('projects'),
         icon: FolderCode,
+      },
+      {
+        id: 'nav_browser',
+        type: 'Navigation',
+        title: 'Aperçu Web & Responsive (Dev Browser)',
+        subtitle: 'Visualisation en direct, mockups iPhone/tablette et dual split',
+        action: () => onSelectTab && onSelectTab('browser'),
+        icon: Globe,
       },
       {
         id: 'nav_ports',
@@ -276,3 +285,4 @@ export default function CommandPaletteModal({
     </Modal>
   );
 }
+

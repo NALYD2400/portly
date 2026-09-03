@@ -267,7 +267,7 @@ export default function ServerFormModal({
             />
           </div>
           <p className="text-[10px] text-gray-400 mt-1 font-sans">
-            Laissez vide pour désactiver. Sinon, si ce serveur dépasse cette limite de RAM, Portly le redémarre automatiquement (30 s minimum entre deux relances).
+            Laissez vide pour désactiver. Sinon, si ce serveur dépasse cette limite de RAM, Sprint le redémarre automatiquement (30 s minimum entre deux relances).
           </p>
         </div>
 

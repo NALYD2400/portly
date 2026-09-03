@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Network, RefreshCw, Skull, ExternalLink, Search, Sparkles, Radio, ShieldAlert } from 'lucide-react';
-
-import { triggerToast } from '../ui/ToastContainer';
+import {
+  Network,
+  RefreshCw,
+  Skull,
+  ExternalLink,
+  Search,
+  Sparkles,
+  ShieldAlert,
+  XCircle,
+} from 'lucide-react';
+import { triggerToast } from '../../services/toastBus';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
 const POLL_INTERVAL_MS = 3000;
@@ -13,7 +21,7 @@ export default function PortsView({ projects = [] }) {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [fetchError, setFetchError] = useState('');
-  const [confirmKill, setConfirmKill] = useState(null); // { pid, processName, port }
+  const [confirmKill, setConfirmKill] = useState(null); // { pid, processName, port, isSprint }
   const manualRefreshRef = useRef(false);
 
   const fetchPorts = useCallback(async () => {
@@ -33,7 +41,6 @@ export default function PortsView({ projects = [] }) {
   useEffect(() => {
     fetchPorts();
 
-    // Le scan des ports ne tourne que quand la fenêtre est visible
     let interval = setInterval(fetchPorts, POLL_INTERVAL_MS);
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
@@ -64,8 +71,8 @@ export default function PortsView({ projects = [] }) {
     try {
       await invoke('kill_port_cmd', { pid });
       triggerToast({
-        title: '☠️ Processus Terminé',
-        message: `${processName} (PID ${pid}) a été arrêté.`,
+        title: '⏹ Processus Terminé',
+        message: `${processName} (PID ${pid}) a été arrêté avec succès.`,
         type: 'warning',
       });
       fetchPorts();
@@ -78,12 +85,12 @@ export default function PortsView({ projects = [] }) {
     }
   };
 
-  // Map active Portly servers by port
-  const portlyServersMap = {};
+  // Mapper les serveurs Sprint actifs par port
+  const sprintServersMap = {};
   projects.forEach((p) => {
     (p.servers || []).forEach((srv) => {
       if (srv.port) {
-        portlyServersMap[srv.port] = {
+        sprintServersMap[srv.port] = {
           projectName: p.name,
           projectColor: p.color || 'var(--accent-color)',
           serverName: srv.name,
@@ -95,13 +102,14 @@ export default function PortsView({ projects = [] }) {
     });
   });
 
-  const portlyPortsCount = ports.filter((p) => !!portlyServersMap[p.port]).length;
+  const sprintPortsCount = ports.filter((p) => !!sprintServersMap[p.port]).length;
+  const systemPortsCount = ports.length - sprintPortsCount;
 
   const filteredPorts = ports.filter((p) => {
-    const isPortly = !!portlyServersMap[p.port];
+    const isSprint = !!sprintServersMap[p.port];
 
-    if (filterType === 'portly' && !isPortly) return false;
-    if (filterType === 'system' && isPortly) return false;
+    if (filterType === 'sprint' && !isSprint) return false;
+    if (filterType === 'system' && isSprint) return false;
 
     if (!search) return true;
     const q = search.toLowerCase();
@@ -109,179 +117,173 @@ export default function PortsView({ projects = [] }) {
       p.port.toString().includes(q) ||
       p.process_name.toLowerCase().includes(q) ||
       String(p.pid ?? '').includes(q) ||
-      (isPortly && portlyServersMap[p.port].projectName.toLowerCase().includes(q))
+      (isSprint && sprintServersMap[p.port].projectName.toLowerCase().includes(q))
     );
   });
 
   const showSpinner = loading && manualRefreshRef.current;
 
   return (
-    <div className="space-y-6 animate-fadeIn select-none pb-8">
-      {/* Header Banner */}
-      <div className="glass-panel p-6 rounded-3xl border border-white/10 shadow-2xl bg-gradient-to-r from-[#0d0b1a] via-[#130f2c] to-[#0d0b1a] flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-4 animate-fadeIn select-none pb-12 max-w-6xl mx-auto">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-              <Network className="w-6 h-6 theme-accent-text" />
-              <span>Inspecteur de Ports TCP & Processus</span>
-            </h1>
-
-            <span className="text-[10px] font-bold font-mono px-2.5 py-0.5 rounded-full theme-accent-badge flex items-center gap-1">
-              <Radio className="w-3 h-3 theme-accent-text animate-pulse" />
-              Live Sync 3s
+          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2.5">
+            <span>Inspecteur de Ports</span>
+            <span className="text-xs font-mono font-normal px-2.5 py-0.5 rounded-full bg-white/[0.06] text-gray-300 border border-white/10">
+              {ports.length} actif{ports.length > 1 ? 's' : ''}
             </span>
-          </div>
-
-          <p className="text-xs text-gray-400 mt-1.5">
-            Moniteur natif des ports d'écoute actifs du système. Les serveurs gérés par Portly sont automatiquement identifiés.
+            {sprintPortsCount > 0 && (
+              <span className="text-xs font-mono font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>{sprintPortsCount} Sprint</span>
+              </span>
+            )}
+          </h1>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Surveillez les processus locaux et ports TCP en écoute en temps réel.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          {/* Search Bar */}
+        {/* Barre d'outils et filtres */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Segmented Control */}
+          <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.08] p-0.5 rounded-xl text-xs">
+            <button
+              onClick={() => setFilterType('all')}
+              className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                filterType === 'all'
+                  ? 'bg-white/[0.12] text-white shadow-sm'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Tous ({ports.length})
+            </button>
+
+            <button
+              onClick={() => setFilterType('sprint')}
+              className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterType === 'sprint'
+                  ? 'bg-white/[0.12] text-white shadow-sm'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Sparkles className="w-3 h-3 theme-accent-text" />
+              <span>Sprint ({sprintPortsCount})</span>
+            </button>
+
+            <button
+              onClick={() => setFilterType('system')}
+              className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                filterType === 'system'
+                  ? 'bg-white/[0.12] text-white shadow-sm'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Système ({systemPortsCount})
+            </button>
+          </div>
+
+          {/* Search Filter */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-3" />
+            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5 pointer-events-none" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Port, PID, app, projet..."
-              className="pl-9 pr-3 py-2 rounded-2xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none theme-accent-border w-60 font-mono shadow-inner"
+              placeholder="Filtrer port, PID, app..."
+              className="pl-9 pr-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none theme-accent-border w-44 sm:w-52 shadow-inner transition-all font-mono"
             />
           </div>
 
+          {/* Refresh Button */}
           <button
             onClick={handleManualRefresh}
-            className="px-4 py-2 rounded-2xl theme-accent-btn text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-lg active:scale-95 hover:brightness-110"
+            className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white border border-white/[0.08] transition-all cursor-pointer active:scale-95 shrink-0"
+            title="Actualiser les ports"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${showSpinner ? 'animate-spin' : ''}`} />
-            <span>Actualiser</span>
           </button>
         </div>
       </div>
 
       {fetchError && (
-        <div role="alert" className="glass-panel p-4 rounded-2xl border border-red-500/30 bg-red-500/10 text-xs text-red-300 flex items-center gap-2">
+        <div role="alert" className="p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-xs text-red-300 flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 shrink-0" />
           <span className="break-words">Erreur de scan des ports : {fetchError}</span>
         </div>
       )}
 
-      {/* Filter Tabs Bar */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2 p-1.5 rounded-2xl glass-panel border border-white/10 bg-black/40">
-          <button
-            onClick={() => setFilterType('all')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              filterType === 'all'
-                ? 'theme-accent-btn text-white shadow-md'
-                : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
-            }`}
-          >
-            Tous ({ports.length})
-          </button>
-
-          <button
-            onClick={() => setFilterType('portly')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              filterType === 'portly'
-                ? 'theme-accent-btn text-white shadow-md'
-                : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 theme-accent-text" />
-            <span>Serveurs Portly ({portlyPortsCount})</span>
-          </button>
-
-          <button
-            onClick={() => setFilterType('system')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              filterType === 'system'
-                ? 'theme-accent-btn text-white shadow-md'
-                : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
-            }`}
-          >
-            Autres Processus ({ports.length - portlyPortsCount})
-          </button>
-        </div>
-
-        <div className="text-xs text-gray-400 font-mono">
-          Affichage: <span className="text-white font-bold">{filteredPorts.length}</span> port(s)
-        </div>
-      </div>
-
       {/* Ports Table */}
-      <div className="glass-panel rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-[#0c0a18]/90">
+      <div className="rounded-2xl border border-white/[0.08] overflow-hidden bg-[#0d0e17]/90 backdrop-blur-md shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-white/10 bg-white/[0.02] text-gray-400 font-mono text-[11px] uppercase tracking-wider">
-                <th scope="col" className="py-3.5 px-5">Port</th>
-                <th scope="col" className="py-3.5 px-5">Processus / Application</th>
-                <th scope="col" className="py-3.5 px-5">PID</th>
-                <th scope="col" className="py-3.5 px-5">Adresse Locale</th>
-                <th scope="col" className="py-3.5 px-5">Protocole</th>
-                <th scope="col" className="py-3.5 px-5 text-right">Actions</th>
+              <tr className="border-b border-white/[0.06] bg-white/[0.02] text-gray-400 font-mono text-[11px] uppercase tracking-wider">
+                <th scope="col" className="py-2.5 px-4">Port</th>
+                <th scope="col" className="py-2.5 px-4">Processus / Application</th>
+                <th scope="col" className="py-2.5 px-4">PID</th>
+                <th scope="col" className="py-2.5 px-4">Adresse Locale</th>
+                <th scope="col" className="py-2.5 px-4">Protocole</th>
+                <th scope="col" className="py-2.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04] font-mono text-gray-300">
               {filteredPorts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-500 font-sans italic space-y-2">
-                    <div className="text-sm font-semibold text-gray-400">Aucun port d'écoute actif trouvé</div>
+                  <td colSpan={6} className="py-12 text-center text-gray-500 font-sans italic space-y-1">
+                    <div className="text-sm font-semibold text-gray-400">Aucun port correspondant</div>
                     <div className="text-xs text-gray-500">
                       {search || filterType !== 'all'
                         ? 'Essayez de réinitialiser vos critères de recherche.'
-                        : 'Aucun port TCP en écoute détecté sur ce système.'}
+                        : 'Aucun port TCP en écoute détecté sur le système.'}
                     </div>
                   </td>
                 </tr>
               ) : (
                 filteredPorts.map((entry) => {
-                  const portlyMatch = portlyServersMap[entry.port];
+                  const sprintMatch = sprintServersMap[entry.port];
                   return (
                     <tr
                       key={`${entry.port}-${entry.pid}`}
-                      className={`transition-all duration-200 ${
-                        portlyMatch
-                          ? 'border-l-4 theme-accent-border font-bold'
-                          : 'hover:bg-white/[0.03]'
+                      className={`transition-colors duration-150 ${
+                        sprintMatch
+                          ? 'bg-purple-500/[0.04] hover:bg-purple-500/[0.08]'
+                          : 'hover:bg-white/[0.02]'
                       }`}
-                      style={
-                        portlyMatch
-                          ? { backgroundColor: 'rgba(var(--accent-color-rgb), 0.12)' }
-                          : {}
-                      }
                     >
-                      {/* Port Badge */}
-                      <td className="py-3 px-5 font-bold">
+                      {/* Port */}
+                      <td className="py-2.5 px-4">
                         <span
-                          className={`text-sm font-mono tracking-tight px-2.5 py-1 rounded-xl ${
-                            portlyMatch
-                              ? 'theme-accent-badge font-extrabold shadow-md'
-                              : 'bg-white/[0.05] text-gray-300 border border-white/10'
+                          className={`px-2 py-0.5 rounded-md text-xs font-mono font-semibold ${
+                            sprintMatch
+                              ? 'theme-accent-badge font-bold'
+                              : 'bg-white/[0.04] text-gray-300 border border-white/[0.06]'
                           }`}
                         >
                           :{entry.port}
                         </span>
                       </td>
 
-                      {/* Process & Project Info */}
-                      <td className="py-3 px-5 font-sans font-medium text-white">
-                        <div className="flex items-center gap-2.5 flex-wrap">
+                      {/* Process & Project Name */}
+                      <td className="py-2.5 px-4 font-sans font-medium text-white">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold">{entry.process_name}</span>
-                          {portlyMatch && (
+                          {sprintMatch && (
                             <span
-                              className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border shadow-md"
+                              className="inline-flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded-md border"
                               style={{
-                                backgroundColor: `${portlyMatch.projectColor}20`,
-                                borderColor: `${portlyMatch.projectColor}50`,
-                                color: portlyMatch.projectColor,
+                                backgroundColor: `${sprintMatch.projectColor}15`,
+                                borderColor: `${sprintMatch.projectColor}40`,
+                                color: sprintMatch.projectColor,
                               }}
                             >
-                              <Sparkles className="w-3 h-3" />
+                              <span
+                                className="w-1.5 h-1.5 rounded-full"
+                                style={{ backgroundColor: sprintMatch.projectColor }}
+                              />
                               <span>
-                                {portlyMatch.projectName} ({portlyMatch.serverName})
+                                {sprintMatch.projectName} ({sprintMatch.serverName})
                               </span>
                             </span>
                           )}
@@ -289,50 +291,50 @@ export default function PortsView({ projects = [] }) {
                       </td>
 
                       {/* PID */}
-                      <td className="py-3 px-5">
-                        <span className="text-xs font-mono text-gray-400 bg-white/[0.04] border border-white/10 px-2 py-0.5 rounded-lg">
-                          {entry.pid ?? '—'}
-                        </span>
+                      <td className="py-2.5 px-4 text-gray-400 font-mono text-xs">
+                        {entry.pid ?? '—'}
                       </td>
 
                       {/* Local Address */}
-                      <td className="py-3 px-5 text-gray-400 font-mono text-xs">
+                      <td className="py-2.5 px-4 text-gray-400 font-mono text-xs">
                         {entry.local_address}
                       </td>
 
                       {/* Protocol */}
-                      <td className="py-3 px-5">
-                        <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">
+                      <td className="py-2.5 px-4">
+                        <span className="px-1.5 py-0.5 rounded bg-white/[0.03] text-gray-400 border border-white/[0.06] text-[10px] font-mono">
                           {entry.protocol}
                         </span>
                       </td>
 
                       {/* Actions */}
-                      <td className="py-3 px-5 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="py-2.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Ouvrir dans le navigateur */}
                           <button
                             onClick={() => invoke('open_browser', { url: `http://localhost:${entry.port}` })}
-                            className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-300 hover:text-white border border-white/[0.08] transition-all cursor-pointer active:scale-95"
-                            title="Ouvrir dans le navigateur"
+                            className="p-1.5 rounded-lg hover:bg-white/[0.08] text-gray-400 hover:text-white transition-colors cursor-pointer"
+                            title={`Ouvrir http://localhost:${entry.port}`}
                             aria-label="Ouvrir dans le navigateur"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                           </button>
 
+                          {/* Tuer le processus */}
                           <button
                             onClick={() =>
                               setConfirmKill({
                                 pid: entry.pid,
                                 processName: entry.process_name,
                                 port: entry.port,
-                                isPortly: !!portlyMatch,
+                                isSprint: !!sprintMatch,
                               })
                             }
-                            className="px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs flex items-center gap-1.5 border border-red-500/40 shadow-lg shadow-red-500/10 transition-all cursor-pointer active:scale-95"
-                            title={`Tuer le processus ${entry.process_name} (PID ${entry.pid})`}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-rose-400 hover:bg-rose-500/15 transition-colors cursor-pointer"
+                            title={`Arrêter ${entry.process_name} (PID ${entry.pid})`}
+                            aria-label="Arrêter le processus"
                           >
-                            <Skull className="w-3.5 h-3.5 fill-red-400 text-red-400" />
-                            <span>Tuer ({entry.pid})</span>
+                            <XCircle className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
@@ -347,13 +349,13 @@ export default function PortsView({ projects = [] }) {
 
       <ConfirmDialog
         open={!!confirmKill}
-        title={confirmKill?.isPortly ? 'Arrêter ce serveur Portly ?' : 'Terminer ce processus système ?'}
+        title={confirmKill?.isSprint ? 'Arrêter ce serveur Sprint ?' : 'Terminer ce processus système ?'}
         message={
-          confirmKill?.isPortly
-            ? `Vous allez forcer l'arrêt de « ${confirmKill?.processName} » (PID ${confirmKill?.pid}) qui écoute sur le port ${confirmKill?.port} et qui appartient à un de vos projets Portly.`
-            : `Attention : « ${confirmKill?.processName} » (PID ${confirmKill?.pid}) sur le port ${confirmKill?.port} n'appartient PAS à Portly. Forcer son arrêt peut déstabiliser l'application ou le service qui l'utilise.`
+          confirmKill?.isSprint
+            ? `Vous allez forcer l'arrêt de « ${confirmKill?.processName} » (PID ${confirmKill?.pid}) qui écoute sur le port ${confirmKill?.port} et qui appartient à un de vos projets Sprint.`
+            : `Attention : « ${confirmKill?.processName} » (PID ${confirmKill?.pid}) sur le port ${confirmKill?.port} n'appartient PAS à Sprint. Forcer son arrêt peut déstabiliser l'application ou le service qui l'utilise.`
         }
-        confirmLabel={`Tuer le processus ${confirmKill ? `(${confirmKill.pid})` : ''}`.trim()}
+        confirmLabel={`Arrêter le processus ${confirmKill ? `(${confirmKill.pid})` : ''}`.trim()}
         danger
         onConfirm={executeKill}
         onCancel={() => setConfirmKill(null)}

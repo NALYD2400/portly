@@ -3,6 +3,60 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppSettings {
+    #[serde(default = "default_hex")]
+    pub custom_hex: String,
+    #[serde(default = "default_true")]
+    pub canvas_bg: bool,
+    #[serde(default = "default_false")]
+    pub auto_restart: bool,
+    #[serde(default = "default_true")]
+    pub hide_stopped_servers: bool,
+    #[serde(default = "default_true")]
+    pub clean_ansi_logs: bool,
+    #[serde(default = "default_true")]
+    pub minimize_to_tray: bool,
+    #[serde(default = "default_true")]
+    pub notif_windows: bool,
+    #[serde(default = "default_true")]
+    pub notif_app: bool,
+    #[serde(default = "default_shortcut")]
+    pub global_shortcut: String,
+    #[serde(default = "default_false")]
+    pub autostart: bool,
+}
+
+fn default_hex() -> String {
+    "#a855f7".to_string()
+}
+fn default_shortcut() -> String {
+    "Ctrl+Alt+P".to_string()
+}
+fn default_true() -> bool {
+    true
+}
+fn default_false() -> bool {
+    false
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            custom_hex: default_hex(),
+            canvas_bg: true,
+            auto_restart: false,
+            hide_stopped_servers: true,
+            clean_ansi_logs: true,
+            minimize_to_tray: true,
+            notif_windows: true,
+            notif_app: true,
+            global_shortcut: default_shortcut(),
+            autostart: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
     pub id: String,
     pub name: String,
@@ -32,8 +86,20 @@ pub struct ProjectConfig {
 }
 
 pub fn get_config_dir() -> PathBuf {
-    let mut dir = dirs_next::config_dir().unwrap_or_else(|| PathBuf::from("."));
-    dir.push("portly");
+    let base = dirs_next::config_dir().unwrap_or_else(|| PathBuf::from("."));
+    let dir = base.join("sprint");
+    if !dir.exists() {
+        let legacy = base.join("portly");
+        if legacy.exists() {
+            let _ = fs::create_dir_all(&dir);
+            if let Ok(content) = fs::read_to_string(legacy.join("projects.json")) {
+                let _ = fs::write(dir.join("projects.json"), content);
+            }
+            if let Ok(content) = fs::read_to_string(legacy.join("settings.json")) {
+                let _ = fs::write(dir.join("settings.json"), content);
+            }
+        }
+    }
     let _ = fs::create_dir_all(&dir);
     dir
 }
@@ -42,12 +108,15 @@ pub fn get_projects_file() -> PathBuf {
     get_config_dir().join("projects.json")
 }
 
+pub fn get_settings_file() -> PathBuf {
+    get_config_dir().join("settings.json")
+}
+
 pub fn get_crash_log_file() -> PathBuf {
     get_config_dir().join("crash.log")
 }
 
 /// Écriture atomique : écrit dans un fichier temporaire puis renomme.
-/// Un crash en pleine écriture ne peut plus tronquer le fichier d'origine.
 pub fn atomic_write(path: &Path, contents: &str) -> Result<(), String> {
     let tmp_path = path.with_extension("tmp");
 
@@ -56,8 +125,7 @@ pub fn atomic_write(path: &Path, contents: &str) -> Result<(), String> {
     if path.exists() {
         let bak_path = path.with_extension("bak");
         let _ = fs::remove_file(&bak_path);
-        fs::rename(path, &bak_path)
-            .map_err(|e| format!("Erreur sauvegarde de {}: {}", path.display(), e))?;
+        let _ = fs::rename(path, &bak_path);
     }
 
     fs::rename(&tmp_path, path).map_err(|e| format!("Erreur finalisation {}: {}", path.display(), e))?;
@@ -70,8 +138,6 @@ pub fn load_projects() -> Vec<ProjectConfig> {
         if let Ok(content) = fs::read_to_string(&file) {
             match serde_json::from_str::<Vec<ProjectConfig>>(&content) {
                 Ok(mut projects) => {
-                    // L'état "running" persisté n'a plus de sens au lancement :
-                    // le process manager démarre vide. On réconcilie ici.
                     for prj in &mut projects {
                         for srv in &mut prj.servers {
                             srv.state = "stopped".to_string();
@@ -81,8 +147,6 @@ pub fn load_projects() -> Vec<ProjectConfig> {
                     return projects;
                 }
                 Err(e) => {
-                    // Fichier corrompu : on le met en quarantaine plutôt que de
-                    // risquer son écrasement silencieux à la prochaine sauvegarde.
                     let quarantine = get_config_dir().join(format!(
                         "projects.corrupt-{}.json",
                         std::time::SystemTime::now()
@@ -92,7 +156,7 @@ pub fn load_projects() -> Vec<ProjectConfig> {
                     ));
                     let _ = fs::rename(&file, &quarantine);
                     eprintln!(
-                        "Portly: projects.json illisible ({}) — mis en quarantaine dans {}",
+                        "Sprint: projects.json illisible ({}) — mis en quarantaine dans {}",
                         e,
                         quarantine.display()
                     );
@@ -127,4 +191,52 @@ pub fn load_saved_shortcut() -> String {
 
 pub fn save_saved_shortcut(shortcut: &str) -> Result<(), String> {
     atomic_write(&get_shortcut_file(), shortcut)
+}
+
+pub fn load_settings() -> AppSettings {
+    let file = get_settings_file();
+    if file.exists() {
+        if let Ok(content) = fs::read_to_string(&file) {
+            if let Ok(settings) = serde_json::from_str::<AppSettings>(&content) {
+                return settings;
+            }
+        }
+    }
+    let legacy_shortcut = load_saved_shortcut();
+    AppSettings {
+        custom_hex: default_hex(),
+        canvas_bg: true,
+        auto_restart: false,
+        hide_stopped_servers: true,
+        clean_ansi_logs: true,
+        minimize_to_tray: true,
+        notif_windows: true,
+        notif_app: true,
+        global_shortcut: if !legacy_shortcut.is_empty() { legacy_shortcut } else { default_shortcut() },
+        autostart: false,
+    }
+}
+
+pub fn save_settings(settings: &AppSettings) -> Result<(), String> {
+    let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
+    atomic_write(&get_settings_file(), &json)
+}
+
+pub fn list_env_files_in_dir(project_root: &Path) -> Vec<String> {
+    let mut list = Vec::new();
+    if let Ok(entries) = fs::read_dir(project_root) {
+        for entry in entries.flatten() {
+            if let Ok(file_name) = entry.file_name().into_string() {
+                if file_name == ".env" || file_name.starts_with(".env.") {
+                    list.push(file_name);
+                }
+            }
+        }
+    }
+    if list.is_empty() {
+        list.push(".env".to_string());
+    } else {
+        list.sort();
+    }
+    list
 }

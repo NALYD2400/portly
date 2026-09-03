@@ -1,9 +1,13 @@
 [package]
-name = "portly"
-version = "0.4.0"
-description = "Portly Developer Supervisor & Process Manager"
+name = "sprint"
+version = "0.4.1"
+description = "Sprint Developer Supervisor & Process Manager"
 authors = ["Dylan"]
 edition = "2021"
+
+[lib]
+name = "sprint_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2.0.5", features = [] }
