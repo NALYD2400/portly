@@ -68,23 +68,23 @@ export default function IframePreviewModal({ isOpen, onClose, url, title }) {
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 select-none cursor-pointer"
+      className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 select-none cursor-pointer"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-[#0b0c16] border border-white/10 rounded-3xl w-full max-w-6xl h-[88vh] flex flex-col overflow-hidden shadow-2xl cursor-default animate-scaleUp"
+        className="bg-[var(--surface-1)] border border-[var(--line)] rounded-2xl w-full max-w-6xl h-[88vh] flex flex-col overflow-hidden cursor-default animate-scaleUp"
       >
         {/* Browser Top Shell Navigation Bar */}
-        <div className="flex items-center justify-between px-5 py-3.5 bg-[#100e22] border-b border-white/[0.08] gap-4">
+        <div className="flex items-center justify-between px-5 py-3.5 bg-[var(--surface-2)] border-b border-[var(--line)] gap-4">
           <div className="flex items-center gap-3 shrink-0 min-w-0">
-            <div className="w-8 h-8 rounded-xl theme-accent-btn flex items-center justify-center shadow-md shrink-0">
+            <div className="w-8 h-8 rounded-lg theme-accent-btn flex items-center justify-center shrink-0">
               <Monitor className="w-4 h-4 text-white" />
             </div>
             <div className="min-w-0">
-              <span className="text-xs font-bold text-white truncate block max-w-[180px]">
+              <span className="text-xs font-semibold text-white truncate block max-w-[180px]">
                 {title || 'Aperçu Web In-App'}
               </span>
-              <span className="text-[10px] text-gray-400 font-mono flex items-center gap-1.5">
+              <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-1.5">
                 <Radio
                   className={`w-2.5 h-2.5 ${
                     serverOnline ? 'text-emerald-400 animate-pulse' : 'text-amber-400'
@@ -96,12 +96,12 @@ export default function IframePreviewModal({ isOpen, onClose, url, title }) {
           </div>
 
           {/* URL Address Bar */}
-          <div className="flex-1 max-w-xl flex items-center gap-2 bg-black/50 border border-white/10 rounded-2xl px-3.5 py-1.5 text-xs text-gray-300 font-mono shadow-inner min-w-0">
+          <div className="flex-1 max-w-xl flex items-center gap-2 bg-black/40 border border-[var(--line)] rounded-xl px-3.5 py-1.5 text-xs text-zinc-300 font-mono min-w-0">
             <Globe className="w-3.5 h-3.5 theme-accent-text shrink-0" />
             <span className="truncate flex-1 select-all">{url}</span>
             <button
               onClick={handleCopyUrl}
-              className="p-1 hover:text-white text-gray-400 transition-colors cursor-pointer shrink-0"
+              className="p-1 hover:text-white text-zinc-400 transition-colors cursor-pointer shrink-0"
               title="Copier l'URL"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -109,12 +109,12 @@ export default function IframePreviewModal({ isOpen, onClose, url, title }) {
           </div>
 
           {/* Responsive Viewport Mode Selectors */}
-          <div className="flex items-center gap-1 bg-black/40 border border-white/10 p-1 rounded-xl shrink-0">
+          <div className="flex items-center gap-1 bg-black/40 border border-[var(--line)] p-1 rounded-lg shrink-0">
             <button
               type="button"
               onClick={() => setDeviceMode('desktop')}
               className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                deviceMode === 'desktop' ? 'theme-accent-btn text-white' : 'text-gray-400 hover:text-white'
+                deviceMode === 'desktop' ? 'theme-accent-btn text-white' : 'text-zinc-400 hover:text-white'
               }`}
               title="Vue Desktop (100%)"
             >
@@ -124,7 +124,7 @@ export default function IframePreviewModal({ isOpen, onClose, url, title }) {
               type="button"
               onClick={() => setDeviceMode('tablet')}
               className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                deviceMode === 'tablet' ? 'theme-accent-btn text-white' : 'text-gray-400 hover:text-white'
+                deviceMode === 'tablet' ? 'theme-accent-btn text-white' : 'text-zinc-400 hover:text-white'
               }`}
               title="Vue Tablette (768px)"
             >
@@ -134,7 +134,7 @@ export default function IframePreviewModal({ isOpen, onClose, url, title }) {
               type="button"
               onClick={() => setDeviceMode('mobile')}
               className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                deviceMode === 'mobile' ? 'theme-accent-btn text-white' : 'text-gray-400 hover:text-white'
+                deviceMode === 'mobile' ? 'theme-accent-btn text-white' : 'text-zinc-400 hover:text-white'
               }`}
               title="Vue Mobile (390px)"
             >
@@ -146,14 +146,14 @@ export default function IframePreviewModal({ isOpen, onClose, url, title }) {
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={handleRefresh}
-              className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-300 hover:text-white border border-white/10 transition-colors cursor-pointer active:scale-95"
+              className="p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] text-zinc-300 hover:text-white border border-[var(--line)] transition-colors cursor-pointer "
               title="Recharger l'aperçu"
             >
               <RotateCw className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={handleOpenExternal}
-              className="px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-200 hover:text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95"
+              className="px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] text-zinc-200 hover:text-white border border-[var(--line)] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer "
               title="Ouvrir dans le navigateur par défaut"
             >
               <ExternalLink className="w-3.5 h-3.5 theme-accent-text" />
@@ -161,7 +161,7 @@ export default function IframePreviewModal({ isOpen, onClose, url, title }) {
             </button>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl bg-white/[0.04] hover:bg-red-500/20 text-gray-400 hover:text-red-400 border border-white/10 transition-colors cursor-pointer ml-1 active:scale-95"
+              className="p-2 rounded-lg bg-white/[0.04] hover:bg-red-500/20 text-zinc-400 hover:text-red-400 border border-[var(--line)] transition-colors cursor-pointer ml-1 "
               title="Fermer l'aperçu"
             >
               <X className="w-3.5 h-3.5" />
@@ -180,7 +180,7 @@ export default function IframePreviewModal({ isOpen, onClose, url, title }) {
             </div>
             <button
               onClick={handleOpenExternal}
-              className="underline font-bold hover:text-white cursor-pointer"
+              className="underline font-semibold hover:text-white cursor-pointer"
             >
               Tester dans le navigateur externe →
             </button>
@@ -188,9 +188,9 @@ export default function IframePreviewModal({ isOpen, onClose, url, title }) {
         )}
 
         {/* Web Iframe Viewport Container */}
-        <div className="flex-1 bg-[#05050a] p-4 flex items-center justify-center overflow-hidden relative">
+        <div className="flex-1 bg-[var(--bg-base)] p-4 flex items-center justify-center overflow-hidden relative">
           <div
-            className={`h-full transition-all duration-300 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-white ${containerWidthClass}`}
+            className={`h-full transition-all duration-300 rounded-xl overflow-hidden border border-[var(--line)] bg-white ${containerWidthClass}`}
           >
             <iframe
               key={iframeKey}

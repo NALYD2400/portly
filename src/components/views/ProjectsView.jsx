@@ -329,19 +329,19 @@ export default function ProjectsView({
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2.5">
+          <h1 className="text-xl font-semibold text-zinc-50 tracking-tight flex items-center gap-2.5">
             <span>Projets & Serveurs</span>
-            <span className="text-xs font-mono font-normal px-2.5 py-0.5 rounded-full bg-white/[0.06] text-gray-300 border border-white/10">
+            <span className="text-[11px] font-mono font-normal px-1.5 py-px rounded-md bg-white/[0.06] text-zinc-400">
               {projects.length} projet{projects.length > 1 ? 's' : ''}
             </span>
             {totalRunningServers > 0 && (
-              <span className="text-xs font-mono font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="text-[11px] font-mono font-medium px-1.5 py-px rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 live-dot"></span>
                 <span>{totalRunningServers} actif{totalRunningServers > 1 ? 's' : ''}</span>
               </span>
             )}
           </h1>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-[13px] text-zinc-500 mt-1">
             Supervisez vos applications et processus locaux en temps réel.
           </p>
         </div>
@@ -350,19 +350,19 @@ export default function ProjectsView({
           {projects.length > 0 && (
             <>
               <div className="relative">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5 pointer-events-none" />
+                <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Filtrer projets, ports..."
-                  className="pl-9 pr-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none theme-accent-border w-44 sm:w-52 shadow-inner transition-all"
+                  className="pl-9 pr-3 py-2 rounded-lg bg-white/[0.04] border border-[var(--line)] text-xs text-white placeholder-zinc-600 focus:outline-none theme-accent-border w-44 sm:w-52 transition-all"
                 />
               </div>
 
               <button
                 onClick={handleToggleAll}
-                className="px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white text-xs font-medium transition-all duration-200 cursor-pointer flex items-center gap-1.5 border border-white/[0.08] active:scale-95 shrink-0"
+                className="px-3 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-all duration-200 cursor-pointer flex items-center gap-1.5 border border-[var(--line)] shrink-0"
                 title="Déplier ou replier tous les projets"
               >
                 <ChevronDown
@@ -377,7 +377,7 @@ export default function ProjectsView({
 
           <button
             onClick={onAddProject}
-            className="px-3.5 py-2 rounded-xl theme-accent-btn text-white text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95 shrink-0"
+            className="px-3.5 py-2 rounded-lg theme-accent-btn text-white text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5 shrink-0"
             title="Ajouter un nouveau projet dans Sprint"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -388,28 +388,28 @@ export default function ProjectsView({
 
       {/* Projects List */}
       {projects.length === 0 ? (
-        <div className="glass-panel p-12 rounded-2xl text-center space-y-4 border border-white/[0.08] shadow-2xl">
-          <div className="w-14 h-14 rounded-2xl theme-accent-badge flex items-center justify-center mx-auto shadow-lg">
+        <div className="glass-panel p-12 rounded-xl text-center space-y-4 border border-[var(--line)]">
+          <div className="w-14 h-14 rounded-xl theme-accent-badge flex items-center justify-center mx-auto">
             <Folder className="w-7 h-7 theme-accent-text" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white">Aucun projet trouvé</h3>
-            <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1">
+            <h3 className="text-base font-semibold text-white">Aucun projet trouvé</h3>
+            <p className="text-xs text-zinc-400 max-w-sm mx-auto mt-1">
               Sélectionnez un dossier de votre ordinateur pour ajouter un projet et détecter ses commandes automatiquement.
             </p>
           </div>
           <button
             onClick={onAddProject}
-            className="px-5 py-2.5 rounded-xl theme-accent-btn text-white text-xs font-bold transition-all cursor-pointer shadow-lg active:scale-95"
+            className="px-5 py-2.5 rounded-lg theme-accent-btn text-white text-xs font-semibold transition-all cursor-pointer "
           >
             Sélectionner un Dossier
           </button>
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="glass-panel p-10 rounded-2xl text-center border border-white/[0.08]">
-          <Search className="w-8 h-8 text-gray-500 mx-auto mb-3" />
-          <h3 className="text-sm font-bold text-white">Aucun projet ne correspond</h3>
-          <p className="text-xs text-gray-400 mt-1">
+        <div className="glass-panel p-10 rounded-xl text-center border border-[var(--line)]">
+          <Search className="w-8 h-8 text-zinc-500 mx-auto mb-3" />
+          <h3 className="text-sm font-semibold text-white">Aucun projet ne correspond</h3>
+          <p className="text-xs text-zinc-400 mt-1">
             Aucun résultat pour « {search} ». Essayez un autre nom, chemin ou port.
           </p>
         </div>
@@ -426,10 +426,10 @@ export default function ProjectsView({
            return (
              <div
                key={project.id}
-               className={`rounded-2xl border transition-all duration-200 bg-[#0d0e17]/90 backdrop-blur-md ${
+               className={`rounded-xl border transition-all duration-200 bg-[var(--surface-1)] ${
                   hasActiveMenu
-                   ? 'border-white/25 shadow-2xl relative z-30'
-                   : 'border-white/[0.07] hover:border-white/[0.14]'
+                   ? 'border-[var(--line-strong)] relative z-30'
+                   : 'border-[var(--line)] hover:border-white/[0.14]'
                } ${isCollapsed ? 'p-3.5' : 'p-4 space-y-3'}`}
              >
                 {/* Project Header */}
@@ -438,13 +438,13 @@ export default function ProjectsView({
                     {/* Accordion Collapse Trigger */}
                     <button
                       onClick={() => toggleProjectCollapse(project.id)}
-                      className="p-1 rounded-lg hover:bg-white/[0.06] text-gray-400 hover:text-white transition-all cursor-pointer shrink-0"
+                      className="p-1 rounded-lg hover:bg-white/[0.06] text-zinc-400 hover:text-white transition-all cursor-pointer shrink-0"
                       title={isCollapsed ? 'Déplier les serveurs' : 'Replier le projet'}
                       aria-label={isCollapsed ? 'Déplier les serveurs' : 'Replier le projet'}
                     >
                       <ChevronDown
-                        className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
-                          isCollapsed ? '-rotate-90 text-gray-500' : 'rotate-0 text-white'
+                        className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${
+                          isCollapsed ? '-rotate-90 text-zinc-500' : 'rotate-0 text-white'
                         }`}
                       />
                     </button>
@@ -454,7 +454,7 @@ export default function ProjectsView({
                       className="w-3 h-3 rounded-full cursor-pointer hover:scale-125 transition-transform duration-200 shrink-0"
                       style={{
                         backgroundColor: projColor,
-                        boxShadow: `0 0 8px ${projColor}80`,
+                        
                       }}
                       onClick={() => toggleProjectCollapse(project.id)}
                     />
@@ -469,17 +469,17 @@ export default function ProjectsView({
                         </h2>
 
                         {project.framework && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.04] text-gray-400 border border-white/[0.06]">
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-400 border border-[var(--line)]">
                             {project.framework}
                           </span>
                         )}
 
                         {project.branch && (
                           <span
-                            className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.03] text-gray-400 border border-white/[0.06] flex items-center gap-1 max-w-[140px] truncate"
+                            className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.03] text-zinc-400 border border-[var(--line)] flex items-center gap-1 max-w-[140px] truncate"
                             title={`git branch: ${project.branch}`}
                           >
-                            <GitBranch className="w-2.5 h-2.5 text-gray-400 shrink-0" />
+                            <GitBranch className="w-2.5 h-2.5 text-zinc-400 shrink-0" />
                             <span className="truncate">git: {project.branch}</span>
                           </span>
                         )}
@@ -487,11 +487,11 @@ export default function ProjectsView({
                         {/* Active Servers Count Badge */}
                         {activeServersCount > 0 ? (
                           <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 live-dot"></span>
                             <span>{activeServersCount}/{servers.length} actif{activeServersCount > 1 ? 's' : ''}</span>
                           </span>
                         ) : (
-                          <span className="text-[10px] font-mono text-gray-500 px-1.5 py-0.5 rounded bg-white/[0.02]">
+                          <span className="text-[10px] font-mono text-zinc-500 px-1.5 py-0.5 rounded bg-white/[0.02]">
                             {servers.length} serveur{servers.length > 1 ? 's' : ''}
                           </span>
                         )}
@@ -499,7 +499,7 @@ export default function ProjectsView({
 
                       <p
                         onClick={() => handleCopyPath(project.root)}
-                        className="text-[11px] text-gray-500 font-mono mt-0.5 cursor-pointer hover:text-gray-300 transition-colors flex items-center gap-1.5 group/path truncate max-w-lg"
+                        className="text-[11px] text-zinc-500 font-mono mt-0.5 cursor-pointer hover:text-zinc-300 transition-colors flex items-center gap-1.5 group/path truncate max-w-lg"
                         title="Cliquer pour copier le chemin du dossier"
                       >
                         <span className="truncate">{project.root}</span>
@@ -516,7 +516,7 @@ export default function ProjectsView({
                       activeServersCount > 0 ? (
                         <button
                           onClick={() => handleStopProjectServers(project)}
-                          className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-medium text-xs flex items-center gap-1.5 border border-rose-500/20 transition-all cursor-pointer active:scale-95"
+                          className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-medium text-xs flex items-center gap-1.5 border border-rose-500/20 transition-all cursor-pointer "
                           title="Arrêter tous les serveurs"
                         >
                           <Square className="w-3 h-3 fill-rose-400 text-rose-400" />
@@ -525,7 +525,7 @@ export default function ProjectsView({
                       ) : (
                         <button
                           onClick={() => handleStartProjectServers(project)}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-medium text-xs flex items-center gap-1.5 border border-emerald-500/20 transition-all cursor-pointer active:scale-95"
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-medium text-xs flex items-center gap-1.5 border border-emerald-500/20 transition-all cursor-pointer "
                           title="Lancer tous les serveurs"
                         >
                           <Play className="w-3 h-3 fill-emerald-400 text-emerald-400" />
@@ -545,10 +545,10 @@ export default function ProjectsView({
                               : { type: 'project', id: project.id }
                           );
                         }}
-                        className={`p-1.5 rounded-lg border transition-all cursor-pointer active:scale-95 ${
+                        className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
                           isProjectMenuOpen
-                            ? 'bg-white/[0.12] text-white border-white/25 shadow-lg'
-                            : 'bg-white/[0.02] hover:bg-white/[0.06] text-gray-400 hover:text-white border-white/[0.06]'
+                            ? 'bg-white/[0.12] text-white border-[var(--line-strong)]'
+                            : 'bg-white/[0.02] hover:bg-white/[0.06] text-zinc-400 hover:text-white border-[var(--line)]'
                         }`}
                         title="Options du projet"
                         aria-label="Options du projet"
@@ -558,14 +558,14 @@ export default function ProjectsView({
 
                       {isProjectMenuOpen && (
                         <div
-                          className="absolute right-0 top-full mt-1.5 w-56 rounded-xl p-1.5 shadow-2xl z-50 text-xs font-sans animate-scaleUp select-none bg-[#131224]/95 backdrop-blur-xl border border-white/15"
+                          className="absolute right-0 top-full mt-1.5 w-56 rounded-lg p-1.5 z-50 text-xs font-sans animate-scaleUp select-none bg-[var(--surface-2)] border border-[var(--line-strong)]"
                         >
                           <button
                             onClick={() => {
                               setOpenMenu(null);
                               handleOpenVSCode(project.root);
                             }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                           >
                             <Code2 className="w-3.5 h-3.5 text-blue-400" />
                             <span>Ouvrir dans VS Code</span>
@@ -576,7 +576,7 @@ export default function ProjectsView({
                               setOpenMenu(null);
                               handleOpenExplorer(project.root);
                             }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                           >
                             <Folder className="w-3.5 h-3.5 text-amber-400" />
                             <span>Ouvrir le dossier</span>
@@ -587,7 +587,7 @@ export default function ProjectsView({
                               setOpenMenu(null);
                               onOpenEnvModal(project.root);
                             }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                           >
                             <FileText className="w-3.5 h-3.5 text-emerald-400" />
                             <span>Variables .env</span>
@@ -605,7 +605,7 @@ export default function ProjectsView({
                                   setIframeTarget({ url: targetUrl, title: project.name });
                                 }
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                             >
                               <Monitor className="w-3.5 h-3.5 text-purple-400" />
                               <span>Aperçu Web & Devices</span>
@@ -617,13 +617,13 @@ export default function ProjectsView({
                               setOpenMenu(null);
                               onEditProject && onEditProject(project);
                             }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                           >
                             <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
                             <span>Modifier le projet</span>
                           </button>
 
-                          <div className="my-1 border-t border-white/[0.08]" />
+                          <div className="my-1 border-t border-[var(--line)]" />
 
                           <button
                             onClick={() => {
@@ -648,7 +648,7 @@ export default function ProjectsView({
 
                 {/* Accordion Content */}
                 {!isCollapsed && (
-                  <div className="space-y-1.5 pt-2 border-t border-white/[0.04]">
+                  <div className="space-y-1.5 pt-2 border-t border-[var(--line)]">
                     {servers.map((srv) => {
                       const isRunning = srv.state === 'running';
                       const isServerMenuOpen = openMenu?.type === 'server' && openMenu.id === srv.id;
@@ -656,12 +656,12 @@ export default function ProjectsView({
                       return (
                         <div
                           key={srv.id}
-                          className={`px-3.5 py-2.5 rounded-xl flex items-center justify-between gap-3 transition-all duration-150 border ${
+                          className={`px-3.5 py-2.5 rounded-lg flex items-center justify-between gap-3 transition-all duration-150 border ${
                             isServerMenuOpen
-                              ? 'bg-white/[0.05] border-white/20 shadow-lg relative z-40'
+                              ? 'bg-white/[0.05] border-[var(--line-strong)] relative z-40'
                               : isRunning
                               ? 'bg-emerald-500/[0.03] border-emerald-500/20 hover:border-emerald-500/30'
-                              : 'bg-white/[0.015] border-white/[0.04] hover:bg-white/[0.03] hover:border-white/[0.08]'
+                              : 'bg-white/[0.015] border-[var(--line)] hover:bg-white/[0.03] hover:border-[var(--line)]'
                           }`}
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -670,10 +670,10 @@ export default function ProjectsView({
                               {isRunning ? (
                                 <span className="relative flex h-2.5 w-2.5">
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                                 </span>
                               ) : (
-                                <span className="w-2.5 h-2.5 rounded-full bg-gray-600/50"></span>
+                                <span className="w-2.5 h-2.5 rounded-full bg-zinc-600/60"></span>
                               )}
                             </div>
 
@@ -692,17 +692,17 @@ export default function ProjectsView({
                                 {isRunning ? (
                                   <ServerUptimeBadge serverId={srv.id} isRunning={isRunning} />
                                 ) : (
-                                  <span className="text-[10px] font-mono text-gray-500">
+                                  <span className="text-[10px] font-mono text-zinc-500">
                                     Arrêté
                                   </span>
                                 )}
 
                                 {srv.pid && (
-                                  <span className="text-[10px] font-mono text-gray-500">PID {srv.pid}</span>
+                                  <span className="text-[10px] font-mono text-zinc-500">PID {srv.pid}</span>
                                 )}
                               </div>
 
-                              <p className="text-[11px] font-mono text-gray-400 truncate mt-0.5 max-w-lg">
+                              <p className="text-[11px] font-mono text-zinc-400 truncate mt-0.5 max-w-lg">
                                 {srv.command}
                               </p>
                             </div>
@@ -713,7 +713,7 @@ export default function ProjectsView({
                             {isRunning ? (
                               <button
                                 onClick={() => handleStopServer(project.id, srv.id)}
-                                className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 font-semibold text-xs flex items-center gap-1.5 border border-rose-500/30 transition-all cursor-pointer active:scale-95 shadow-sm"
+                                className="px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 font-semibold text-xs flex items-center gap-1.5 border border-rose-500/30 transition-all cursor-pointer "
                                 title="Arrêter ce serveur"
                               >
                                 <Square className="w-3 h-3 fill-rose-400 text-rose-400" />
@@ -724,7 +724,7 @@ export default function ProjectsView({
                                 onClick={() =>
                                   handleStartServer(project.id, srv.id, project.root, srv.command, srv.env)
                                 }
-                                className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-semibold text-xs flex items-center gap-1.5 border border-emerald-500/40 transition-all cursor-pointer active:scale-95 shadow-sm"
+                                className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-semibold text-xs flex items-center gap-1.5 border border-emerald-500/40 transition-all cursor-pointer "
                                 title="Démarrer ce serveur"
                               >
                                 <Play className="w-3 h-3 fill-emerald-400 text-emerald-400" />
@@ -736,7 +736,7 @@ export default function ProjectsView({
                             {srv.port > 0 && isRunning && (
                               <button
                                 onClick={() => handleOpenBrowser(`http://localhost:${srv.port}`)}
-                                className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white border border-white/[0.08] transition-all cursor-pointer active:scale-95"
+                                className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-[var(--line)] transition-all cursor-pointer "
                                 title={`Ouvrir http://localhost:${srv.port}`}
                                 aria-label="Ouvrir dans le navigateur"
                               >
@@ -747,7 +747,7 @@ export default function ProjectsView({
                             {/* Open Terminal / Logs */}
                             <button
                               onClick={() => onOpenTerminal(srv.id, srv.name)}
-                              className="p-1.5 rounded-xl bg-white/[0.04] hover-accent-bg text-gray-300 theme-accent-text border border-white/[0.08] hover-accent-border transition-all cursor-pointer active:scale-95"
+                              className="p-1.5 rounded-lg bg-white/[0.04] hover-accent-bg text-zinc-300 theme-accent-text border border-[var(--line)] hover-accent-border transition-all cursor-pointer "
                               title="Voir les logs en direct"
                               aria-label="Logs du terminal"
                             >
@@ -765,10 +765,10 @@ export default function ProjectsView({
                                       : { type: 'server', id: srv.id }
                                   );
                                 }}
-                                className={`p-1.5 rounded-xl border transition-all cursor-pointer active:scale-95 ${
+                                className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
                                   isServerMenuOpen
-                                    ? 'bg-white/[0.1] text-white border-white/20'
-                                    : 'bg-white/[0.03] hover:bg-white/[0.08] text-gray-400 hover:text-white border-white/[0.06]'
+                                    ? 'bg-white/[0.1] text-white border-[var(--line-strong)]'
+                                    : 'bg-white/[0.03] hover:bg-white/[0.08] text-zinc-400 hover:text-white border-[var(--line)]'
                                 }`}
                                 title="Options du serveur"
                                 aria-label="Options du serveur"
@@ -778,7 +778,7 @@ export default function ProjectsView({
 
                               {isServerMenuOpen && (
                                 <div
-                                  className="absolute right-0 top-full mt-1.5 w-52 rounded-xl p-1.5 shadow-2xl z-50 text-xs font-sans animate-scaleUp select-none bg-[#131224]/95 backdrop-blur-xl border border-white/15"
+                                  className="absolute right-0 top-full mt-1.5 w-52 rounded-lg p-1.5 z-50 text-xs font-sans animate-scaleUp select-none bg-[var(--surface-2)] border border-[var(--line-strong)]"
                                 >
                                   {(srv.url || srv.port > 0) && (
                                     <button
@@ -794,7 +794,7 @@ export default function ProjectsView({
                                           });
                                         }
                                       }}
-                                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                                     >
                                       <Monitor className="w-3.5 h-3.5 text-purple-400" />
                                       <span>Aperçu Web & Devices</span>
@@ -807,7 +807,7 @@ export default function ProjectsView({
                                         setOpenMenu(null);
                                         handleShareTunnel(srv.port, srv.name);
                                       }}
-                                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                                     >
                                       <Globe className="w-3.5 h-3.5 text-cyan-400" />
                                       <span>Créer un tunnel public</span>
@@ -824,13 +824,13 @@ export default function ProjectsView({
                                           server: srv,
                                         });
                                     }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                                   >
                                     <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
                                     <span>Modifier le serveur</span>
                                   </button>
 
-                                  <div className="my-1 border-t border-white/[0.08]" />
+                                  <div className="my-1 border-t border-[var(--line)]" />
 
                                   <button
                                     onClick={() => {
@@ -843,7 +843,7 @@ export default function ProjectsView({
                                         projectName: project.name,
                                       });
                                     }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer text-left"
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer text-left"
                                   >
                                     <Trash2 className="w-3.5 h-3.5 text-rose-400" />
                                     <span>Supprimer le serveur</span>
@@ -859,7 +859,7 @@ export default function ProjectsView({
                     {/* Discreet Add Server Button */}
                    <button
                      onClick={() => onAddServer && onAddServer(project)}
-                     className="w-full py-2 px-3 rounded-xl border border-dashed border-white/10 hover:border-white/20 bg-white/[0.01] hover:bg-white/[0.03] text-gray-400 hover:text-white text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+                     className="w-full py-2 px-3 rounded-lg border border-dashed border-[var(--line)] hover:border-[var(--line-strong)] bg-white/[0.01] hover:bg-white/[0.03] text-zinc-400 hover:text-white text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
                    >
                      <Plus className="w-3.5 h-3.5" />
                      <span>Ajouter un serveur</span>

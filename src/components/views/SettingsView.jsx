@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useId } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import {
-  Settings,
   Palette,
   Zap,
   Monitor,
@@ -90,10 +89,10 @@ function ShortcutRecorder({ value, onChange }) {
       <button
         type="button"
         onClick={() => setIsRecording(!isRecording)}
-        className={`px-4 py-2 rounded-xl border text-xs font-mono font-bold transition-all duration-200 cursor-pointer shadow-inner flex items-center gap-1.5 ${
+        className={`px-4 py-2 rounded-lg border text-xs font-mono font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${
           isRecording
             ? 'theme-accent-active animate-pulse border-white/30'
-            : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/10 text-white'
+            : 'bg-white/[0.04] hover:bg-white/[0.08] border-[var(--line)] text-white'
         }`}
       >
         <Keyboard className="w-3.5 h-3.5 theme-accent-text" />
@@ -105,7 +104,7 @@ function ShortcutRecorder({ value, onChange }) {
           {keys.map((k, idx) => (
             <kbd
               key={idx}
-              className="px-2.5 py-1 rounded-lg bg-black/60 border border-white/15 text-xs font-mono font-extrabold theme-accent-text shadow-sm"
+              className="px-2.5 py-1 rounded-lg bg-black/40 border border-[var(--line-strong)] text-xs font-mono font-semibold theme-accent-text"
             >
               {k}
             </kbd>
@@ -516,19 +515,19 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
             if (onToggle) onToggle(!checked);
           }
         }}
-        className="glass-card p-4 rounded-2xl flex items-center justify-between border border-white/[0.06] hover:border-white/15 transition-all duration-200 select-none group focus:outline-none focus:ring-1 focus:ring-white/20"
+        className="glass-card p-4 rounded-xl flex items-center justify-between border border-[var(--line)] hover:border-[var(--line-strong)] transition-all duration-200 select-none group focus:outline-none focus:ring-1 focus:ring-white/20"
       >
         <div className="flex items-start gap-3.5 pr-4">
           {IconComponent && (
-            <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
+            <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-[var(--line)] flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
               <IconComponent className="w-4 h-4 theme-accent-text" />
             </div>
           )}
           <div>
-            <div id={labelId} className="text-xs font-bold text-white tracking-tight flex items-center gap-2">
+            <div id={labelId} className="text-xs font-semibold text-white tracking-tight flex items-center gap-2">
               <span>{title}</span>
             </div>
-            <div id={descId} className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">
+            <div id={descId} className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
               {description}
             </div>
           </div>
@@ -543,35 +542,30 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
   const totalServersCount = projects.reduce((acc, p) => acc + (p.servers || []).length, 0);
 
   return (
-    <div className="w-full space-y-6 animate-fadeIn select-none pb-12">
-      {/* Top Header Card */}
-      <div className="glass-panel p-6 rounded-3xl border theme-accent-border bg-gradient-to-r from-[#0d0b1a] via-[#120e29] to-[#0d0b1a] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xl">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl theme-accent-btn flex items-center justify-center shadow-lg shrink-0">
-            <Settings className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-xl font-extrabold text-white tracking-tight">Paramètres Sprint</h1>
-              <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full theme-accent-badge border border-white/10">
-                v{pkg.version}
+    <div className="w-full max-w-6xl mx-auto space-y-6 animate-fadeIn select-none pb-12">
+      {/* En-tête de page */}
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-xl font-semibold text-zinc-50 tracking-tight">Paramètres</h1>
+            <span className="text-[11px] font-mono px-1.5 py-px rounded-md bg-white/[0.06] text-zinc-400">
+              v{pkg.version}
+            </span>
+            {savedSuccess && (
+              <span className="flex items-center gap-1 text-xs font-medium text-emerald-400 animate-fadeIn">
+                <Check className="w-3.5 h-3.5" /> Enregistré
               </span>
-              {savedSuccess && (
-                <span className="flex items-center gap-1 text-xs font-bold text-emerald-400 font-sans animate-fadeIn">
-                  <Check className="w-3.5 h-3.5" /> Enregistré !
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              Configuration du moteur de supervision, personnalisation du thème et préférences système.
-            </p>
+            )}
           </div>
+          <p className="text-[13px] text-zinc-500 mt-1">
+            Supervision, thème et préférences système.
+          </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setConfirmReset(true)}
-            className="px-3.5 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white text-xs font-medium border border-white/10 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+            className="h-8 px-3 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium border border-[var(--line)] transition-colors cursor-pointer flex items-center gap-1.5"
             title="Restaurer les valeurs par défaut"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -581,21 +575,21 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
           {onOpenUpdateModal && (
             <button
               onClick={onOpenUpdateModal}
-              className="px-4 py-2 rounded-xl theme-accent-btn text-white text-xs font-bold flex items-center gap-2 shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+              className="h-8 px-3.5 rounded-lg theme-accent-btn text-xs font-medium flex items-center gap-1.5 cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Mises à Jour</span>
+              <span>Mises à jour</span>
             </button>
           )}
         </div>
-      </div>
+      </header>
 
       {/* Main Settings Navigation & Content Layout */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 min-h-[520px]">
         {/* Navigation Sidebar (4 cols) */}
-        <div className="md:col-span-4 lg:col-span-4 glass-panel p-3 rounded-3xl border border-white/[0.08] bg-black/40 space-y-1.5 flex flex-col justify-between shadow-xl">
+        <div className="md:col-span-4 lg:col-span-3 glass-panel p-2 rounded-xl space-y-1.5 self-start flex flex-col justify-between">
           <div className="space-y-1">
-            <div className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-gray-400 font-mono flex items-center justify-between">
+            <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 font-mono flex items-center justify-between">
               <span>Préférences</span>
               <Sliders className="w-3 h-3 theme-accent-text" />
             </div>
@@ -607,33 +601,33 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
                 <button
                   key={cat.id}
                   onClick={() => setActiveTab(cat.id)}
-                  className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-left transition-all duration-200 cursor-pointer border ${
+                  className={`w-full flex items-center justify-between p-3.5 rounded-xl text-left transition-all duration-200 cursor-pointer border ${
                     isActive
-                      ? 'theme-accent-active border-white/20 shadow-lg font-bold'
-                      : 'border-transparent text-gray-400 hover:text-white hover:bg-white/[0.04]'
+                      ? 'theme-accent-active'
+                      : 'border-transparent text-zinc-400 hover:text-white hover:bg-white/[0.04]'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
-                        isActive ? 'theme-accent-btn text-white border-white/20' : 'bg-white/[0.04] border-white/10 text-gray-400'
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${
+                        isActive ? 'bg-[rgba(var(--accent-color-rgb),0.18)] theme-accent-text border-transparent' : 'bg-white/[0.04] border-[var(--line)] text-zinc-500'
                       }`}
                     >
                       <Icon className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <div className="text-xs font-bold text-white truncate flex items-center gap-2">
+                      <div className="text-xs font-semibold text-white truncate flex items-center gap-2">
                         <span>{cat.label}</span>
                         {cat.badge && (
                           <span
-                            className="text-[9px] font-mono font-extrabold px-1.5 py-0.2 rounded-full border border-white/10 theme-accent-badge"
+                            className="text-[9px] font-mono font-semibold px-1.5 py-0.2 rounded-full border border-[var(--line)] theme-accent-badge"
                             style={cat.badgeColor ? { backgroundColor: `${cat.badgeColor}25`, color: cat.badgeColor } : {}}
                           >
                             {cat.badge}
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-gray-400 font-normal truncate mt-0.5">{cat.desc}</div>
+                      <div className="text-[10px] text-zinc-400 font-normal truncate mt-0.5">{cat.desc}</div>
                     </div>
                   </div>
                   <ChevronRight className={`w-4 h-4 shrink-0 transition-transform ${isActive ? 'theme-accent-text translate-x-0.5' : 'opacity-0'}`} />
@@ -643,18 +637,18 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
           </div>
 
           {/* Quick System Status Card at Bottom of Sidebar */}
-          <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06] mt-4 space-y-2">
+          <div className="p-3.5 rounded-xl bg-white/[0.02] border border-[var(--line)] mt-4 space-y-2">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="text-gray-400 font-mono">Projets enregistrés</span>
-              <span className="font-bold text-white font-mono theme-accent-text">{projects.length}</span>
+              <span className="text-zinc-400 font-mono">Projets enregistrés</span>
+              <span className="font-semibold text-white font-mono theme-accent-text">{projects.length}</span>
             </div>
             <div className="flex items-center justify-between text-[11px]">
-              <span className="text-gray-400 font-mono">Serveurs configurés</span>
-              <span className="font-bold text-white font-mono">{totalServersCount}</span>
+              <span className="text-zinc-400 font-mono">Serveurs configurés</span>
+              <span className="font-semibold text-white font-mono">{totalServersCount}</span>
             </div>
             <div className="flex items-center justify-between text-[11px]">
-              <span className="text-gray-400 font-mono">Raccourci global</span>
-              <span className="font-bold font-mono text-[10px] px-1.5 py-0.5 rounded theme-accent-badge">
+              <span className="text-zinc-400 font-mono">Raccourci global</span>
+              <span className="font-semibold font-mono text-[10px] px-1.5 py-0.5 rounded theme-accent-badge">
                 {settings.global_shortcut}
               </span>
             </div>
@@ -662,27 +656,27 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
         </div>
 
         {/* Dedicated Tab Content (8 cols) */}
-        <div className="md:col-span-8 lg:col-span-8 glass-panel p-6 rounded-3xl border border-white/[0.08] bg-black/40 shadow-2xl overflow-hidden">
+        <div className="md:col-span-8 lg:col-span-9 glass-panel p-6 rounded-xl overflow-hidden">
           {/* TAB 1: APPARENCE & THÈMES */}
           {activeTab === 'appearance' && (
             <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-white/[0.08] pb-4 flex items-center justify-between">
+              <div className="border-b border-[var(--line)] pb-4 flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <h2 className="text-base font-semibold text-white flex items-center gap-2">
                     <Palette className="w-5 h-5 theme-accent-text" />
                     <span>Personnalisation Thème & Couleurs</span>
                   </h2>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-zinc-400 mt-1">
                     Définissez la couleur thématique (#HEX) synchronisée en direct sur les boutons, bordures et néons.
                   </p>
                 </div>
               </div>
 
               {/* Live Interactive Accent Preview Banner */}
-              <div className="p-4 rounded-2xl border theme-accent-border bg-gradient-to-r from-black/60 to-[#120e29]/80 flex items-center justify-between gap-4 shadow-xl">
+              <div className="p-4 rounded-xl border theme-accent-border bg-[var(--surface-2)] flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
                   <div
-                    className="w-10 h-10 rounded-xl shadow-lg flex items-center justify-center border border-white/20"
+                    className="w-10 h-10 rounded-lg flex items-center justify-center border border-[var(--line-strong)]"
                     style={{
                       backgroundColor: settings.custom_hex,
                       boxShadow: `0 0 20px ${settings.custom_hex}80`,
@@ -691,20 +685,20 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-white">Aperçu en Direct du Thème</div>
-                    <div className="text-[11px] theme-accent-text font-mono mt-0.5 font-bold">
+                    <div className="text-xs font-semibold text-white">Aperçu en Direct du Thème</div>
+                    <div className="text-[11px] theme-accent-text font-mono mt-0.5 font-semibold">
                       Couleur active : {settings.custom_hex} (RGB: {hexToRgbStr(settings.custom_hex)})
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-full theme-accent-badge shadow-sm">
+                  <span className="text-[10px] font-mono font-semibold px-2.5 py-1 rounded-full theme-accent-badge">
                     Badge Actif
                   </span>
                   <button
                     type="button"
-                    className="px-3 py-1.5 rounded-xl theme-accent-btn text-white text-xs font-bold shadow-md cursor-default"
+                    className="px-3 py-1.5 rounded-lg theme-accent-btn text-white text-xs font-semibold cursor-default"
                   >
                     Bouton Accent
                   </button>
@@ -713,20 +707,20 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
 
               {/* Custom Hex Picker Input */}
               <div className="space-y-3">
-                <label htmlFor="hex-custom-input" className="text-xs font-bold text-gray-200 block">
+                <label htmlFor="hex-custom-input" className="text-xs font-semibold text-zinc-200 block">
                   Couleur d'Accentuation Personnalisée (#HEX) :
                 </label>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   {/* Pipette / Native Color Input Swatch */}
                   <div className="relative group shrink-0">
                     <div
-                      className="w-11 h-11 rounded-2xl border-2 border-white/20 shadow-md group-hover:scale-105 transition-all flex items-center justify-center cursor-pointer relative overflow-hidden"
+                      className="w-11 h-11 rounded-xl border-2 border-[var(--line-strong)] group-hover:scale-105 transition-all flex items-center justify-center cursor-pointer relative overflow-hidden"
                       style={{
                         backgroundColor: settings.custom_hex,
                         boxShadow: `0 0 16px ${settings.custom_hex}70`,
                       }}
                     >
-                      <Pipette className="w-4 h-4 text-white drop-shadow-md opacity-80 group-hover:opacity-100 transition-all" />
+                      <Pipette className="w-4 h-4 text-white opacity-80 group-hover:opacity-100 transition-all" />
                       <input
                         type="color"
                         value={isValidHex(settings.custom_hex) ? settings.custom_hex : '#a855f7'}
@@ -738,7 +732,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
                   </div>
 
                   <div className="relative flex-1">
-                    <Hash className="w-4 h-4 text-gray-400 absolute left-3 top-3.5" />
+                    <Hash className="w-4 h-4 text-zinc-400 absolute left-3 top-3.5" />
                     <input
                       id="hex-custom-input"
                       type="text"
@@ -753,7 +747,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
                       }}
                       placeholder="#a855f7 (Entrée pour valider)"
                       aria-invalid={hexError}
-                      className={`w-full pl-9 pr-4 py-2.5 rounded-2xl bg-white/[0.04] border text-xs font-mono text-white focus:outline-none shadow-inner uppercase font-bold ${
+                      className={`w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/[0.04] border text-xs font-mono text-white focus:outline-none uppercase font-semibold ${
                         hexError ? 'border-red-500/60' : 'border-white/[0.1] theme-accent-border'
                       }`}
                     />
@@ -762,7 +756,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
                   <button
                     type="button"
                     onClick={() => commitHexColor(hexDraft)}
-                    className="px-4 py-2.5 rounded-2xl theme-accent-btn text-white text-xs font-bold transition-all cursor-pointer shadow-md active:scale-95 shrink-0"
+                    className="px-4 py-2.5 rounded-xl theme-accent-btn text-white text-xs font-semibold transition-all cursor-pointer shrink-0"
                   >
                     Appliquer
                   </button>
@@ -776,8 +770,8 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
               </div>
 
               {/* Preset Curated Palettes Grid */}
-              <div className="space-y-3 pt-4 border-t border-white/[0.08]">
-                <label className="text-xs font-bold text-gray-200 block">
+              <div className="space-y-3 pt-4 border-t border-[var(--line)]">
+                <label className="text-xs font-semibold text-zinc-200 block">
                   Palettes Thématiques Recommandées :
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -788,23 +782,23 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
                         key={p.hex}
                         type="button"
                         onClick={() => commitHexColor(p.hex)}
-                        className={`p-3 rounded-2xl flex items-center justify-between border transition-all duration-200 cursor-pointer text-left ${
+                        className={`p-3 rounded-xl flex items-center justify-between border transition-all duration-200 cursor-pointer text-left ${
                           isSelected
-                            ? 'border-white bg-white/10 shadow-lg scale-[1.02]'
-                            : 'border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/15'
+                            ? 'border-white bg-white/10 scale-[1.02]'
+                            : 'border-[var(--line)] bg-white/[0.03] hover:bg-white/[0.06] hover:border-[var(--line-strong)]'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span
-                            className="w-4 h-4 rounded-full shadow border border-white/20 shrink-0"
+                            className="w-4 h-4 rounded-full border border-[var(--line-strong)] shrink-0"
                             style={{
                               backgroundColor: p.hex,
                               boxShadow: `0 0 8px ${p.hex}80`,
                             }}
                           />
                           <div className="min-w-0">
-                            <div className="text-xs font-bold text-white truncate">{p.name}</div>
-                            <div className="text-[9px] text-gray-400 font-mono truncate">{p.hex}</div>
+                            <div className="text-xs font-semibold text-white truncate">{p.name}</div>
+                            <div className="text-[9px] text-zinc-400 font-mono truncate">{p.hex}</div>
                           </div>
                         </div>
                         {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
@@ -815,7 +809,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
               </div>
 
               {/* Reactive Canvas Background Toggle */}
-              <div className="pt-4 border-t border-white/[0.08]">
+              <div className="pt-4 border-t border-[var(--line)]">
                 <SettingRow
                   title="Fond Canvas Animé Réactif (Color Bends)"
                   description="Afficher les douces vagues de lumière colorées interactives en arrière-plan"
@@ -835,12 +829,12 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
           {/* TAB 2: SUPERVISION & PROCESSUS */}
           {activeTab === 'supervision' && (
             <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-white/[0.08] pb-4">
-                <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <div className="border-b border-[var(--line)] pb-4">
+                <h2 className="text-base font-semibold text-white flex items-center gap-2">
                   <Zap className="w-5 h-5 text-amber-400" />
                   <span>Supervision & Auto-Restart Anti-Crash</span>
                 </h2>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-zinc-400 mt-1">
                   Règles de relance automatique des processus en cas de plantage et options des flux de logs.
                 </p>
               </div>
@@ -883,13 +877,13 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
                 />
 
                 {/* Auto-Guard RAM Info Banner */}
-                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-start gap-3.5">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20 mt-0.5">
+                <div className="p-4 rounded-xl bg-white/[0.02] border border-[var(--line)] flex items-start gap-3.5">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20 mt-0.5">
                     <Cpu className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-white">Auto-Guard RAM Natif (Moteur Rust)</div>
-                    <div className="text-[11px] text-gray-400 mt-1 leading-relaxed">
+                    <div className="text-xs font-semibold text-white">Auto-Guard RAM Natif (Moteur Rust)</div>
+                    <div className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
                       Chaque serveur dispose d'une limite de mémoire RAM configurable individuellement (ex: 500 Mo). Si le processus ou ses sous-processus dépassent ce seuil, le superviseur Rust le redémarre proprement avec un cooldown de sécurité de 30 secondes pour libérer la mémoire.
                     </div>
                   </div>
@@ -901,26 +895,26 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
           {/* TAB 3: SYSTÈME & RACCOURCIS */}
           {activeTab === 'system' && (
             <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-white/[0.08] pb-4">
-                <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <div className="border-b border-[var(--line)] pb-4">
+                <h2 className="text-base font-semibold text-white flex items-center gap-2">
                   <Monitor className="w-5 h-5 text-cyan-400" />
                   <span>Système, Tray & Raccourcis Globaux</span>
                 </h2>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-zinc-400 mt-1">
                   Intégration avec le système d'exploitation Windows, raccourci global et centre de notifications.
                 </p>
               </div>
 
               <div className="space-y-4">
                 {/* Global Keyboard Shortcut Card */}
-                <div className="glass-card p-4 rounded-2xl border border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="glass-card p-4 rounded-xl border border-[var(--line)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-start gap-3.5">
-                    <div className="w-8 h-8 rounded-xl theme-accent-badge flex items-center justify-center shrink-0 mt-0.5">
+                    <div className="w-8 h-8 rounded-lg theme-accent-badge flex items-center justify-center shrink-0 mt-0.5">
                       <Keyboard className="w-4 h-4 theme-accent-text" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-white">Raccourci Clavier Global Windows (Show / Hide)</div>
-                      <div className="text-[11px] text-gray-400 mt-0.5">
+                      <div className="text-xs font-semibold text-white">Raccourci Clavier Global Windows (Show / Hide)</div>
+                      <div className="text-[11px] text-zinc-400 mt-0.5">
                         Affiche ou masque instantanément Sprint depuis n'importe quelle application
                       </div>
                     </div>
@@ -982,25 +976,25 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
           {/* TAB 4: SAUVEGARDE & STOCKAGE */}
           {activeTab === 'storage' && (
             <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-white/[0.08] pb-4">
-                <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <div className="border-b border-[var(--line)] pb-4">
+                <h2 className="text-base font-semibold text-white flex items-center gap-2">
                   <HardDrive className="w-5 h-5 text-emerald-400" />
                   <span>Sauvegarde, Restauration & Stockage</span>
                 </h2>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-zinc-400 mt-1">
                   Gestion des fichiers de configuration, export/import JSON et accès aux données locales.
                 </p>
               </div>
 
               <div className="space-y-4">
                 {/* Storage Location Card with Direct Explorer Open */}
-                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="p-4 rounded-xl bg-white/[0.02] border border-[var(--line)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-start gap-3.5">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 mt-0.5">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 mt-0.5">
                       <FolderOpen className="w-4 h-4" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-white">Répertoire Local de Configuration</div>
+                      <div className="text-xs font-semibold text-white">Répertoire Local de Configuration</div>
                       <div className="text-[11px] font-mono text-emerald-400 mt-0.5 truncate max-w-md">
                         {configDirPath}
                       </div>
@@ -1010,7 +1004,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
                   <button
                     type="button"
                     onClick={handleOpenConfigDir}
-                    className="px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-semibold border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
+                    className="px-3.5 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-semibold border border-[var(--line)] transition-all flex items-center gap-1.5 cursor-pointer shrink-0 "
                   >
                     <FolderOpen className="w-3.5 h-3.5" />
                     <span>Ouvrir dans l'Explorateur</span>
@@ -1022,23 +1016,23 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
                   <button
                     type="button"
                     onClick={handleExportConfig}
-                    className="p-4 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/25 text-left transition-all cursor-pointer group active:scale-[0.99]"
+                    className="p-4 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/25 text-left transition-all cursor-pointer group active:scale-[0.99]"
                   >
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                         <Download className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-white">Exporter la Configuration</div>
+                        <div className="text-xs font-semibold text-white">Exporter la Configuration</div>
                         <div className="text-[10px] text-emerald-400 font-mono">Fichier backup .json</div>
                       </div>
                     </div>
-                    <p className="text-[11px] text-gray-300 leading-relaxed">
+                    <p className="text-[11px] text-zinc-300 leading-relaxed">
                       Télécharger une copie complète de vos projets, serveurs et variables d'environnement.
                     </p>
                   </button>
 
-                  <label className="p-4 rounded-2xl bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/25 text-left transition-all cursor-pointer group block active:scale-[0.99]">
+                  <label className="p-4 rounded-xl bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/25 text-left transition-all cursor-pointer group block active:scale-[0.99]">
                     <input
                       type="file"
                       accept=".json"
@@ -1046,15 +1040,15 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
                       className="hidden"
                     />
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                         <Upload className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-white">Importer une Sauvegarde</div>
+                        <div className="text-xs font-semibold text-white">Importer une Sauvegarde</div>
                         <div className="text-[10px] text-blue-400 font-mono">Restaurer .json</div>
                       </div>
                     </div>
-                    <p className="text-[11px] text-gray-300 leading-relaxed">
+                    <p className="text-[11px] text-zinc-300 leading-relaxed">
                       Restaurer instantanément l'ensemble de vos projets et configurations sur cette machine.
                     </p>
                   </label>
@@ -1066,29 +1060,29 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
           {/* TAB 5: SKILL IA & AGENTS */}
           {activeTab === 'ai-skill' && (
             <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-white/[0.08] pb-4 flex items-center justify-between">
+              <div className="border-b border-[var(--line)] pb-4 flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <h2 className="text-base font-semibold text-white flex items-center gap-2">
                     <Bot className="w-5 h-5 theme-accent-text" />
                     <span>Skill IA pour Agents (Claude, Cursor, Antigravity)</span>
                   </h2>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Permettez à vos agents d'automatiser l'enregistrement de projets dans Sprint avec la commande <code className="font-mono text-emerald-400 font-bold">/sprint</code>.
+                  <p className="text-xs text-zinc-400 mt-1">
+                    Permettez à vos agents d'automatiser l'enregistrement de projets dans Sprint avec la commande <code className="font-mono text-emerald-400 font-semibold">/sprint</code>.
                   </p>
                 </div>
               </div>
 
               <div className="space-y-4">
                 {/* AI Card */}
-                <div className="p-5 rounded-2xl bg-gradient-to-br from-white/[0.04] to-black/60 border theme-accent-border space-y-4">
+                <div className="p-5 rounded-xl bg-[var(--surface-2)] border theme-accent-border space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl theme-accent-btn flex items-center justify-center shrink-0 shadow-lg">
+                      <div className="w-10 h-10 rounded-lg theme-accent-btn flex items-center justify-center shrink-0">
                         <Bot className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <div className="text-xs font-extrabold text-white">Skill Officiel Sprint (SKILL.md)</div>
-                        <div className="text-[11px] text-gray-400 font-mono">
+                        <div className="text-xs font-semibold text-white">Skill Officiel Sprint (SKILL.md)</div>
+                        <div className="text-[11px] text-zinc-400 font-mono">
                           Compatible Claude Code, Cursor, Antigravity, OpenCodex
                         </div>
                       </div>
@@ -1098,16 +1092,16 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
                       <button
                         type="button"
                         onClick={handleCopySkill}
-                        className="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-medium border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                        className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-medium border border-[var(--line)] transition-all flex items-center gap-1.5 cursor-pointer "
                       >
-                        {copiedSkill ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-gray-300" />}
+                        {copiedSkill ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-zinc-300" />}
                         <span>{copiedSkill ? 'Copié !' : 'Copier Markdown'}</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={handleDownloadSkill}
-                        className="px-3.5 py-1.5 rounded-xl theme-accent-btn text-white text-xs font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                        className="px-3.5 py-1.5 rounded-lg theme-accent-btn text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer "
                       >
                         <Download className="w-3.5 h-3.5" />
                         <span>Télécharger SKILL.md</span>
@@ -1115,11 +1109,11 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
                     </div>
                   </div>
 
-                  <p className="text-xs text-gray-300 leading-relaxed">
+                  <p className="text-xs text-zinc-300 leading-relaxed">
                     Placez ce fichier dans le répertoire <code className="theme-accent-text font-mono">.agents/skills/sprint/SKILL.md</code> ou <code className="theme-accent-text font-mono">.cursor/skills/</code> de votre projet pour qu'un agent IA configure automatiquement vos serveurs et ports lors de la création d'un nouveau projet.
                   </p>
 
-                  <div className="p-3.5 rounded-xl bg-black/70 border border-white/10 font-mono text-[11px] text-gray-300 max-h-48 overflow-y-auto leading-relaxed shadow-inner">
+                  <div className="p-3.5 rounded-lg bg-black/40 border border-[var(--line)] font-mono text-[11px] text-zinc-300 max-h-48 overflow-y-auto leading-relaxed">
                     <pre className="whitespace-pre-wrap">{SKILL_MARKDOWN}</pre>
                   </div>
                 </div>
@@ -1130,31 +1124,31 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
           {/* TAB 6: À PROPOS & MISES À JOUR */}
           {activeTab === 'about' && (
             <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-white/[0.08] pb-4">
-                <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <div className="border-b border-[var(--line)] pb-4">
+                <h2 className="text-base font-semibold text-white flex items-center gap-2">
                   <Info className="w-5 h-5 theme-accent-text" />
                   <span>À Propos de Sprint</span>
                 </h2>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-zinc-400 mt-1">
                   Informations de version, stack technologique et suivi des mises à jour officielles.
                 </p>
               </div>
 
               <div className="space-y-4">
                 {/* Product Info Bento */}
-                <div className="p-5 rounded-2xl glass-card border border-white/10 flex items-center justify-between gap-4">
+                <div className="p-5 rounded-xl glass-card border border-[var(--line)] flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl theme-accent-btn flex items-center justify-center shadow-lg">
+                    <div className="w-12 h-12 rounded-xl theme-accent-btn flex items-center justify-center">
                       <Terminal className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <div className="text-sm font-extrabold text-white tracking-tight flex items-center gap-2">
+                      <div className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
                         <span>Sprint Developer Supervisor</span>
-                        <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full theme-accent-badge">
+                        <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full theme-accent-badge">
                           v{pkg.version}
                         </span>
                       </div>
-                      <div className="text-xs text-gray-400 mt-0.5">
+                      <div className="text-xs text-zinc-400 mt-0.5">
                         Moteur natif Rust (Tauri 2) + Interface React 19 & Tailwind CSS 4
                       </div>
                     </div>
@@ -1164,7 +1158,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
                     <button
                       type="button"
                       onClick={onOpenUpdateModal}
-                      className="px-4 py-2 rounded-xl theme-accent-btn text-white text-xs font-bold flex items-center gap-2 shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer shrink-0"
+                      className="px-4 py-2 rounded-lg theme-accent-btn text-white text-xs font-semibold flex items-center gap-2 hover:brightness-110 transition-all cursor-pointer shrink-0"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       <span>Rechercher une MAJ</span>
@@ -1174,33 +1168,33 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
 
                 {/* Tech Specs Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-                    <div className="text-[11px] text-gray-400 font-mono">Backend Engine</div>
-                    <div className="text-xs font-extrabold text-white mt-1">Rust + Tauri 2.1</div>
+                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-[var(--line)]">
+                    <div className="text-[11px] text-zinc-400 font-mono">Backend Engine</div>
+                    <div className="text-xs font-semibold text-white mt-1">Rust + Tauri 2.1</div>
                   </div>
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-                    <div className="text-[11px] text-gray-400 font-mono">Frontend UI</div>
-                    <div className="text-xs font-extrabold text-white mt-1">React 19 + Tailwind 4</div>
+                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-[var(--line)]">
+                    <div className="text-[11px] text-zinc-400 font-mono">Frontend UI</div>
+                    <div className="text-xs font-semibold text-white mt-1">React 19 + Tailwind 4</div>
                   </div>
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-                    <div className="text-[11px] text-gray-400 font-mono">Architecture</div>
-                    <div className="text-xs font-extrabold text-emerald-400 font-mono mt-1">x86_64 Windows</div>
+                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-[var(--line)]">
+                    <div className="text-[11px] text-zinc-400 font-mono">Architecture</div>
+                    <div className="text-xs font-semibold text-emerald-400 font-mono mt-1">x86_64 Windows</div>
                   </div>
                 </div>
 
                 {/* GitHub Links Card */}
-                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between">
+                <div className="p-4 rounded-xl bg-white/[0.02] border border-[var(--line)] flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <Code className="w-4 h-4 theme-accent-text" />
-                    <span className="text-xs font-bold text-white">Code Source & Dépôt GitHub</span>
+                    <span className="text-xs font-semibold text-white">Code Source & Dépôt GitHub</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => invoke('open_browser', { url: 'https://github.com/NALYD2400/portly' })}
-                    className="px-3.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-white text-xs font-medium border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer"
+                    className="px-3.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-white text-xs font-medium border border-[var(--line)] transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>github.com/NALYD2400/portly</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                    <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
                   </button>
                 </div>
               </div>

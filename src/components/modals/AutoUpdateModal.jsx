@@ -154,19 +154,19 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
     <Modal isOpen={isOpen} onClose={onClose} dismissible={!isBusy} maxWidth="max-w-md">
       <div style={{ boxShadow: '0 25px 80px rgba(var(--accent-color-rgb), 0.25)' }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-white/[0.02]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--line)] bg-white/[0.02]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl theme-accent-badge flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 rounded-xl theme-accent-badge flex items-center justify-center">
               <DownloadCloud className="w-5 h-5 theme-accent-text" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+              <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
                 <span>Mise à Jour Sprint</span>
                 <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full theme-accent-badge">
                   v{currentVersion}
                 </span>
               </h3>
-              <p className="text-xs text-gray-400">Centre de mise à jour automatique</p>
+              <p className="text-xs text-zinc-400">Centre de mise à jour automatique</p>
             </div>
           </div>
 
@@ -175,7 +175,7 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
             onClick={onClose}
             disabled={isBusy}
             aria-label="Fermer"
-            className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-400 hover:text-white transition-all duration-200 hover:rotate-90 hover:scale-110 active:scale-95 cursor-pointer disabled:opacity-30 disabled:hover:rotate-0 disabled:cursor-not-allowed"
+            className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] text-zinc-400 hover:text-white transition-all duration-200 hover:rotate-90 hover:scale-110 cursor-pointer disabled:opacity-30 disabled:hover:rotate-0 disabled:cursor-not-allowed"
           >
             <X className="w-4 h-4" />
           </button>
@@ -197,26 +197,26 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
               </div>
               <div>
                 <p className="text-sm font-semibold text-white">Recherche de mise à jour...</p>
-                <p className="text-xs text-gray-400 mt-1">Connexion aux serveurs GitHub Releases</p>
+                <p className="text-xs text-zinc-400 mt-1">Connexion aux serveurs GitHub Releases</p>
               </div>
             </div>
           )}
 
           {status === 'upToDate' && (
             <div className="py-6 text-center space-y-4">
-              <div className="w-14 h-14 rounded-2xl theme-accent-badge flex items-center justify-center mx-auto shadow-lg">
+              <div className="w-14 h-14 rounded-xl theme-accent-badge flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-7 h-7 theme-accent-text" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-white">Sprint est déjà à jour !</h4>
-                <p className="text-xs text-gray-400 mt-1">
-                  Vous utilisez la dernière version <span className="theme-accent-text font-mono font-bold">v{currentVersion}</span>.
+                <h4 className="text-sm font-semibold text-white">Sprint est déjà à jour !</h4>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Vous utilisez la dernière version <span className="theme-accent-text font-mono font-semibold">v{currentVersion}</span>.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-semibold border border-white/10 transition-all cursor-pointer active:scale-95"
+                className="w-full py-2.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-semibold border border-[var(--line)] transition-all cursor-pointer "
               >
                 Fermer
               </button>
@@ -225,27 +225,26 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
 
           {status === 'available' && (
             <div className="space-y-4">
-              <div className="p-4 rounded-2xl theme-accent-badge flex items-center justify-between">
+              <div className="p-4 rounded-xl theme-accent-badge flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider theme-accent-text font-bold">
+                  <span className="text-[10px] font-mono uppercase tracking-wide theme-accent-text font-semibold">
                     Nouvelle Version Disponible
                   </span>
-                  <h4 className="text-lg font-bold text-white mt-0.5 flex items-center gap-2">
+                  <h4 className="text-lg font-semibold text-white mt-0.5 flex items-center gap-2">
                     <span>Sprint v{latestVersion}</span>
                     <span className="text-xs font-mono font-normal px-2 py-0.5 rounded-full theme-accent-badge">Nouveau</span>
                   </h4>
                 </div>
-                <div className="w-10 h-10 rounded-xl theme-accent-badge flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg theme-accent-badge flex items-center justify-center">
                   <Zap className="w-5 h-5 theme-accent-text" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 theme-accent-text" />
+                <label className="text-xs font-medium text-zinc-400 font-mono flex items-center gap-1.5">
                   <span>Notes de Version</span>
                 </label>
-                <div className="p-3.5 bg-black/50 border border-white/10 rounded-2xl text-xs text-gray-300 font-mono whitespace-pre-line max-h-32 overflow-y-auto leading-relaxed shadow-inner">
+                <div className="p-3.5 bg-black/40 border border-[var(--line)] rounded-xl text-xs text-zinc-300 font-mono whitespace-pre-line max-h-32 overflow-y-auto leading-relaxed">
                   {releaseNotes}
                 </div>
               </div>
@@ -254,14 +253,14 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-1/3 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-gray-300 text-xs font-semibold border border-white/10 transition-all cursor-pointer active:scale-95"
+                  className="w-1/3 py-2.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 text-xs font-semibold border border-[var(--line)] transition-all cursor-pointer "
                 >
                   Plus tard
                 </button>
                 <button
                   type="button"
                   onClick={handleStartUpdate}
-                  className="w-2/3 py-2.5 rounded-xl theme-accent-btn text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer active:scale-95 hover:brightness-110 group"
+                  className="w-2/3 py-2.5 rounded-lg theme-accent-btn text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer hover:brightness-110 group"
                 >
                   <DownloadCloud className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
                   <span>Télécharger & Installer</span>
@@ -274,13 +273,13 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
             <div className="space-y-5 py-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <h4 className="text-sm font-semibold text-white flex items-center gap-2">
                     <RefreshCw className="w-4 h-4 theme-accent-text animate-spin" />
                     <span>Téléchargement de Sprint v{latestVersion}</span>
                   </h4>
-                  <p className="text-xs text-gray-400 mt-0.5">Transfert sécurisé depuis GitHub Releases</p>
+                  <p className="text-xs text-zinc-400 mt-0.5">Transfert sécurisé depuis GitHub Releases</p>
                 </div>
-                <span className="text-xl font-bold font-mono theme-accent-text">{progress}%</span>
+                <span className="text-xl font-semibold font-mono theme-accent-text">{progress}%</span>
               </div>
 
               <div
@@ -288,7 +287,7 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
                 aria-valuenow={progress}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                className="relative w-full h-3 rounded-full bg-white/[0.08] overflow-hidden border border-white/10 p-0.5 shadow-inner"
+                className="relative w-full h-3 rounded-full bg-white/[0.08] overflow-hidden border border-[var(--line)] p-0.5"
               >
                 <div
                   className="h-full rounded-full theme-accent-btn transition-all duration-300 ease-out"
@@ -296,11 +295,11 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
                 />
               </div>
 
-              <div className="flex items-center justify-between text-xs font-mono text-gray-400 pt-1">
+              <div className="flex items-center justify-between text-xs font-mono text-zinc-400 pt-1">
                 <span>
                   {downloadedBytes} / {totalBytes}
                 </span>
-                <span className="theme-accent-text font-bold">En cours</span>
+                <span className="theme-accent-text font-semibold">En cours</span>
               </div>
             </div>
           )}
@@ -318,27 +317,27 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
                 <Zap className="w-6 h-6 theme-accent-text animate-bounce" />
               </div>
               <div>
-                <p className="text-sm font-bold text-white">Lancement de l'installateur Windows...</p>
-                <p className="text-xs text-gray-400 mt-1">L'application va se fermer pour appliquer la mise à jour.</p>
+                <p className="text-sm font-semibold text-white">Lancement de l'installateur Windows...</p>
+                <p className="text-xs text-zinc-400 mt-1">L'application va se fermer pour appliquer la mise à jour.</p>
               </div>
             </div>
           )}
 
           {status === 'completed' && (
             <div className="py-4 text-center space-y-5">
-              <div className="w-14 h-14 rounded-2xl theme-accent-badge flex items-center justify-center mx-auto shadow-lg">
+              <div className="w-14 h-14 rounded-xl theme-accent-badge flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-7 h-7 theme-accent-text" />
               </div>
 
               <div>
-                <h4 className="text-base font-bold text-white">Mise à jour v{latestVersion} téléchargée !</h4>
-                <p className="text-xs text-gray-400 mt-1">L'installateur est prêt. Cliquez pour appliquer et relancer.</p>
+                <h4 className="text-base font-semibold text-white">Mise à jour v{latestVersion} téléchargée !</h4>
+                <p className="text-xs text-zinc-400 mt-1">L'installateur est prêt. Cliquez pour appliquer et relancer.</p>
               </div>
 
               <button
                 type="button"
                 onClick={handleRestart}
-                className="w-full py-3 rounded-xl theme-accent-btn text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer active:scale-95"
+                className="w-full py-3 rounded-lg theme-accent-btn text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer "
               >
                 <Sparkles className="w-4 h-4" />
                 <span>Installer & Relancer Sprint</span>
@@ -348,25 +347,25 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
 
           {status === 'error' && (
             <div className="py-6 text-center space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-red-500/20 border border-red-500/30 flex items-center justify-center mx-auto shadow-lg">
+              <div className="w-14 h-14 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center mx-auto">
                 <AlertCircle className="w-7 h-7 text-red-400" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-white">Échec de la mise à jour</h4>
+                <h4 className="text-sm font-semibold text-white">Échec de la mise à jour</h4>
                 <p className="text-xs text-red-300 mt-1 max-w-xs mx-auto break-words">{errorMessage}</p>
               </div>
               <div className="flex items-center gap-3 pt-2">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-1/2 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-gray-300 text-xs font-semibold border border-white/10 transition-all cursor-pointer active:scale-95"
+                  className="w-1/2 py-2.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 text-xs font-semibold border border-[var(--line)] transition-all cursor-pointer "
                 >
                   Fermer
                 </button>
                 <button
                   type="button"
                   onClick={() => checkForUpdates(undefined)}
-                  className="w-1/2 py-2.5 rounded-xl theme-accent-btn text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg transition-all cursor-pointer active:scale-95"
+                  className="w-1/2 py-2.5 rounded-lg theme-accent-btn text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer "
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>Réessayer</span>

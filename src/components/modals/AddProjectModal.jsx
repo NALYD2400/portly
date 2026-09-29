@@ -88,21 +88,21 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
       <div className="p-6 space-y-5">
-        <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+        <div className="flex items-center justify-between border-b border-[var(--line)] pb-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg theme-accent-badge flex items-center justify-center">
               <Folder className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Ajouter un Nouveau Projet</h2>
-              <p className="text-xs text-gray-400">Importation locale avec détection automatique du stack</p>
+              <h2 className="text-base font-semibold text-white">Ajouter un Nouveau Projet</h2>
+              <p className="text-xs text-zinc-400">Importation locale avec détection automatique du stack</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -111,7 +111,7 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           {/* Folder Selector */}
           <div>
-            <label htmlFor="prj-folder" className="block font-medium text-gray-300 mb-1.5">Dossier du Projet</label>
+            <label htmlFor="prj-folder" className="block font-medium text-zinc-300 mb-1.5">Dossier du Projet</label>
             <div className="flex gap-2">
               <input
                 id="prj-folder"
@@ -119,12 +119,12 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
                 readOnly
                 value={folderPath}
                 placeholder="Aucun dossier sélectionné..."
-                className="flex-1 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-gray-200 font-mono focus:outline-none"
+                className="flex-1 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.1] text-zinc-200 font-mono focus:outline-none"
               />
               <button
                 type="button"
                 onClick={handleSelectFolder}
-                className="px-3.5 py-2 rounded-xl theme-accent-btn text-white font-medium transition-colors cursor-pointer"
+                className="px-3.5 py-2 rounded-lg theme-accent-btn text-white font-medium transition-colors cursor-pointer"
               >
                 Parcourir
               </button>
@@ -136,36 +136,36 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="prj-name" className="block font-medium text-gray-300 mb-1.5">Nom du Projet</label>
+                  <label htmlFor="prj-name" className="block font-medium text-zinc-300 mb-1.5">Nom du Projet</label>
                   <input
                     id="prj-name"
                     type="text"
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white focus:outline-none theme-accent-border"
+                    className="w-full px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.1] text-white focus:outline-none theme-accent-border"
                   />
                 </div>
                 <div>
-                  <label htmlFor="prj-color" className="block font-medium text-gray-300 mb-1.5">Couleur d'accent</label>
+                  <label htmlFor="prj-color" className="block font-medium text-zinc-300 mb-1.5">Couleur d'accent</label>
                   <input
                     id="prj-color"
                     type="color"
                     value={color}
                     onChange={(e) => setColor(e.target.value)}
-                    className="w-full h-9 p-1 rounded-xl bg-white/[0.04] border border-white/[0.1] cursor-pointer"
+                    className="w-full h-9 p-1 rounded-lg bg-white/[0.04] border border-white/[0.1] cursor-pointer"
                   />
                 </div>
               </div>
 
               {detecting && (
-                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 flex items-center gap-2 text-gray-400">
+                <div className="p-3 rounded-lg bg-white/[0.03] border border-[var(--line)] flex items-center gap-2 text-zinc-400">
                   <Sparkles className="w-4 h-4 animate-pulse theme-accent-text" />
                   <span>Détection du stack en cours...</span>
                 </div>
               )}
 
               {stackInfo && !detecting && (
-                <div className="p-3 rounded-xl theme-accent-badge flex items-center justify-between">
+                <div className="p-3 rounded-lg theme-accent-badge flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 theme-accent-text" />
                     <span>Stack Détecté : <strong>{stackInfo.framework}</strong></span>
@@ -177,14 +177,14 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
               )}
 
               {/* Dev Server Command & Port */}
-              <div className="p-3.5 rounded-xl glass-card space-y-3">
-                <div className="flex items-center gap-2 font-medium text-gray-200">
+              <div className="p-3.5 rounded-lg glass-card space-y-3">
+                <div className="flex items-center gap-2 font-medium text-zinc-200">
                   <Server className="w-4 h-4 theme-accent-text" />
                   <span>Configuration du Serveur Dev</span>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="col-span-2">
-                    <label htmlFor="prj-cmd" className="block text-[11px] text-gray-400 mb-1">Commande</label>
+                    <label htmlFor="prj-cmd" className="block text-[11px] text-zinc-400 mb-1">Commande</label>
                     <input
                       id="prj-cmd"
                       type="text"
@@ -194,7 +194,7 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
                     />
                   </div>
                   <div>
-                    <label htmlFor="prj-port" className="block text-[11px] text-gray-400 mb-1">Port</label>
+                    <label htmlFor="prj-port" className="block text-[11px] text-zinc-400 mb-1">Port</label>
                     <input
                       id="prj-port"
                       type="number"
@@ -211,24 +211,24 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
           )}
 
           {error && (
-            <div role="alert" className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl px-3.5 py-2.5">
+            <div role="alert" className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3.5 py-2.5">
               {error}
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.08]">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--line)]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 transition-colors cursor-pointer"
+              className="px-4 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 transition-colors cursor-pointer"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={!folderPath || !projectName}
-              className="px-4 py-2 rounded-xl theme-accent-btn text-white font-medium transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+              className="px-4 py-2 rounded-lg theme-accent-btn text-white font-medium transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" />
               Ajouter le Projet

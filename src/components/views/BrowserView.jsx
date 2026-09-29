@@ -271,9 +271,9 @@ export default function BrowserView({
   const renderIframeContent = (keySuffix) => {
     if (!isLiveOnline) {
       return (
-        <div className="w-full h-full bg-[#0a0a12] flex flex-col items-center justify-center p-6 text-center select-none">
+        <div className="w-full h-full bg-[var(--bg-base)] flex flex-col items-center justify-center p-6 text-center select-none">
           <div className="max-w-xs space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center mx-auto text-gray-400">
+            <div className="w-12 h-12 rounded-xl bg-white/[0.04] border border-[var(--line)] flex items-center justify-center mx-auto text-zinc-400">
               <Globe className="w-6 h-6 theme-accent-text" />
             </div>
 
@@ -281,7 +281,7 @@ export default function BrowserView({
               <h3 className="text-sm font-semibold text-white">
                 {selectedServer ? selectedServer.projectName : 'Aucun serveur actif'}
               </h3>
-              <p className="text-xs text-gray-500 font-mono mt-0.5">
+              <p className="text-xs text-zinc-500 font-mono mt-0.5">
                 {selectedServer ? `Port :${selectedServer.port || 3000} • Arrêté` : 'Sélectionnez un projet'}
               </p>
             </div>
@@ -291,7 +291,7 @@ export default function BrowserView({
                 type="button"
                 onClick={handleStartServer}
                 disabled={isStarting}
-                className="w-full py-2 px-4 rounded-xl theme-accent-btn text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-95"
+                className="w-full py-2 px-4 rounded-lg theme-accent-btn text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 "
               >
                 {isStarting ? (
                   <>
@@ -324,36 +324,36 @@ export default function BrowserView({
   };
 
   return (
-    <div className="h-full flex flex-col space-y-3 animate-fadeIn select-none overflow-hidden pb-2">
+    <div className="h-full flex flex-col gap-3 animate-fadeIn select-none overflow-hidden">
       {/* Barre de navigation unique, épurée et moderne */}
-      <div className="glass-panel px-3 py-2 rounded-2xl border border-white/[0.08] flex items-center justify-between gap-3 shrink-0">
+      <div className="pb-3 border-b border-[var(--line)] flex items-center justify-between gap-3 shrink-0">
         {/* Sélecteur de Serveur */}
         <div className="relative shrink-0" data-server-picker>
           {allServers.length === 0 ? (
-            <div className="text-xs text-gray-500 font-mono px-2">Aucun serveur</div>
+            <div className="text-xs text-zinc-500 font-mono px-2">Aucun serveur</div>
           ) : (
             <>
               <button
                 type="button"
                 onClick={() => setServerMenuOpen((prev) => !prev)}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.08] text-xs font-medium text-white transition-all cursor-pointer"
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.07] border border-[var(--line)] text-xs font-medium text-white transition-all cursor-pointer"
               >
                 <span
                   className={`w-2 h-2 rounded-full ${
-                    isLiveOnline ? 'bg-emerald-400 shadow-[0_0_6px_#10b981] animate-pulse' : 'bg-gray-600'
+                    isLiveOnline ? 'bg-emerald-400 live-dot' : 'bg-zinc-600'
                   }`}
                 />
                 <span className="font-semibold truncate max-w-[150px]">
                   {selectedServer?.projectName || selectedServer?.name}
                 </span>
-                <span className="text-[10px] font-mono text-gray-400">
+                <span className="text-[10px] font-mono text-zinc-400">
                   :{selectedServer?.port || 3000}
                 </span>
-                <ChevronDown className="w-3 h-3 text-gray-400 ml-0.5" />
+                <ChevronDown className="w-3 h-3 text-zinc-400 ml-0.5" />
               </button>
 
               {serverMenuOpen && (
-                <div className="absolute left-0 top-full mt-1.5 w-64 rounded-xl p-1 shadow-2xl z-50 text-xs select-none bg-[#131224]/95 backdrop-blur-xl border border-white/15 animate-scaleUp">
+                <div className="absolute left-0 top-full mt-1.5 w-64 rounded-lg p-1 z-50 text-xs select-none bg-[var(--surface-2)] border border-[var(--line-strong)] animate-scaleUp">
                   {allServers.map((srv) => {
                     const isSelected = srv.id === selectedServer?.id;
                     const isRunning = srv.state === 'running';
@@ -365,19 +365,19 @@ export default function BrowserView({
                         className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
                           isSelected
                             ? 'bg-white/[0.1] text-white font-semibold'
-                            : 'text-gray-300 hover:text-white hover:bg-white/[0.05]'
+                            : 'text-zinc-300 hover:text-white hover:bg-white/[0.05]'
                         }`}
                       >
                         <div className="flex items-center gap-2 truncate">
                           <span
                             className={`w-2 h-2 rounded-full shrink-0 ${
-                              isRunning ? 'bg-emerald-400' : 'bg-gray-600'
+                              isRunning ? 'bg-emerald-400' : 'bg-zinc-600'
                             }`}
                           />
                           <span className="truncate">{srv.projectName}</span>
-                          <span className="text-[10px] text-gray-500 font-mono">({srv.name})</span>
+                          <span className="text-[10px] text-zinc-500 font-mono">({srv.name})</span>
                         </div>
-                        <span className="text-[10px] font-mono text-gray-400 shrink-0">:{srv.port}</span>
+                        <span className="text-[10px] font-mono text-zinc-400 shrink-0">:{srv.port}</span>
                       </button>
                     );
                   })}
@@ -392,27 +392,27 @@ export default function BrowserView({
           <button
             type="button"
             onClick={handleRefresh}
-            className="p-1.5 rounded-lg hover:bg-white/[0.08] text-gray-400 hover:text-white transition-colors cursor-pointer shrink-0"
+            className="p-1.5 rounded-lg hover:bg-white/[0.08] text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
             title="Recharger la page"
           >
             <RotateCw className="w-3.5 h-3.5" />
           </button>
 
           <form onSubmit={handleNavigateUrl} className="flex-1 relative">
-            <div className="flex items-center bg-white/[0.03] border border-white/[0.08] rounded-xl px-2.5 py-1 text-xs text-white focus-within:border-white/20 transition-colors">
-              <Globe className="w-3 h-3 text-gray-400 shrink-0 mr-2" />
+            <div className="flex items-center bg-white/[0.03] border border-[var(--line)] rounded-lg px-2.5 py-1 text-xs text-white focus-within:border-[var(--line-strong)] transition-colors">
+              <Globe className="w-3 h-3 text-zinc-400 shrink-0 mr-2" />
               <input
                 type="text"
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 placeholder="http://localhost:3000..."
-                className="w-full bg-transparent text-xs font-mono text-white focus:outline-none placeholder-gray-500"
+                className="w-full bg-transparent text-xs font-mono text-white focus:outline-none placeholder-zinc-600"
               />
               <div className="flex items-center gap-1 shrink-0 ml-1">
                 <button
                   type="button"
                   onClick={handleCopyUrl}
-                  className="p-1 hover:text-white text-gray-400 transition-colors cursor-pointer"
+                  className="p-1 hover:text-white text-zinc-400 transition-colors cursor-pointer"
                   title="Copier l'URL"
                 >
                   {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
@@ -420,7 +420,7 @@ export default function BrowserView({
                 <button
                   type="button"
                   onClick={handleOpenExternal}
-                  className="p-1 hover:text-white text-gray-400 transition-colors cursor-pointer"
+                  className="p-1 hover:text-white text-zinc-400 transition-colors cursor-pointer"
                   title="Ouvrir dans le navigateur externe"
                 >
                   <ExternalLink className="w-3 h-3" />
@@ -431,14 +431,14 @@ export default function BrowserView({
         </div>
 
         {/* Sélecteur de Format / Device Responsive */}
-        <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.08] p-0.5 rounded-xl shrink-0">
+        <div className="flex items-center gap-1 bg-white/[0.03] border border-[var(--line)] p-0.5 rounded-lg shrink-0">
           <button
             type="button"
             onClick={() => setDeviceMode('desktop')}
             className={`px-2 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
               deviceMode === 'desktop'
-                ? 'bg-white/[0.12] text-white shadow-sm'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-white/[0.12] text-white'
+                : 'text-zinc-400 hover:text-white'
             }`}
             title="Plein écran (100%)"
           >
@@ -451,8 +451,8 @@ export default function BrowserView({
             onClick={() => setDeviceMode('tablet')}
             className={`px-2 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
               deviceMode === 'tablet'
-                ? 'bg-white/[0.12] text-white shadow-sm'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-white/[0.12] text-white'
+                : 'text-zinc-400 hover:text-white'
             }`}
             title="Format Tablette (768px)"
           >
@@ -465,8 +465,8 @@ export default function BrowserView({
             onClick={() => setDeviceMode('mobile')}
             className={`px-2 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
               deviceMode === 'mobile'
-                ? 'bg-white/[0.12] text-white shadow-sm'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-white/[0.12] text-white'
+                : 'text-zinc-400 hover:text-white'
             }`}
             title="Format Mobile (375px)"
           >
@@ -479,8 +479,8 @@ export default function BrowserView({
             onClick={() => setDeviceMode('dual')}
             className={`px-2 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
               deviceMode === 'dual'
-                ? 'bg-white/[0.12] text-white shadow-sm'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-white/[0.12] text-white'
+                : 'text-zinc-400 hover:text-white'
             }`}
             title="Vue côte à côte (Desktop + Mobile)"
           >
@@ -496,7 +496,7 @@ export default function BrowserView({
               <button
                 type="button"
                 onClick={handleStopServer}
-                className="p-1.5 rounded-lg hover:bg-rose-500/20 text-gray-400 hover:text-rose-300 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-rose-500/20 text-zinc-400 hover:text-rose-300 transition-colors cursor-pointer"
                 title="Arrêter ce serveur"
               >
                 <Square className="w-3.5 h-3.5 fill-rose-400 text-rose-400" />
@@ -506,7 +506,7 @@ export default function BrowserView({
                 type="button"
                 onClick={handleStartServer}
                 disabled={isStarting}
-                className="p-1.5 rounded-lg hover:bg-emerald-500/20 text-gray-400 hover:text-emerald-300 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-emerald-500/20 text-zinc-400 hover:text-emerald-300 transition-colors cursor-pointer"
                 title="Démarrer ce serveur"
               >
                 <Play className="w-3.5 h-3.5 fill-emerald-400 text-emerald-400" />
@@ -517,7 +517,7 @@ export default function BrowserView({
           <button
             type="button"
             onClick={() => setShowQrModal(true)}
-            className="p-1.5 rounded-lg hover:bg-white/[0.08] text-gray-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg hover:bg-white/[0.08] text-zinc-400 hover:text-white transition-colors cursor-pointer"
             title="Tester sur smartphone via QR Code"
           >
             <QrCode className="w-3.5 h-3.5" />
@@ -529,7 +529,7 @@ export default function BrowserView({
             className={`p-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
               showLogsDrawer
                 ? 'bg-white/[0.12] text-white'
-                : 'hover:bg-white/[0.08] text-gray-400 hover:text-white'
+                : 'hover:bg-white/[0.08] text-zinc-400 hover:text-white'
             }`}
             title="Afficher les logs en direct"
           >
@@ -540,19 +540,19 @@ export default function BrowserView({
 
       {/* Zone Principale de Prévisualisation */}
       <div className="flex-1 flex flex-col min-h-0 relative">
-        <div className="flex-1 bg-[#06070d] rounded-2xl border border-white/[0.06] p-3 flex items-center justify-center overflow-auto relative">
+        <div className="flex-1 bg-[var(--surface-1)] rounded-xl border border-[var(--line)] p-3 flex items-center justify-center overflow-auto relative">
           {deviceMode === 'dual' ? (
             /* Vue Dual : Desktop (flexible) + Mobile (375px) côte à côte */
             <div className="w-full h-full flex items-center justify-center gap-4 p-1 overflow-auto">
               {/* Cadre Desktop */}
-              <div className="flex-1 h-full rounded-xl overflow-hidden border border-white/10 shadow-xl flex flex-col bg-white">
-                <div className="h-6 bg-[#10111a] border-b border-white/[0.06] flex items-center justify-between px-3 shrink-0">
+              <div className="flex-1 h-full rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-white">
+                <div className="h-6 bg-[var(--surface-1)] border-b border-[var(--line)] flex items-center justify-between px-3 shrink-0">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-white/20" />
                     <span className="w-2 h-2 rounded-full bg-white/20" />
                     <span className="w-2 h-2 rounded-full bg-white/20" />
                   </div>
-                  <span className="text-[10px] font-mono text-gray-400">Desktop</span>
+                  <span className="text-[10px] font-mono text-zinc-400">Desktop</span>
                   <div className="w-8" />
                 </div>
                 <div className="flex-1 relative overflow-hidden">
@@ -561,9 +561,9 @@ export default function BrowserView({
               </div>
 
               {/* Cadre Mobile */}
-              <div className="w-[375px] h-full rounded-xl overflow-hidden border border-white/10 shadow-xl flex flex-col bg-white shrink-0">
-                <div className="h-6 bg-[#10111a] border-b border-white/[0.06] flex items-center justify-between px-3 shrink-0">
-                  <span className="text-[10px] font-mono text-gray-400">Mobile (375px)</span>
+              <div className="w-[375px] h-full rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-white shrink-0">
+                <div className="h-6 bg-[var(--surface-1)] border-b border-[var(--line)] flex items-center justify-between px-3 shrink-0">
+                  <span className="text-[10px] font-mono text-zinc-400">Mobile (375px)</span>
                 </div>
                 <div className="flex-1 relative overflow-hidden">
                   {renderIframeContent('dual-mobile')}
@@ -572,9 +572,9 @@ export default function BrowserView({
             </div>
           ) : deviceMode === 'mobile' ? (
             /* Vue Mobile seule */
-            <div className="w-[375px] h-full max-h-[750px] rounded-xl overflow-hidden border border-white/10 shadow-2xl flex flex-col bg-white">
-              <div className="h-6 bg-[#10111a] border-b border-white/[0.06] flex items-center justify-between px-3 shrink-0">
-                <span className="text-[10px] font-mono text-gray-400">Mobile (375 × 812)</span>
+            <div className="w-[375px] h-full max-h-[750px] rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-white">
+              <div className="h-6 bg-[var(--surface-1)] border-b border-[var(--line)] flex items-center justify-between px-3 shrink-0">
+                <span className="text-[10px] font-mono text-zinc-400">Mobile (375 × 812)</span>
               </div>
               <div className="flex-1 relative overflow-hidden">
                 {renderIframeContent('mobile-single')}
@@ -582,9 +582,9 @@ export default function BrowserView({
             </div>
           ) : deviceMode === 'tablet' ? (
             /* Vue Tablette seule */
-            <div className="w-[768px] h-full max-h-[820px] rounded-xl overflow-hidden border border-white/10 shadow-2xl flex flex-col bg-white">
-              <div className="h-6 bg-[#10111a] border-b border-white/[0.06] flex items-center justify-between px-3 shrink-0">
-                <span className="text-[10px] font-mono text-gray-400">Tablette (768 × 1024)</span>
+            <div className="w-[768px] h-full max-h-[820px] rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-white">
+              <div className="h-6 bg-[var(--surface-1)] border-b border-[var(--line)] flex items-center justify-between px-3 shrink-0">
+                <span className="text-[10px] font-mono text-zinc-400">Tablette (768 × 1024)</span>
               </div>
               <div className="flex-1 relative overflow-hidden">
                 {renderIframeContent('tablet-single')}
@@ -592,7 +592,7 @@ export default function BrowserView({
             </div>
           ) : (
             /* Vue Plein Écran Desktop (100%) */
-            <div className="w-full h-full rounded-xl overflow-hidden border border-white/10 shadow-xl flex flex-col bg-white">
+            <div className="w-full h-full rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-white">
               {renderIframeContent('desktop-full')}
             </div>
           )}
@@ -600,11 +600,11 @@ export default function BrowserView({
 
         {/* Tiroir de Logs Rétractable */}
         {showLogsDrawer && (
-          <div className="mt-2.5 h-44 rounded-xl glass-panel border border-white/10 bg-black/90 p-2.5 flex flex-col overflow-hidden shadow-2xl animate-slideUp">
-            <div className="flex items-center justify-between pb-1.5 border-b border-white/[0.08] mb-1.5">
+          <div className="mt-2.5 h-44 rounded-lg glass-panel border border-[var(--line)] bg-black/90 p-2.5 flex flex-col overflow-hidden animate-slideUp">
+            <div className="flex items-center justify-between pb-1.5 border-b border-[var(--line)] mb-1.5">
               <div className="flex items-center gap-2">
                 <Terminal className="w-3.5 h-3.5 theme-accent-text" />
-                <span className="text-xs font-bold text-white">
+                <span className="text-xs font-semibold text-white">
                   Logs en direct : {selectedServer?.name} (:{selectedServer?.port})
                 </span>
               </div>
@@ -612,23 +612,23 @@ export default function BrowserView({
                 <button
                   type="button"
                   onClick={clearLogs}
-                  className="px-2 py-0.5 rounded bg-white/[0.04] hover:bg-rose-500/20 text-gray-400 hover:text-rose-400 text-[10px] font-mono transition-colors cursor-pointer"
+                  className="px-2 py-0.5 rounded bg-white/[0.04] hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 text-[10px] font-mono transition-colors cursor-pointer"
                 >
                   Effacer
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowLogsDrawer(false)}
-                  className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
+                  className="p-1 rounded hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
                 >
                   <Minimize2 className="w-3 h-3" />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto font-mono text-[11px] space-y-0.5 text-gray-300 select-text">
+            <div className="flex-1 overflow-y-auto font-mono text-[11px] space-y-0.5 text-zinc-300 select-text">
               {logs.length === 0 ? (
-                <div className="text-gray-600 italic py-3 text-center">Aucun log récent pour ce serveur.</div>
+                <div className="text-zinc-600 italic py-3 text-center">Aucun log récent pour ce serveur.</div>
               ) : (
                 logs.slice(-150).map((l, i) => (
                   <div key={l.id || i} className="hover:bg-white/[0.02] px-1 py-0.5 rounded leading-relaxed break-all">
@@ -640,7 +640,7 @@ export default function BrowserView({
                           ? 'text-emerald-400'
                           : l.isInfo
                           ? 'theme-accent-text'
-                          : 'text-gray-300'
+                          : 'text-zinc-300'
                       }`}
                     >
                       {l.clean || l.raw}
@@ -658,24 +658,24 @@ export default function BrowserView({
       {showQrModal && (
         <div
           onClick={() => setShowQrModal(false)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 select-none cursor-pointer animate-fadeIn"
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 select-none cursor-pointer animate-fadeIn"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="glass-panel p-5 rounded-2xl border border-white/15 max-w-xs w-full bg-[#0d0b1a] shadow-2xl text-center space-y-3.5 cursor-default animate-scaleUp"
+            className="glass-panel p-5 rounded-xl border border-[var(--line-strong)] max-w-xs w-full bg-[var(--surface-1)] text-center space-y-3.5 cursor-default animate-scaleUp"
           >
-            <div className="w-10 h-10 rounded-xl theme-accent-btn flex items-center justify-center mx-auto shadow-md">
+            <div className="w-10 h-10 rounded-lg theme-accent-btn flex items-center justify-center mx-auto">
               <QrCode className="w-5 h-5 text-white" />
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-white">Tester sur Mobile</h3>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <h3 className="text-sm font-semibold text-white">Tester sur Mobile</h3>
+              <p className="text-[13px] text-zinc-500 mt-1">
                 Scannez avec votre téléphone (sur le même réseau Wi-Fi).
               </p>
             </div>
 
-            <div className="p-2.5 bg-black/60 rounded-xl border border-white/10 inline-block shadow-inner">
+            <div className="p-2.5 bg-black/40 rounded-lg border border-[var(--line)] inline-block">
               <img
                 src={qrCodeImageUrl}
                 alt="QR Code"
@@ -683,7 +683,7 @@ export default function BrowserView({
               />
             </div>
 
-            <div className="p-2 rounded-lg bg-white/[0.04] border border-white/10 font-mono text-[11px] text-emerald-400 select-all flex items-center justify-between gap-2">
+            <div className="p-2 rounded-lg bg-white/[0.04] border border-[var(--line)] font-mono text-[11px] text-emerald-400 select-all flex items-center justify-between gap-2">
               <span className="truncate">{lanUrl}</span>
               <button
                 type="button"
@@ -691,7 +691,7 @@ export default function BrowserView({
                   navigator.clipboard.writeText(lanUrl);
                   triggerToast({ title: '📋 Copié !', message: lanUrl, type: 'info' });
                 }}
-                className="p-1 text-gray-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                className="p-1 text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
               >
                 <Copy className="w-3 h-3" />
               </button>
@@ -700,7 +700,7 @@ export default function BrowserView({
             <button
               type="button"
               onClick={() => setShowQrModal(false)}
-              className="w-full py-2 rounded-xl theme-accent-btn text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
+              className="w-full py-2 rounded-lg theme-accent-btn text-white text-xs font-semibold transition-all cursor-pointer"
             >
               Fermer
             </button>

@@ -204,19 +204,19 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
       <Modal isOpen={isModalOpen} onClose={requestClose} maxWidth="max-w-3xl">
         <div className="p-6 space-y-4">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-white/[0.08] pb-3.5">
+          <div className="flex items-center justify-between border-b border-[var(--line)] pb-3.5">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shadow-lg">
+              <div className="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
                 <FileText className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                <h2 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
                   <span>Éditeur d'Environnement (.env)</span>
-                  <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full theme-accent-badge">
+                  <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full theme-accent-badge">
                     {selectedFile}
                   </span>
                 </h2>
-                <p className="text-[11px] text-gray-400 font-mono truncate max-w-lg mt-0.5">
+                <p className="text-[11px] text-zinc-400 font-mono truncate max-w-lg mt-0.5">
                   {projectRoot}\{selectedFile}
                 </p>
               </div>
@@ -225,14 +225,14 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
               type="button"
               onClick={requestClose}
               aria-label="Fermer"
-              className="p-1.5 rounded-xl hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Multi-Files Selector Tabs */}
-          <div className="flex items-center justify-between gap-2 flex-wrap border-b border-white/[0.06] pb-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap border-b border-[var(--line)] pb-3">
             <div className="flex items-center gap-1.5 overflow-x-auto py-1 no-scrollbar">
               {envFiles.map((file) => {
                 const isActive = file === selectedFile;
@@ -241,10 +241,10 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
                     key={file}
                     type="button"
                     onClick={() => handleSelectFile(file)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer border flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer border flex items-center gap-1.5 ${
                       isActive
-                        ? 'theme-accent-btn text-white shadow-md border-transparent'
-                        : 'border-white/10 bg-white/[0.03] text-gray-400 hover:text-white hover:bg-white/[0.06]'
+                        ? 'theme-accent-btn text-white border-transparent'
+                        : 'border-[var(--line)] bg-white/[0.03] text-zinc-400 hover:text-white hover:bg-white/[0.06]'
                     }`}
                   >
                     <FileText className="w-3.5 h-3.5" />
@@ -265,7 +265,7 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
                     }}
                     placeholder=".env.local"
                     autoFocus
-                    className="px-2.5 py-1 rounded-xl bg-black/60 border border-white/20 text-xs font-mono text-white focus:outline-none w-28"
+                    className="px-2.5 py-1 rounded-lg bg-black/40 border border-[var(--line-strong)] text-xs font-mono text-white focus:outline-none w-28"
                   />
                   <button
                     type="button"
@@ -278,7 +278,7 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
                   <button
                     type="button"
                     onClick={() => setIsCreatingFile(false)}
-                    className="p-1.5 rounded-lg bg-white/10 text-gray-400 hover:text-white text-xs"
+                    className="p-1.5 rounded-lg bg-white/10 text-zinc-400 hover:text-white text-xs"
                     title="Annuler"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -288,7 +288,7 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
                 <button
                   type="button"
                   onClick={() => setIsCreatingFile(true)}
-                  className="px-2.5 py-1.5 rounded-xl border border-dashed border-white/20 text-gray-400 hover:text-white hover:bg-white/[0.04] text-xs font-medium transition-all cursor-pointer flex items-center gap-1"
+                  className="px-2.5 py-1.5 rounded-lg border border-dashed border-[var(--line-strong)] text-zinc-400 hover:text-white hover:bg-white/[0.04] text-xs font-medium transition-all cursor-pointer flex items-center gap-1"
                 >
                   <FilePlus className="w-3.5 h-3.5" />
                   <span>+ Nouveau fichier</span>
@@ -297,14 +297,14 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
             </div>
 
             {/* View Mode Switcher */}
-            <div className="flex items-center gap-1 bg-black/40 border border-white/10 p-1 rounded-xl">
+            <div className="flex items-center gap-1 bg-black/40 border border-[var(--line)] p-1 rounded-lg">
               <button
                 type="button"
                 onClick={() => setViewMode('raw')}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
                   viewMode === 'raw'
-                    ? 'theme-accent-btn text-white font-bold'
-                    : 'text-gray-400 hover:text-white'
+                    ? 'theme-accent-btn text-white font-semibold'
+                    : 'text-zinc-400 hover:text-white'
                 }`}
               >
                 <Code2 className="w-3.5 h-3.5" />
@@ -315,8 +315,8 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
                 onClick={() => setViewMode('table')}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
                   viewMode === 'table'
-                    ? 'theme-accent-btn text-white font-bold'
-                    : 'text-gray-400 hover:text-white'
+                    ? 'theme-accent-btn text-white font-semibold'
+                    : 'text-zinc-400 hover:text-white'
                 }`}
               >
                 <ListFilter className="w-3.5 h-3.5" />
@@ -332,7 +332,7 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
                 type="button"
                 onClick={() => setShowSecrets(!showSecrets)}
                 aria-pressed={showSecrets}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 transition-colors cursor-pointer border border-white/10"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 transition-colors cursor-pointer border border-[var(--line)]"
               >
                 {showSecrets ? <EyeOff className="w-3.5 h-3.5 text-amber-400" /> : <Eye className="w-3.5 h-3.5" />}
                 <span>{showSecrets ? 'Masquer les valeurs' : 'Afficher les secrets en clair'}</span>
@@ -342,7 +342,7 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
                 <button
                   type="button"
                   onClick={handleAddNewVariable}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl theme-accent-badge transition-colors cursor-pointer font-bold"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg theme-accent-badge transition-colors cursor-pointer font-semibold"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Ajouter une variable</span>
@@ -352,13 +352,13 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
 
             {viewMode === 'table' && (
               <div className="relative">
-                <Search className="w-3 h-3 text-gray-400 absolute left-2.5 top-2.5" />
+                <Search className="w-3 h-3 text-zinc-400 absolute left-2.5 top-2.5" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Filtrer les clés..."
-                  className="pl-8 pr-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none theme-accent-border font-mono w-44"
+                  className="pl-8 pr-3 py-1.5 rounded-lg bg-white/[0.04] border border-[var(--line)] text-xs text-white placeholder-zinc-600 focus:outline-none theme-accent-border font-mono w-44"
                 />
               </div>
             )}
@@ -376,7 +376,7 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
           {/* Editor Workspace */}
           <div className="relative">
             {loading ? (
-              <div className="h-64 flex items-center justify-center text-xs text-gray-500 font-mono">
+              <div className="h-64 flex items-center justify-center text-xs text-zinc-500 font-mono">
                 Chargement de {selectedFile}...
               </div>
             ) : viewMode === 'raw' ? (
@@ -388,12 +388,12 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
                   rows={13}
                   spellCheck={false}
                   aria-label="Contenu du fichier .env en clair"
-                  className="w-full p-4 rounded-2xl bg-black/70 border border-white/10 text-xs font-mono text-emerald-300 placeholder-gray-600 focus:outline-none theme-accent-border leading-relaxed resize-none shadow-inner"
+                  className="w-full p-4 rounded-xl bg-black/40 border border-[var(--line)] text-xs font-mono text-emerald-300 placeholder-zinc-600 focus:outline-none theme-accent-border leading-relaxed resize-none"
                 />
               ) : (
                 <div
                   aria-label="Contenu du fichier .env, valeurs masquées"
-                  className="w-full h-72 p-4 rounded-2xl bg-black/70 border border-white/10 text-xs font-mono text-gray-300 leading-relaxed overflow-y-auto select-none shadow-inner"
+                  className="w-full h-72 p-4 rounded-xl bg-black/40 border border-[var(--line)] text-xs font-mono text-zinc-300 leading-relaxed overflow-y-auto select-none"
                 >
                   {content ? (
                     maskedLines.map((line, idx) => {
@@ -402,22 +402,22 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
                       return (
                         <div
                           key={idx}
-                          className={`${isComment ? 'text-gray-500 italic' : isKey ? 'text-emerald-300' : 'text-gray-400'}`}
+                          className={`${isComment ? 'text-zinc-500 italic' : isKey ? 'text-emerald-300' : 'text-zinc-400'}`}
                         >
                           {line || '\u00A0'}
                         </div>
                       );
                     })
                   ) : (
-                    <span className="text-gray-600 italic">Fichier {selectedFile} vide ou inexistant.</span>
+                    <span className="text-zinc-600 italic">Fichier {selectedFile} vide ou inexistant.</span>
                   )}
                 </div>
               )
             ) : (
               /* Table View Mode */
-              <div className="w-full h-72 overflow-y-auto rounded-2xl bg-black/70 border border-white/10 p-2 space-y-2 shadow-inner">
+              <div className="w-full h-72 overflow-y-auto rounded-xl bg-black/40 border border-[var(--line)] p-2 space-y-2">
                 {filteredKvEntries.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-xs text-gray-500 italic">
+                  <div className="h-full flex items-center justify-center text-xs text-zinc-500 italic">
                     Aucune variable trouvée.
                   </div>
                 ) : (
@@ -426,7 +426,7 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
                       return (
                         <div
                           key={entry.index}
-                          className="px-3 py-1 text-xs text-gray-500 italic font-mono bg-white/[0.02] rounded-lg"
+                          className="px-3 py-1 text-xs text-zinc-500 italic font-mono bg-white/[0.02] rounded-lg"
                         >
                           {entry.raw}
                         </div>
@@ -436,23 +436,23 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
                       return (
                         <div
                           key={entry.index}
-                          className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/20 transition-all flex items-center justify-between gap-3"
+                          className="p-2.5 rounded-lg bg-white/[0.03] border border-[var(--line)] hover:border-[var(--line-strong)] transition-all flex items-center justify-between gap-3"
                         >
                           <div className="flex-1 flex items-center gap-2 min-w-0">
                             <input
                               type="text"
                               value={entry.key}
                               onChange={(e) => handleUpdateKvValue(entry.index, e.target.value, entry.value)}
-                              className="w-1/3 px-2.5 py-1.5 rounded-lg bg-black/50 border border-white/10 text-xs font-mono font-bold text-emerald-300 focus:outline-none theme-accent-border"
+                              className="w-1/3 px-2.5 py-1.5 rounded-lg bg-black/40 border border-[var(--line)] text-xs font-mono font-semibold text-emerald-300 focus:outline-none theme-accent-border"
                               placeholder="CLÉ"
                             />
-                            <span className="text-gray-500 font-mono">=</span>
+                            <span className="text-zinc-500 font-mono">=</span>
                             <div className="flex-1 relative">
                               <input
                                 type={showSecrets ? 'text' : 'password'}
                                 value={entry.value}
                                 onChange={(e) => handleUpdateKvValue(entry.index, entry.key, e.target.value)}
-                                className="w-full px-2.5 py-1.5 rounded-lg bg-black/50 border border-white/10 text-xs font-mono text-gray-200 focus:outline-none theme-accent-border"
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-black/40 border border-[var(--line)] text-xs font-mono text-zinc-200 focus:outline-none theme-accent-border"
                                 placeholder="valeur..."
                               />
                             </div>
@@ -470,7 +470,7 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
                                   duration: 2000,
                                 });
                               }}
-                              className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
+                              className="p-1.5 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
                               title="Copier la valeur"
                             >
                               <Copy className="w-3.5 h-3.5" />
@@ -478,7 +478,7 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
                             <button
                               type="button"
                               onClick={() => handleDeleteEntry(entry.index)}
-                              className="p-1.5 rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors cursor-pointer"
+                              className="p-1.5 rounded-lg hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors cursor-pointer"
                               title="Supprimer cette variable"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -497,7 +497,7 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
           {error && (
             <div
               role="alert"
-              className="flex items-start gap-2 text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-2xl px-3.5 py-2.5"
+              className="flex items-start gap-2 text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl px-3.5 py-2.5"
             >
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span className="break-words">{error}</span>
@@ -505,11 +505,11 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
           )}
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/[0.08]">
+          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[var(--line)]">
             <button
               type="button"
               onClick={requestClose}
-              className="px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 text-xs font-medium transition-colors cursor-pointer"
+              className="px-4 py-2.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 text-xs font-medium transition-colors cursor-pointer"
             >
               Fermer
             </button>
@@ -517,7 +517,7 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
               type="button"
               onClick={handleSave}
               disabled={!isDirty || loading}
-              className="px-5 py-2.5 rounded-xl theme-accent-btn text-white font-bold text-xs flex items-center gap-2 shadow-lg disabled:opacity-40 transition-all cursor-pointer active:scale-95"
+              className="px-5 py-2.5 rounded-lg theme-accent-btn text-white font-semibold text-xs flex items-center gap-2 disabled:opacity-40 transition-all cursor-pointer "
             >
               <Save className="w-4 h-4" />
               <span>Enregistrer {selectedFile}</span>

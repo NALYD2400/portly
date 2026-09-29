@@ -209,7 +209,7 @@ export default function CommandPaletteModal({
     <Modal isOpen={isOpen} onClose={onClose} align="top" maxWidth="max-w-xl">
       <div
         onKeyDown={handleKeyDown}
-        className="flex items-center gap-3 px-4 py-3.5 border-b border-white/[0.08] bg-white/[0.02]"
+        className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--line)] bg-white/[0.02]"
       >
         <Search className="w-4 h-4 theme-accent-text" />
         <input
@@ -226,9 +226,9 @@ export default function CommandPaletteModal({
           aria-expanded="true"
           aria-controls="palette-results"
           aria-activedescendant={filteredItems[activeIndex] ? `palette-item-${activeIndex}` : undefined}
-          className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none"
+          className="flex-1 bg-transparent text-sm text-white placeholder-zinc-600 focus:outline-none"
         />
-        <kbd className="font-mono text-[10px] px-2 py-0.5 rounded bg-black/40 text-gray-400 border border-white/10">
+        <kbd className="font-mono text-[10px] px-2 py-0.5 rounded bg-black/40 text-zinc-400 border border-[var(--line)]">
           ESC
         </kbd>
       </div>
@@ -238,10 +238,10 @@ export default function CommandPaletteModal({
         id="palette-results"
         ref={listRef}
         role="listbox"
-        className="max-h-80 overflow-y-auto p-2 divide-y divide-white/[0.04]"
+        className="max-h-80 overflow-y-auto p-2 divide-y divide-[var(--line)]"
       >
         {filteredItems.length === 0 ? (
-          <div className="py-8 text-center text-xs text-gray-500">Aucun résultat correspondant</div>
+          <div className="py-8 text-center text-xs text-zinc-500">Aucun résultat correspondant</div>
         ) : (
           filteredItems.map((item, idx) => {
             const Icon = item.icon;
@@ -255,19 +255,19 @@ export default function CommandPaletteModal({
                 data-index={idx}
                 onMouseEnter={() => setActiveIndex(idx)}
                 onClick={() => executeItem(item)}
-                className={`w-full flex items-center justify-between p-3 rounded-xl transition-colors text-left group cursor-pointer ${
+                className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors text-left group cursor-pointer ${
                   isActive ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-white/[0.05] theme-accent-text flex items-center justify-center border border-white/[0.08]">
+                  <div className="w-8 h-8 rounded-lg bg-white/[0.05] theme-accent-text flex items-center justify-center border border-[var(--line)]">
                     <Icon className="w-4 h-4" />
                   </div>
                   <div>
                     <h4 className={`text-xs font-semibold ${isActive ? 'theme-accent-text' : 'text-white'}`}>
                       {item.title}
                     </h4>
-                    <p className="text-[11px] font-mono text-gray-400 truncate max-w-xs">{item.subtitle}</p>
+                    <p className="text-[11px] font-mono text-zinc-400 truncate max-w-xs">{item.subtitle}</p>
                   </div>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded theme-accent-badge font-mono">{item.type}</span>
@@ -277,7 +277,7 @@ export default function CommandPaletteModal({
         )}
       </div>
 
-      <div className="flex items-center gap-4 px-4 py-2 border-t border-white/[0.08] text-[10px] font-mono text-gray-500">
+      <div className="flex items-center gap-4 px-4 py-2 border-t border-[var(--line)] text-[10px] font-mono text-zinc-500">
         <span>↑↓ naviguer</span>
         <span>↵ exécuter</span>
         <span>esc fermer</span>

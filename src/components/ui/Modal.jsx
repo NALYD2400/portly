@@ -86,7 +86,7 @@ export default function Modal({
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && dismissible) onClose();
       }}
-      className={`fixed inset-0 z-50 bg-black/75 backdrop-blur-xl flex justify-center p-4 select-none animate-fadeIn ${
+      className={`fixed inset-0 z-50 bg-black/75 flex justify-center p-4 select-none animate-fadeIn ${
         align === 'top' ? 'items-start pt-20' : 'items-center'
       }`}
     >
@@ -101,7 +101,7 @@ export default function Modal({
               onClick={onClose}
               disabled={!dismissible}
               aria-label="Fermer"
-              className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-400 hover:text-white transition-all duration-200 hover:rotate-90 hover:scale-110 active:scale-95 cursor-pointer disabled:opacity-30 disabled:hover:rotate-0 disabled:cursor-not-allowed"
+              className="p-1.5 rounded-lg hover:bg-white/[0.08] text-zinc-500 hover:text-white transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <X className="w-4 h-4" />
             </button>

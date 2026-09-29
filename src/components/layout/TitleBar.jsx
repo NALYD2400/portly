@@ -1,5 +1,5 @@
 import React from 'react';
-import { Minus, Square, X, Terminal, Search } from 'lucide-react';
+import { Minus, Square, X, Search } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 
 export default function TitleBar({ onOpenCommandPalette }) {
@@ -9,7 +9,7 @@ export default function TitleBar({ onOpenCommandPalette }) {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         return getCurrentWindow();
       }
-    } catch {
+    } catch (e) {
       console.warn('Failed to get Tauri window:', e);
     }
     return null;
@@ -61,69 +61,61 @@ export default function TitleBar({ onOpenCommandPalette }) {
     await handleMaximize();
   };
 
+  const closeTitle =
+    localStorage.getItem('portly_cfg_minimizetotray') !== 'false'
+      ? 'Réduire dans la barre des tâches'
+      : 'Quitter Sprint complètement';
+
+  const ctl =
+    'w-11 h-full flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer';
+
   return (
     <div
       data-tauri-drag-region
       onDoubleClick={handleDoubleClick}
-      className="h-10 w-full glass-panel flex items-center justify-between px-3.5 select-none border-b border-white/[0.08] z-50 text-xs text-gray-300 cursor-default bg-[#0b0c16]/90 backdrop-blur-xl"
+      className="h-9 w-full flex items-center justify-between pl-3.5 select-none border-b border-[var(--line)] bg-[var(--surface-1)] z-50 text-xs cursor-default"
     >
-      {/* Brand & Logo */}
-      <div data-tauri-drag-region className="flex items-center gap-2.5 pointer-events-none">
-        <img src="/icon.png" alt="Sprint" className="w-5 h-5 rounded-md object-cover shadow-sm" />
-        <span className="font-bold tracking-wide text-white text-sm font-sans">Sprint</span>
+      {/* Marque */}
+      <div data-tauri-drag-region className="flex items-center gap-2.5 pointer-events-none w-56">
+        <img src="/icon.png" alt="" className="w-[18px] h-[18px] rounded-[5px] object-cover" />
+        <span className="font-semibold tracking-tight text-zinc-100 text-[13px]">Sprint</span>
       </div>
 
-      {/* Middle Drag Space & Global Command / Search Bar */}
+      {/* Recherche / palette de commandes */}
       <div data-tauri-drag-region className="flex-1 h-full flex items-center justify-center px-4">
         {onOpenCommandPalette && (
           <button
             type="button"
             onClick={onOpenCommandPalette}
-            className="flex items-center justify-between gap-3 px-3 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-gray-400 hover:text-white transition-all text-xs cursor-pointer group shadow-sm w-60 max-w-xs pointer-events-auto"
+            className="flex items-center justify-between gap-3 h-7 px-2.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.07] border border-[var(--line)] hover:border-[var(--line-strong)] text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer w-72 max-w-full pointer-events-auto"
             title="Rechercher ou exécuter une commande (Ctrl+K)"
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <Search className="w-3 h-3 theme-accent-text group-hover:scale-110 transition-transform shrink-0" />
-              <span className="text-[11px] font-medium text-gray-400 group-hover:text-gray-200 truncate">
-                Rechercher...
-              </span>
-            </div>
-            <kbd className="font-mono font-bold text-[9px] px-1.5 py-0.5 rounded bg-white/[0.06] text-gray-400 border border-white/10 group-hover:border-white/20 shrink-0">
+            <span className="flex items-center gap-2 min-w-0">
+              <Search className="w-3.5 h-3.5 shrink-0" />
+              <span className="text-[12px] truncate">Rechercher une commande…</span>
+            </span>
+            <kbd className="font-mono text-[10px] px-1.5 py-px rounded bg-white/[0.06] text-zinc-500 border border-[var(--line)] shrink-0">
               Ctrl K
             </kbd>
           </button>
         )}
       </div>
 
-      {/* Window Action Buttons */}
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={handleMinimize}
-          className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
-          title="Réduire"
-        >
+      {/* Contrôles fenêtre */}
+      <div className="flex items-stretch h-full">
+        <button type="button" onClick={handleMinimize} className={`${ctl} hover:bg-white/[0.07]`} title="Réduire">
           <Minus className="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
           onClick={handleMaximize}
-          className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
+          className={`${ctl} hover:bg-white/[0.07]`}
           title="Agrandir / Restaurer"
         >
           <Square className="w-3 h-3" />
         </button>
-        <button
-          type="button"
-          onClick={handleClose}
-          className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-red-500/80 text-gray-400 hover:text-white transition-colors cursor-pointer"
-          title={
-            localStorage.getItem('portly_cfg_minimizetotray') !== 'false'
-              ? 'Réduire dans la barre des tâches'
-              : 'Quitter Sprint complètement'
-          }
-        >
-          <X className="w-3.5 h-3.5" />
+        <button type="button" onClick={handleClose} className={`${ctl} hover:!bg-red-600`} title={closeTitle}>
+          <X className="w-4 h-4" />
         </button>
       </div>
     </div>

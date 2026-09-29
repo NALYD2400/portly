@@ -79,12 +79,12 @@ export default function ContextMenu({ onOpenCommandPalette, onSelectTab }) {
   return (
     <div
       style={{ top: `${menuPos.y}px`, left: `${menuPos.x}px` }}
-      className="fixed z-[9999] w-52 modal-panel !rounded-2xl p-1.5 animate-scaleUp text-xs font-sans select-none"
+      className="fixed z-[9999] w-52 modal-panel !rounded-xl p-1 animate-scaleUp text-xs font-sans select-none"
       role="menu"
     >
-      <div className="px-2 py-1 mb-1 text-[10px] font-mono theme-accent-text uppercase tracking-wider font-bold border-b border-white/[0.08] flex items-center gap-1.5">
+      <div className="px-2.5 py-1.5 mb-1 eyebrow flex items-center gap-1.5">
         <Sparkles className="w-3 h-3" />
-        <span>Sprint Quick Menu</span>
+        <span>Accès rapide</span>
       </div>
 
       {items.map((item) => {
@@ -97,14 +97,14 @@ export default function ContextMenu({ onOpenCommandPalette, onSelectTab }) {
               item.action();
               setMenuPos(null);
             }}
-            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl hover-accent-bg text-gray-200 hover:text-white transition-colors cursor-pointer text-left"
+            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-white/[0.07] text-zinc-200 hover:text-white transition-colors cursor-pointer text-left"
           >
             <div className="flex items-center gap-2">
               <Icon className={`w-3.5 h-3.5 ${item.iconClass}`} />
               <span>{item.label}</span>
             </div>
             {item.kbd && (
-              <kbd className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-black/40 text-gray-400">
+              <kbd className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-black/40 text-zinc-400">
                 {item.kbd}
               </kbd>
             )}

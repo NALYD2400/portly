@@ -18,10 +18,10 @@ const LogLine = React.memo(function LogLine({ entry, lineNumber, showRaw }) {
           ? 'bg-emerald-500/10 text-emerald-300 border-l-2 border-emerald-500'
           : isInfo
           ? 'theme-accent-text'
-          : 'text-gray-300 hover:bg-white/[0.02]'
+          : 'text-zinc-300 hover:bg-white/[0.02]'
       }`}
     >
-      <span className="text-gray-500 select-none mr-2.5 text-[10px] min-w-[2.2rem] text-right">
+      <span className="text-zinc-500 select-none mr-2.5 text-[10px] min-w-[2.2rem] text-right">
         {lineNumber}
       </span>
       <span className="flex-1">{text}</span>
@@ -61,33 +61,33 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full glass-panel rounded-2xl p-4 border border-white/[0.08] bg-black/70 shadow-inner overflow-hidden select-none">
+    <div className="flex-1 flex flex-col h-full glass-panel rounded-xl p-4 border border-[var(--line)] bg-black/40 overflow-hidden select-none">
       {/* Panel Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] mb-3">
+      <div className="flex items-center justify-between pb-3 border-b border-[var(--line)] mb-3">
         <div className="flex items-center gap-2">
           <span
             className={`w-2.5 h-2.5 rounded-full ${
-              server?.state === 'running' ? 'bg-green-500 shadow-lg shadow-green-500/50 animate-pulse' : 'bg-gray-600'
+              server?.state === 'running' ? 'bg-green-500 animate-pulse' : 'bg-gray-600'
             }`}
           />
           <div>
-            <span className="text-[10px] font-mono uppercase font-bold mr-1.5 px-1.5 py-0.5 rounded theme-accent-badge">
+            <span className="text-[10px] font-mono uppercase font-semibold mr-1.5 px-1.5 py-0.5 rounded theme-accent-badge">
               {titlePrefix}
             </span>
-            <span className="text-xs font-bold text-white">{server?.name || 'Aucun serveur'}</span>
-            {server && <span className="text-[10px] font-mono text-gray-400 ml-2">:{server.port}</span>}
+            <span className="text-xs font-semibold text-white">{server?.name || 'Aucun serveur'}</span>
+            {server && <span className="text-[10px] font-mono text-zinc-400 ml-2">:{server.port}</span>}
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
           <div className="relative">
-            <Search className="w-3 h-3 text-gray-400 absolute left-2 top-2" />
+            <Search className="w-3 h-3 text-zinc-400 absolute left-2 top-2" />
             <input
               type="text"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Filtrer..."
-              className="pl-7 pr-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.1] text-[11px] text-white placeholder-gray-500 focus:outline-none theme-accent-border font-mono w-32"
+              className="pl-7 pr-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.1] text-[11px] text-white placeholder-zinc-600 focus:outline-none theme-accent-border font-mono w-32"
             />
           </div>
 
@@ -95,7 +95,7 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
             onClick={() => setAutoScroll(!autoScroll)}
             aria-pressed={autoScroll}
             className={`p-1.5 rounded-lg text-xs flex items-center transition-colors cursor-pointer ${
-              autoScroll ? 'theme-accent-active' : 'bg-white/[0.04] text-gray-400'
+              autoScroll ? 'theme-accent-active' : 'bg-white/[0.04] text-zinc-400'
             }`}
             title="Défilement automatique"
           >
@@ -104,7 +104,7 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
 
           <button
             onClick={handleCopyLogs}
-            className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 transition-colors cursor-pointer"
             title="Copier les logs"
           >
             <Copy className="w-3.5 h-3.5" />
@@ -112,7 +112,7 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
 
           <button
             onClick={clearLogs}
-            className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors cursor-pointer"
             title="Effacer"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -131,18 +131,18 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
         className="flex-1 font-mono text-xs overflow-y-auto space-y-0.5 select-text"
       >
         {!server ? (
-          <div className="h-full flex flex-col items-center justify-center gap-2 text-gray-500 italic select-none">
-            <span className="text-xs not-italic text-gray-400">
+          <div className="h-full flex flex-col items-center justify-center gap-2 text-zinc-500 italic select-none">
+            <span className="text-xs not-italic text-zinc-400">
               Aucun autre serveur disponible pour la vue divisée.
             </span>
           </div>
         ) : filteredLogs.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center gap-2 text-gray-500 italic select-none">
-            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs not-italic">
+          <div className="h-full flex flex-col items-center justify-center gap-2 text-zinc-500 italic select-none">
+            <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white/[0.04] border border-[var(--line)] text-xs not-italic">
               {filter ? (
                 <>
-                  <Search className="w-3 h-3 text-gray-400" />
-                  <span className="text-gray-300 font-mono">Aucune ligne ne correspond au filtre « {filter} »</span>
+                  <Search className="w-3 h-3 text-zinc-400" />
+                  <span className="text-zinc-300 font-mono">Aucune ligne ne correspond au filtre « {filter} »</span>
                 </>
               ) : (
                 <>
@@ -151,7 +151,7 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
                   ) : (
                     <span className="w-2 h-2 rounded-full bg-gray-500" />
                   )}
-                  <span className="text-gray-300 font-mono">
+                  <span className="text-zinc-300 font-mono">
                     {server?.state === 'running'
                       ? `Écoute active du flux (${server?.command || 'cmd'})...`
                       : 'Serveur arrêté. Cliquez sur "Lancer" pour démarrer.'}
@@ -165,7 +165,7 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
             {hiddenByWindow > 0 && (
               <button
                 onClick={() => setExpandedHistory(true)}
-                className="w-full text-center text-[10px] font-mono text-gray-500 hover:text-gray-300 py-1 border-b border-white/[0.05] cursor-pointer sticky top-0 bg-black/80 z-10"
+                className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-300 py-1 border-b border-[var(--line)] cursor-pointer sticky top-0 bg-black/80 z-10"
               >
                 ▲ {hiddenByWindow} lignes plus anciennes masquées — cliquer pour tout afficher
               </button>
@@ -256,14 +256,14 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
   if (runningServers.length === 0 && !showAllServers) {
     const stoppedServers = allServers;
     return (
-      <div className="space-y-4 animate-fadeIn h-[calc(100vh-5.5rem)] flex flex-col items-center justify-center select-none text-center">
-        <div className="glass-panel p-8 rounded-3xl max-w-md border border-white/[0.08] space-y-4 bg-black/60 shadow-2xl">
-          <div className="w-12 h-12 rounded-2xl theme-accent-badge flex items-center justify-center mx-auto">
+      <div className="space-y-4 animate-fadeIn h-[calc(100vh-6rem)] flex flex-col items-center justify-center select-none text-center">
+        <div className="glass-panel p-8 rounded-2xl max-w-md border border-[var(--line)] space-y-4 bg-black/40">
+          <div className="w-12 h-12 rounded-xl theme-accent-badge flex items-center justify-center mx-auto">
             <Terminal className="w-6 h-6 theme-accent-text" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-white">Aucun serveur en cours d'exécution</h2>
-            <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">
+            <h2 className="text-base font-semibold text-white">Aucun serveur en cours d'exécution</h2>
+            <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
               Tous vos serveurs de dev sont actuellement arrêtés. Lancez un serveur depuis l'onglet Projets pour capturer ses logs en temps réel.
             </p>
           </div>
@@ -271,7 +271,7 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
           <div className="pt-2 flex flex-col gap-2">
             <button
               onClick={() => onSelectTab && onSelectTab('projects')}
-              className="w-full py-2.5 px-4 rounded-xl theme-accent-btn text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="w-full py-2.5 px-4 rounded-lg theme-accent-btn text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               <span>Accéder aux Projets & Lancer</span>
               <ArrowRight className="w-4 h-4" />
@@ -280,7 +280,7 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
             {stoppedServers.length > 0 && (
               <button
                 onClick={() => setShowAllServers(true)}
-                className="w-full py-2 px-4 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-400 hover:text-white text-xs font-medium transition-colors cursor-pointer border border-white/[0.06]"
+                className="w-full py-2 px-4 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-white text-xs font-medium transition-colors cursor-pointer border border-[var(--line)]"
               >
                 Afficher quand même les serveurs arrêtés ({stoppedServers.length})
               </button>
@@ -292,29 +292,24 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
   }
 
   return (
-    <div className="space-y-4 animate-fadeIn h-[calc(100vh-5.5rem)] flex flex-col">
+    <div className="space-y-5 animate-fadeIn h-[calc(100vh-6rem)] flex flex-col">
       {/* Top Header & Multi-Server Tab Bar */}
       <div className="flex items-center justify-between select-none">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg theme-accent-badge flex items-center justify-center">
-            <Terminal className="w-4 h-4" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-white tracking-tight">Logs Temps Réel & Multi-Console</h1>
-            <p className="text-xs text-gray-400">
-              Affichage exclusif des serveurs lancés en cours d'exécution.
-            </p>
-          </div>
+        <div>
+          <h1 className="text-xl font-semibold text-zinc-50 tracking-tight">Logs en direct</h1>
+          <p className="text-[13px] text-zinc-500 mt-1">
+            Sortie des serveurs en cours d'exécution, en multi-console.
+          </p>
         </div>
 
         {/* Controls */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowAllServers(!showAllServers)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 border transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 border transition-all cursor-pointer ${
               showAllServers
                 ? 'theme-accent-badge'
-                : 'bg-white/[0.04] border-white/[0.08] text-gray-400 hover:text-white'
+                : 'bg-white/[0.04] border-[var(--line)] text-zinc-400 hover:text-white'
             }`}
             title="Basculer entre uniquement les serveurs lancés et tous les serveurs"
           >
@@ -324,10 +319,10 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
 
           <button
             onClick={toggleSplitMode}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
               isSplitMode
                 ? 'theme-accent-btn text-white'
-                : 'bg-white/[0.04] border-white/[0.1] text-gray-300 hover:text-white'
+                : 'bg-white/[0.04] border-white/[0.1] text-zinc-300 hover:text-white'
             }`}
           >
             <Columns className="w-3.5 h-3.5" />
@@ -337,7 +332,7 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
       </div>
 
       {/* Server Tabs Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/[0.08] no-scrollbar">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-[var(--line)] no-scrollbar">
         {displayServers.map((srv) => {
           const isPrimary = srv.id === primaryServer?.id;
           const isSecondary = isSplitMode && srv.id === secondaryServer?.id;
@@ -355,31 +350,31 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
                     setActiveServerId(srv.id);
                   }
                 }}
-                className={`pl-3.5 pr-8 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border whitespace-nowrap shrink-0 ${
+                className={`pl-3.5 pr-8 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border whitespace-nowrap shrink-0 ${
                   isPrimary
-                    ? 'theme-accent-active font-bold border-white/20 shadow-md'
+                    ? 'theme-accent-active font-semibold border-[var(--line-strong)]'
                     : isSecondary
-                    ? 'bg-cyan-500/25 border-cyan-500/60 text-cyan-200 shadow-md shadow-cyan-500/20'
-                    : 'bg-white/[0.03] border-white/[0.06] text-gray-400 hover:bg-white/[0.08] hover:text-white'
+                    ? 'bg-cyan-500/25 border-cyan-500/60 text-cyan-200'
+                    : 'bg-white/[0.03] border-[var(--line)] text-zinc-400 hover:bg-white/[0.08] hover:text-white'
                 }`}
               >
                 <span
                   className={`w-2 h-2 rounded-full shrink-0 ${
-                    isRunning ? 'bg-green-400 shadow-md shadow-green-500/50 animate-pulse' : 'bg-gray-600'
+                    isRunning ? 'bg-green-400 animate-pulse' : 'bg-gray-600'
                   }`}
                 />
                 <span className="font-semibold text-white tracking-tight">{srv.projectName}</span>
                 <span className="text-[11px] font-mono theme-accent-text font-medium">/ {srv.name}</span>
-                <span className="text-[10px] font-mono text-gray-300 bg-black/40 px-1.5 py-0.5 rounded-md border border-white/10 font-bold">
+                <span className="text-[10px] font-mono text-zinc-300 bg-black/40 px-1.5 py-0.5 rounded-md border border-[var(--line)] font-semibold">
                   :{srv.port}
                 </span>
                 {isPrimary && (
-                  <span className="text-[10px] font-mono font-bold theme-accent-badge px-1.5 py-0.5 rounded-md ml-0.5">
+                  <span className="text-[10px] font-mono font-semibold theme-accent-badge px-1.5 py-0.5 rounded-md ml-0.5">
                     1
                   </span>
                 )}
                 {isSecondary && (
-                  <span className="text-[10px] font-mono font-bold bg-cyan-500/30 text-cyan-200 border border-cyan-500/40 px-1.5 py-0.5 rounded-md ml-0.5">
+                  <span className="text-[10px] font-mono font-semibold bg-cyan-500/30 text-cyan-200 border border-cyan-500/40 px-1.5 py-0.5 rounded-md ml-0.5">
                     2
                   </span>
                 )}

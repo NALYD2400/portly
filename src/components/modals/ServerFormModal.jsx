@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit3, Save, Terminal, Shield, Zap, Sparkles, Check, Hash, X } from 'lucide-react';
+import { Plus, Edit3, Save, Zap, Check, X } from 'lucide-react';
 import Modal from '../ui/Modal';
 
 const SUGGESTED_SCRIPTS = [
@@ -127,9 +127,9 @@ export default function ServerFormModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-white/[0.02]">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--line)] bg-white/[0.02]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl theme-accent-badge flex items-center justify-center shadow-md">
+          <div className="w-9 h-9 rounded-xl theme-accent-badge flex items-center justify-center">
             {isEdit ? (
               <Edit3 className="w-4 h-4 theme-accent-text" />
             ) : (
@@ -137,11 +137,11 @@ export default function ServerFormModal({
             )}
           </div>
           <div>
-            <h3 className="text-base font-bold text-white tracking-tight">
+            <h3 className="text-base font-semibold text-white tracking-tight">
               {isEdit ? `Modifier ${server ? server.name : 'le Serveur'}` : 'Ajouter un Serveur'}
             </h3>
-            <p className="text-xs text-gray-400">
-              Projet : <span className="theme-accent-text font-bold">{project.name}</span>
+            <p className="text-xs text-zinc-400">
+              Projet : <span className="theme-accent-text font-semibold">{project.name}</span>
             </p>
           </div>
         </div>
@@ -149,7 +149,7 @@ export default function ServerFormModal({
           type="button"
           onClick={onClose}
           aria-label="Fermer"
-          className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-gray-400 hover:text-white transition-all duration-200 hover:rotate-90 hover:scale-110 active:scale-95 cursor-pointer"
+          className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] text-zinc-400 hover:text-white transition-all duration-200 hover:rotate-90 hover:scale-110 cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
@@ -158,12 +158,11 @@ export default function ServerFormModal({
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
         {/* Suggested Scripts Chips */}
         <div className="space-y-2.5">
-          <label className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5 font-mono">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
             <span>Commandes Fréquentes</span>
           </label>
 
-          <div className="flex flex-wrap gap-2 p-3 bg-black/50 border border-white/10 rounded-2xl max-h-36 overflow-y-auto shadow-inner">
+          <div className="flex flex-wrap gap-2 p-3 bg-black/40 border border-[var(--line)] rounded-xl max-h-36 overflow-y-auto">
             {SUGGESTED_SCRIPTS.map((scriptCmd) => {
               const isSelected = command.trim() === scriptCmd.trim();
               return (
@@ -171,20 +170,20 @@ export default function ServerFormModal({
                   key={scriptCmd}
                   type="button"
                   onClick={() => setCommand(scriptCmd)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-semibold flex items-center gap-1.5 transition-all duration-200 cursor-pointer active:scale-95 ${
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-semibold flex items-center gap-1.5 transition-all duration-200 cursor-pointer ${
                     isSelected
-                      ? 'theme-accent-btn text-white font-bold border border-white/30 shadow-[0_0_15px_rgba(var(--accent-color-rgb),0.4)] scale-[1.02]'
-                      : 'bg-white/[0.04] border border-white/[0.08] text-gray-300 hover:bg-white/[0.1] hover:text-white hover:scale-105'
+                      ? 'theme-accent-btn text-white font-semibold border border-white/30 scale-[1.02]'
+                      : 'bg-white/[0.04] border border-[var(--line)] text-zinc-300 hover:bg-white/[0.1] hover:text-white hover:scale-105'
                   }`}
                 >
-                  <Zap className={`w-3.5 h-3.5 ${isSelected ? 'text-amber-300' : 'text-gray-400'}`} />
+                  <Zap className={`w-3.5 h-3.5 ${isSelected ? 'text-amber-300' : 'text-zinc-400'}`} />
                   <span>{scriptCmd}</span>
                   {isSelected && <Check className="w-3.5 h-3.5 text-white ml-0.5" />}
                 </button>
               );
             })}
           </div>
-          <p className="text-[11px] text-gray-400">
+          <p className="text-[11px] text-zinc-400">
             Cliquez sur un badge pour insérer automatiquement la commande de démarrage.
           </p>
         </div>
@@ -192,11 +191,10 @@ export default function ServerFormModal({
         {/* Name & Port */}
         <div className="grid grid-cols-2 gap-3.5">
           <div>
-            <label htmlFor="srv-name" className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5 font-mono">
-              <Terminal className="w-3.5 h-3.5 theme-accent-text" />
+            <label htmlFor="srv-name" className="block text-xs font-medium text-zinc-400 mb-1.5 flex items-center gap-1.5">
               <span>Nom du Serveur</span>
             </label>
-            <div className="rounded-xl bg-white/[0.03] border border-white/10 focus-within:border-[var(--accent-color)] focus-within:ring-2 focus-within:ring-[rgba(var(--accent-color-rgb),0.2)] transition-all duration-200 shadow-inner">
+            <div className="rounded-lg bg-white/[0.03] border border-[var(--line)] focus-within:border-[var(--accent-color)] focus-within:ring-2 focus-within:ring-[rgba(var(--accent-color-rgb),0.2)] transition-all duration-200">
               <input
                 id="srv-name"
                 type="text"
@@ -210,11 +208,10 @@ export default function ServerFormModal({
           </div>
 
           <div>
-            <label htmlFor="srv-port" className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5 font-mono">
-              <Hash className="w-3.5 h-3.5 text-cyan-400" />
+            <label htmlFor="srv-port" className="block text-xs font-medium text-zinc-400 mb-1.5 flex items-center gap-1.5">
               <span>Port TCP</span>
             </label>
-            <div className="rounded-xl bg-white/[0.03] border border-white/10 focus-within:border-cyan-500 focus-within:ring-2 focus-within:ring-cyan-500/20 transition-all duration-200 shadow-inner">
+            <div className="rounded-lg bg-white/[0.03] border border-[var(--line)] focus-within:border-[var(--accent-color)] focus-within:ring-2 focus-within:ring-[rgba(var(--accent-color-rgb),0.2)] transition-all duration-200">
               <input
                 id="srv-port"
                 type="number"
@@ -224,7 +221,7 @@ export default function ServerFormModal({
                 value={port}
                 onChange={(e) => setPort(e.target.value)}
                 placeholder="3000"
-                className="w-full bg-transparent px-3.5 py-2.5 text-xs text-cyan-300 font-mono font-bold focus:outline-none"
+                className="w-full bg-transparent px-3.5 py-2.5 text-xs text-zinc-100 font-mono focus:outline-none"
               />
             </div>
           </div>
@@ -232,11 +229,10 @@ export default function ServerFormModal({
 
         {/* Command */}
         <div>
-          <label htmlFor="srv-cmd" className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5 font-mono">
-            <Zap className="w-3.5 h-3.5 text-amber-400" />
+          <label htmlFor="srv-cmd" className="block text-xs font-medium text-zinc-400 mb-1.5 flex items-center gap-1.5">
             <span>Commande de Démarrage</span>
           </label>
-          <div className="rounded-xl bg-white/[0.03] border border-white/10 focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-500/20 transition-all duration-200 shadow-inner">
+          <div className="rounded-lg bg-white/[0.03] border border-[var(--line)] focus-within:border-[var(--accent-color)] focus-within:ring-2 focus-within:ring-[rgba(var(--accent-color-rgb),0.2)] transition-all duration-200">
             <input
               id="srv-cmd"
               type="text"
@@ -244,18 +240,17 @@ export default function ServerFormModal({
               value={command}
               onChange={(e) => setCommand(e.target.value)}
               placeholder="ex: npm run dev"
-              className="w-full bg-transparent px-3.5 py-2.5 text-xs text-amber-300 font-mono font-bold focus:outline-none"
+              className="w-full bg-transparent px-3.5 py-2.5 text-xs text-zinc-100 font-mono focus:outline-none"
             />
           </div>
         </div>
 
         {/* RAM Auto-Guard Limit */}
         <div>
-          <label htmlFor="srv-ram" className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5 font-mono">
-            <Shield className="w-3.5 h-3.5 text-emerald-400" />
+          <label htmlFor="srv-ram" className="block text-xs font-medium text-zinc-400 mb-1.5 flex items-center gap-1.5">
             <span>Auto-Guard : Limite RAM Max (MB)</span>
           </label>
-          <div className="rounded-xl bg-white/[0.03] border border-white/10 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all duration-200 shadow-inner">
+          <div className="rounded-lg bg-white/[0.03] border border-[var(--line)] focus-within:border-[var(--accent-color)] focus-within:ring-2 focus-within:ring-[rgba(var(--accent-color-rgb),0.2)] transition-all duration-200">
             <input
               id="srv-ram"
               type="number"
@@ -263,32 +258,32 @@ export default function ServerFormModal({
               value={ramLimit}
               onChange={(e) => setRamLimit(e.target.value)}
               placeholder="ex: 500"
-              className="w-full bg-transparent px-3.5 py-2.5 text-xs text-emerald-300 font-mono font-bold focus:outline-none"
+              className="w-full bg-transparent px-3.5 py-2.5 text-xs text-zinc-100 font-mono focus:outline-none"
             />
           </div>
-          <p className="text-[10px] text-gray-400 mt-1 font-sans">
+          <p className="text-[10px] text-zinc-400 mt-1 font-sans">
             Laissez vide pour désactiver. Sinon, si ce serveur dépasse cette limite de RAM, Sprint le redémarre automatiquement (30 s minimum entre deux relances).
           </p>
         </div>
 
         {error && (
-          <div role="alert" className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl px-3.5 py-2.5">
+          <div role="alert" className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3.5 py-2.5">
             {error}
           </div>
         )}
 
         {/* Actions */}
-        <div className="pt-4 flex items-center justify-end gap-3 border-t border-white/[0.08]">
+        <div className="pt-4 flex items-center justify-end gap-3 border-t border-[var(--line)]">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-gray-300 hover:text-white text-xs font-semibold border border-white/10 transition-all duration-200 cursor-pointer active:scale-95"
+            className="px-4 py-2.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white text-xs font-semibold border border-[var(--line)] transition-all duration-200 cursor-pointer "
           >
             Annuler
           </button>
           <button
             type="submit"
-            className="px-6 py-2.5 rounded-xl theme-accent-btn text-white text-xs font-bold flex items-center gap-2 shadow-lg transition-all duration-200 cursor-pointer active:scale-95 hover:brightness-110"
+            className="px-6 py-2.5 rounded-lg theme-accent-btn text-white text-xs font-semibold flex items-center gap-2 transition-all duration-200 cursor-pointer hover:brightness-110"
           >
             {isEdit ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             <span>{isEdit ? 'Enregistrer' : 'Ajouter le Serveur'}</span>

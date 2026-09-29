@@ -18,42 +18,37 @@ export default function ConfirmDialog({
 }) {
   return (
     <Modal isOpen={open} onClose={onCancel} maxWidth="max-w-md">
-      <div className="p-6 space-y-5">
+      <div className="p-5 space-y-5">
         <div className="flex items-start gap-3.5">
           <div
-            className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border ${
-              danger
-                ? 'bg-red-500/15 text-red-400 border-red-500/30'
-                : 'bg-white/[0.05] text-gray-300 border-white/10'
+            className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+              danger ? 'bg-red-500/12 text-red-400' : 'bg-white/[0.06] text-zinc-300'
             }`}
           >
-            {danger ? <AlertTriangle className="w-5 h-5" /> : <HelpCircle className="w-5 h-5" />}
+            {danger ? <AlertTriangle className="w-[18px] h-[18px]" /> : <HelpCircle className="w-[18px] h-[18px]" />}
           </div>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold text-white tracking-tight">{title}</h3>
-            <p className="text-xs text-gray-400 mt-1.5 leading-relaxed break-words">{message}</p>
+          <div className="min-w-0 pt-0.5">
+            <h3 className="text-sm font-semibold text-zinc-50">{title}</h3>
+            <p className="text-[13px] text-zinc-400 mt-1 leading-relaxed break-words">{message}</p>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2.5">
+        <div className="flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-gray-300 hover:text-white text-xs font-semibold border border-white/10 transition-all cursor-pointer active:scale-95"
+            className="h-8 px-3.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white text-xs font-medium border border-[var(--line)] transition-colors cursor-pointer"
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`px-4 py-2.5 rounded-xl text-white text-xs font-bold flex items-center gap-2 shadow-lg transition-all cursor-pointer active:scale-95 ${
-              danger
-                ? 'bg-red-500/80 hover:bg-red-500 border border-red-400/40'
-                : 'theme-accent-btn'
+            className={`h-8 px-3.5 rounded-lg text-white text-xs font-medium transition-colors cursor-pointer ${
+              danger ? 'bg-red-600 hover:bg-red-500' : 'theme-accent-btn'
             }`}
           >
-            {danger ? <AlertTriangle className="w-3.5 h-3.5" /> : null}
-            <span>{confirmLabel}</span>
+            {confirmLabel}
           </button>
         </div>
       </div>

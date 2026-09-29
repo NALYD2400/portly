@@ -44,66 +44,36 @@ export default function ToastContainer() {
 
   if (toasts.length === 0) return null;
 
+  const kinds = {
+    success: { Icon: CheckCircle2, color: '#34d399' },
+    warning: { Icon: AlertTriangle, color: '#fbbf24' },
+    error: { Icon: XCircle, color: '#f87171' },
+    info: { Icon: Info, color: '#60a5fa' },
+  };
+
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col space-y-3 pointer-events-none max-w-sm w-full">
+    <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 pointer-events-none max-w-sm w-full">
       {toasts.map((toast) => {
-        let borderStyle = {
-          borderColor: 'rgba(var(--accent-color-rgb), 0.45)',
-          boxShadow: '0 0 20px rgba(var(--accent-color-rgb), 0.25)',
-        };
-        let Icon = Zap;
-        let iconClass = 'theme-accent-text';
-
-        if (toast.type === 'success') {
-          borderStyle = {
-            borderColor: 'rgba(var(--accent-color-rgb), 0.5)',
-            boxShadow: '0 0 20px rgba(var(--accent-color-rgb), 0.3)',
-          };
-          Icon = CheckCircle2;
-          iconClass = 'theme-accent-text';
-        } else if (toast.type === 'warning') {
-          borderStyle = {
-            borderColor: 'rgba(245, 158, 11, 0.5)',
-            boxShadow: '0 0 20px rgba(245, 158, 11, 0.3)',
-          };
-          Icon = AlertTriangle;
-          iconClass = 'text-amber-400';
-        } else if (toast.type === 'error') {
-          borderStyle = {
-            borderColor: 'rgba(239, 68, 68, 0.5)',
-            boxShadow: '0 0 20px rgba(239, 68, 68, 0.3)',
-          };
-          Icon = XCircle;
-          iconClass = 'text-red-400';
-        } else if (toast.type === 'info') {
-          borderStyle = {
-            borderColor: 'rgba(59, 130, 246, 0.5)',
-            boxShadow: '0 0 20px rgba(59, 130, 246, 0.3)',
-          };
-          Icon = Info;
-          iconClass = 'text-blue-400';
-        }
-
+        const { Icon, color } = kinds[toast.type] || { Icon: Zap, color: 'var(--accent-color)' };
         return (
           <div
             key={toast.id}
-            style={borderStyle}
-            className="pointer-events-auto p-4 rounded-2xl glass-card border bg-[#110e24]/95 backdrop-blur-xl shadow-2xl transition-all duration-300 animate-slideUp flex items-start justify-between gap-3"
+            role="status"
+            className="pointer-events-auto relative overflow-hidden pl-4 pr-3 py-3 rounded-xl bg-[var(--surface-2)] border border-[var(--line-strong)] shadow-[0_12px_32px_-8px_rgba(0,0,0,0.7)] animate-slideUp flex items-start justify-between gap-3"
           >
-            <div className="flex items-start gap-3 min-w-0">
-              <div className="p-2 rounded-xl bg-white/[0.05] border border-white/10 shrink-0">
-                <Icon className={`w-4 h-4 ${iconClass}`} />
-              </div>
-
+            <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: color }} />
+            <div className="flex items-start gap-2.5 min-w-0">
+              <Icon className="w-4 h-4 mt-px shrink-0" style={{ color }} />
               <div className="min-w-0">
-                <h4 className="text-xs font-bold text-white tracking-tight truncate">{toast.title}</h4>
-                {toast.message && <p className="text-[11px] font-mono text-gray-300 mt-0.5 break-words">{toast.message}</p>}
+                <h4 className="text-[13px] font-medium text-zinc-100 truncate">{toast.title}</h4>
+                {toast.message && (
+                  <p className="text-xs text-zinc-400 mt-0.5 break-words leading-relaxed">{toast.message}</p>
+                )}
               </div>
             </div>
-
             <button
               onClick={() => removeToast(toast.id)}
-              className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+              className="p-1 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
               aria-label="Fermer"
             >
               <X className="w-3.5 h-3.5" />

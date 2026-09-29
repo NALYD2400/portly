@@ -147,9 +147,13 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden relative font-sans text-gray-100 bg-[#07070c]">
-      {/* Dynamic Animated ColorBends Canvas Background */}
-      {showCanvasBg && <ColorBendsBackground />}
+    <div className="h-screen w-screen flex flex-col overflow-hidden relative font-sans text-zinc-100 bg-[var(--bg-base)]">
+      {/* Arrière-plan animé optionnel, volontairement discret */}
+      {showCanvasBg && (
+        <div className="absolute inset-0 opacity-30 pointer-events-none">
+          <ColorBendsBackground />
+        </div>
+      )}
 
       {/* Global Right-Click App Context Menu */}
       <ContextMenu
@@ -171,10 +175,10 @@ export default function App() {
         />
 
         {/* View Container */}
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 min-w-0 px-8 py-7 overflow-y-auto">
           {loading ? (
-            <div className="h-full flex items-center justify-center font-mono text-xs text-gray-400">
-              Chargement des projets Sprint...
+            <div className="h-full flex items-center justify-center text-xs text-zinc-500">
+              Chargement des projets…
             </div>
           ) : (
             <>
