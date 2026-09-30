@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit3, Save, Zap, Check, X } from 'lucide-react';
+import { X, ChevronRight } from 'lucide-react';
 import Modal from '../ui/Modal';
 
 const SUGGESTED_SCRIPTS = [
@@ -38,10 +38,12 @@ export default function ServerFormModal({
   const [port, setPort] = useState('3000');
   const [ramLimit, setRamLimit] = useState('500');
   const [error, setError] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
     setError('');
+    setShowAdvanced(false);
     if (isEdit && server) {
       setName(server.name || 'dev');
       setCommand(server.command || '');
@@ -124,169 +126,138 @@ export default function ServerFormModal({
     onClose();
   };
 
+  const field = 'w-full h-9 px-3 rounded-md bg-white/[0.04] border border-transparent hover:bg-white/[0.06] text-[13px] text-zinc-100 placeholder-zinc-600';
+  const label = 'block text-xs text-zinc-400 mb-1.5';
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--line)] bg-white/[0.02]">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl theme-accent-badge flex items-center justify-center">
-            {isEdit ? (
-              <Edit3 className="w-4 h-4 theme-accent-text" />
-            ) : (
-              <Plus className="w-4 h-4 theme-accent-text" />
-            )}
-          </div>
-          <div>
-            <h3 className="text-base font-semibold text-white tracking-tight">
-              {isEdit ? `Modifier ${server ? server.name : 'le Serveur'}` : 'Ajouter un Serveur'}
-            </h3>
-            <p className="text-xs text-zinc-400">
-              Projet : <span className="theme-accent-text font-semibold">{project.name}</span>
-            </p>
-          </div>
+    <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-md">
+      <div className="flex items-start justify-between px-6 pt-6">
+        <div>
+          <h3 className="text-base font-semibold text-white tracking-tight">
+            {isEdit ? 'Modifier le serveur' : 'Nouveau serveur'}
+          </h3>
+          <p className="text-xs text-zinc-500 mt-1">{project.name}</p>
         </div>
         <button
           type="button"
           onClick={onClose}
           aria-label="Fermer"
-          className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] text-zinc-400 hover:text-white transition-all duration-200 hover:rotate-90 hover:scale-110 cursor-pointer"
+          className="w-7 h-7 -mr-1.5 flex items-center justify-center rounded-md text-zinc-500 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 space-y-5">
-        {/* Suggested Scripts Chips */}
-        <div className="space-y-2.5">
-          <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
-            <span>Commandes Fréquentes</span>
-          </label>
-
-          <div className="flex flex-wrap gap-2 p-3 bg-black/40 border border-[var(--line)] rounded-xl max-h-36 overflow-y-auto">
+      <form onSubmit={handleSubmit} className="px-6 pt-5 pb-6 space-y-4">
+        <div>
+          <label htmlFor="srv-cmd" className={label}>Commande de démarrage</label>
+          <input
+            id="srv-cmd"
+            type="text"
+            required
+            value={command}
+            onChange={(e) => setCommand(e.target.value)}
+            placeholder="npm run dev"
+            className={`${field} font-mono`}
+          />
+          <div className="flex flex-wrap gap-1 mt-2">
             {SUGGESTED_SCRIPTS.map((scriptCmd) => {
-              const isSelected = command.trim() === scriptCmd.trim();
+              const isSelected = command.trim() === scriptCmd;
               return (
                 <button
                   key={scriptCmd}
                   type="button"
                   onClick={() => setCommand(scriptCmd)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-semibold flex items-center gap-1.5 transition-all duration-200 cursor-pointer ${
+                  className={`h-6 px-2 rounded-md text-[11px] font-mono transition-colors cursor-pointer ${
                     isSelected
-                      ? 'theme-accent-btn text-white font-semibold border border-white/30 scale-[1.02]'
-                      : 'bg-white/[0.04] border border-[var(--line)] text-zinc-300 hover:bg-white/[0.1] hover:text-white hover:scale-105'
+                      ? 'bg-white/[0.1] text-white'
+                      : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.05]'
                   }`}
                 >
-                  <Zap className={`w-3.5 h-3.5 ${isSelected ? 'text-amber-300' : 'text-zinc-400'}`} />
-                  <span>{scriptCmd}</span>
-                  {isSelected && <Check className="w-3.5 h-3.5 text-white ml-0.5" />}
+                  {scriptCmd}
                 </button>
               );
             })}
           </div>
-          <p className="text-[11px] text-zinc-400">
-            Cliquez sur un badge pour insérer automatiquement la commande de démarrage.
-          </p>
         </div>
 
-        {/* Name & Port */}
-        <div className="grid grid-cols-2 gap-3.5">
+        <div className="grid grid-cols-[1fr_7rem] gap-3">
           <div>
-            <label htmlFor="srv-name" className="block text-xs font-medium text-zinc-400 mb-1.5 flex items-center gap-1.5">
-              <span>Nom du Serveur</span>
-            </label>
-            <div className="rounded-lg bg-white/[0.03] border border-[var(--line)] focus-within:border-[var(--accent-color)] focus-within:ring-2 focus-within:ring-[rgba(var(--accent-color-rgb),0.2)] transition-all duration-200">
-              <input
-                id="srv-name"
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="ex: Web Local, API..."
-                className="w-full bg-transparent px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="srv-port" className="block text-xs font-medium text-zinc-400 mb-1.5 flex items-center gap-1.5">
-              <span>Port TCP</span>
-            </label>
-            <div className="rounded-lg bg-white/[0.03] border border-[var(--line)] focus-within:border-[var(--accent-color)] focus-within:ring-2 focus-within:ring-[rgba(var(--accent-color-rgb),0.2)] transition-all duration-200">
-              <input
-                id="srv-port"
-                type="number"
-                required
-                min="1"
-                max="65535"
-                value={port}
-                onChange={(e) => setPort(e.target.value)}
-                placeholder="3000"
-                className="w-full bg-transparent px-3.5 py-2.5 text-xs text-zinc-100 font-mono focus:outline-none"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Command */}
-        <div>
-          <label htmlFor="srv-cmd" className="block text-xs font-medium text-zinc-400 mb-1.5 flex items-center gap-1.5">
-            <span>Commande de Démarrage</span>
-          </label>
-          <div className="rounded-lg bg-white/[0.03] border border-[var(--line)] focus-within:border-[var(--accent-color)] focus-within:ring-2 focus-within:ring-[rgba(var(--accent-color-rgb),0.2)] transition-all duration-200">
+            <label htmlFor="srv-name" className={label}>Nom</label>
             <input
-              id="srv-cmd"
+              id="srv-name"
               type="text"
               required
-              value={command}
-              onChange={(e) => setCommand(e.target.value)}
-              placeholder="ex: npm run dev"
-              className="w-full bg-transparent px-3.5 py-2.5 text-xs text-zinc-100 font-mono focus:outline-none"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Site web, API…"
+              className={field}
+            />
+          </div>
+          <div>
+            <label htmlFor="srv-port" className={label}>Port</label>
+            <input
+              id="srv-port"
+              type="number"
+              required
+              min="1"
+              max="65535"
+              value={port}
+              onChange={(e) => setPort(e.target.value)}
+              placeholder="3000"
+              className={`${field} font-mono`}
             />
           </div>
         </div>
 
-        {/* RAM Auto-Guard Limit */}
         <div>
-          <label htmlFor="srv-ram" className="block text-xs font-medium text-zinc-400 mb-1.5 flex items-center gap-1.5">
-            <span>Auto-Guard : Limite RAM Max (MB)</span>
-          </label>
-          <div className="rounded-lg bg-white/[0.03] border border-[var(--line)] focus-within:border-[var(--accent-color)] focus-within:ring-2 focus-within:ring-[rgba(var(--accent-color-rgb),0.2)] transition-all duration-200">
-            <input
-              id="srv-ram"
-              type="number"
-              min="0"
-              value={ramLimit}
-              onChange={(e) => setRamLimit(e.target.value)}
-              placeholder="ex: 500"
-              className="w-full bg-transparent px-3.5 py-2.5 text-xs text-zinc-100 font-mono focus:outline-none"
-            />
-          </div>
-          <p className="text-[10px] text-zinc-400 mt-1 font-sans">
-            Laissez vide pour désactiver. Sinon, si ce serveur dépasse cette limite de RAM, Sprint le redémarre automatiquement (30 s minimum entre deux relances).
-          </p>
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            aria-expanded={showAdvanced}
+            className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+          >
+            <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showAdvanced ? 'rotate-90' : ''}`} />
+            Options avancées
+          </button>
+          {showAdvanced && (
+            <div className="mt-3">
+              <label htmlFor="srv-ram" className={label}>Mémoire maximale (Mo)</label>
+              <input
+                id="srv-ram"
+                type="number"
+                min="0"
+                value={ramLimit}
+                onChange={(e) => setRamLimit(e.target.value)}
+                placeholder="500"
+                className={`${field} font-mono`}
+              />
+              <p className="text-[11px] text-zinc-500 mt-1.5 leading-relaxed">
+                Si le serveur dépasse cette limite, Sprint le relance automatiquement. Laissez vide pour désactiver.
+              </p>
+            </div>
+          )}
         </div>
 
         {error && (
-          <div role="alert" className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3.5 py-2.5">
+          <div role="alert" className="text-xs text-red-300 bg-red-500/10 rounded-md px-3 py-2">
             {error}
           </div>
         )}
 
-        {/* Actions */}
-        <div className="pt-4 flex items-center justify-end gap-3 border-t border-[var(--line)]">
+        <div className="pt-2 flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white text-xs font-semibold border border-[var(--line)] transition-all duration-200 cursor-pointer "
+            className="h-8 px-3 rounded-md text-xs text-zinc-400 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
           >
             Annuler
           </button>
           <button
             type="submit"
-            className="px-6 py-2.5 rounded-lg theme-accent-btn text-white text-xs font-semibold flex items-center gap-2 transition-all duration-200 cursor-pointer hover:brightness-110"
+            className="h-8 px-4 rounded-md theme-accent-btn text-xs font-medium cursor-pointer"
           >
-            {isEdit ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            <span>{isEdit ? 'Enregistrer' : 'Ajouter le Serveur'}</span>
+            {isEdit ? 'Enregistrer' : 'Ajouter'}
           </button>
         </div>
       </form>

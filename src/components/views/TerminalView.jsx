@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useServerLogs } from '../../hooks/useTauriIPC';
-import { Terminal, Trash2, Copy, Search, ArrowDown, Columns, Play, Filter, ArrowRight, Loader2 } from 'lucide-react';
+import { Terminal, Trash2, Copy, Search, ArrowDown, Columns, Play, ArrowRight, Loader2 } from 'lucide-react';
 
 // Nombre max de lignes rendues dans le DOM (fenêtre glissante)
 const MAX_RENDERED_LINES = 500;
@@ -61,9 +61,9 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full glass-panel rounded-xl p-4 border border-[var(--line)] bg-black/40 overflow-hidden select-none">
+    <div className="flex-1 flex flex-col h-full rounded-xl p-4 bg-[var(--surface-2)] overflow-hidden select-none">
       {/* Panel Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-[var(--line)] mb-3">
+      <div className="flex items-center justify-between pb-3 mb-2">
         <div className="flex items-center gap-2">
           <span
             className={`w-2.5 h-2.5 rounded-full ${
@@ -87,7 +87,7 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Filtrer..."
-              className="pl-7 pr-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.1] text-[11px] text-white placeholder-zinc-600 focus:outline-none theme-accent-border font-mono w-32"
+              className="pl-7 pr-2 py-1 rounded-lg bg-white/[0.04] border border-transparent text-[11px] text-white placeholder-zinc-600 font-mono w-32"
             />
           </div>
 
@@ -104,7 +104,7 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
 
           <button
             onClick={handleCopyLogs}
-            className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 transition-colors cursor-pointer"
+            className="p-1.5 rounded-md text-zinc-500 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
             title="Copier les logs"
           >
             <Copy className="w-3.5 h-3.5" />
@@ -112,7 +112,7 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
 
           <button
             onClick={clearLogs}
-            className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors cursor-pointer"
+            className="p-1.5 rounded-md text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
             title="Effacer"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -256,33 +256,29 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
   if (runningServers.length === 0 && !showAllServers) {
     const stoppedServers = allServers;
     return (
-      <div className="space-y-4 animate-fadeIn h-[calc(100vh-6rem)] flex flex-col items-center justify-center select-none text-center">
-        <div className="glass-panel p-8 rounded-2xl max-w-md border border-[var(--line)] space-y-4 bg-black/40">
-          <div className="w-12 h-12 rounded-xl theme-accent-badge flex items-center justify-center mx-auto">
-            <Terminal className="w-6 h-6 theme-accent-text" />
-          </div>
+      <div className="animate-fadeIn h-[calc(100vh-8rem)] flex flex-col items-center justify-center select-none text-center">
+        <div className="max-w-sm space-y-4">
+          <Terminal className="w-8 h-8 text-zinc-600 mx-auto" />
           <div>
-            <h2 className="text-base font-semibold text-white">Aucun serveur en cours d'exécution</h2>
-            <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
-              Tous vos serveurs de dev sont actuellement arrêtés. Lancez un serveur depuis l'onglet Projets pour capturer ses logs en temps réel.
+            <h2 className="text-sm font-medium text-white">Aucun serveur en cours</h2>
+            <p className="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+              Lancez un serveur depuis vos projets : ses logs s'afficheront ici en direct.
             </p>
           </div>
-
-          <div className="pt-2 flex flex-col gap-2">
+          <div className="flex items-center justify-center gap-2">
             <button
               onClick={() => onSelectTab && onSelectTab('projects')}
-              className="w-full py-2.5 px-4 rounded-lg theme-accent-btn text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="h-8 px-3.5 rounded-md theme-accent-btn text-xs font-medium flex items-center gap-2 cursor-pointer"
             >
-              <span>Accéder aux Projets & Lancer</span>
-              <ArrowRight className="w-4 h-4" />
+              <span>Aller aux projets</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
-
             {stoppedServers.length > 0 && (
               <button
                 onClick={() => setShowAllServers(true)}
-                className="w-full py-2 px-4 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-white text-xs font-medium transition-colors cursor-pointer border border-[var(--line)]"
+                className="h-8 px-3 rounded-md text-xs text-zinc-400 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
               >
-                Afficher quand même les serveurs arrêtés ({stoppedServers.length})
+                Voir les serveurs arrêtés ({stoppedServers.length})
               </button>
             )}
           </div>
@@ -292,47 +288,33 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
   }
 
   return (
-    <div className="space-y-5 animate-fadeIn h-[calc(100vh-6rem)] flex flex-col">
-      {/* Top Header & Multi-Server Tab Bar */}
-      <div className="flex items-center justify-between select-none">
+    <div className="space-y-4 animate-fadeIn h-[calc(100vh-8rem)] flex flex-col">
+      <div className="flex items-end justify-between select-none">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-50 tracking-tight">Logs en direct</h1>
-          <p className="text-[13px] text-zinc-500 mt-1">
-            Sortie des serveurs en cours d'exécution, en multi-console.
-          </p>
+          <h1 className="text-[22px] font-semibold text-zinc-50 tracking-tight">Journal</h1>
+          <p className="text-[13px] text-zinc-500 mt-1">Ce que vos serveurs affichent, en direct (logs).</p>
         </div>
-
-        {/* Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => setShowAllServers(!showAllServers)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 border transition-all cursor-pointer ${
-              showAllServers
-                ? 'theme-accent-badge'
-                : 'bg-white/[0.04] border-[var(--line)] text-zinc-400 hover:text-white'
-            }`}
-            title="Basculer entre uniquement les serveurs lancés et tous les serveurs"
+            className="h-8 px-2.5 rounded-md text-xs text-zinc-400 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
+            title="Afficher aussi les serveurs arrêtés"
           >
-            <Filter className="w-3.5 h-3.5" />
-            <span>{showAllServers ? 'Tous les serveurs' : `Serveurs Actifs (${runningServers.length})`}</span>
+            {showAllServers ? 'Seulement les actifs' : 'Voir tous les serveurs'}
           </button>
-
           <button
             onClick={toggleSplitMode}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
-              isSplitMode
-                ? 'theme-accent-btn text-white'
-                : 'bg-white/[0.04] border-white/[0.1] text-zinc-300 hover:text-white'
+            className={`h-8 px-2.5 rounded-md text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
+              isSplitMode ? 'bg-white/[0.08] text-white' : 'text-zinc-400 hover:text-white hover:bg-white/[0.05]'
             }`}
           >
             <Columns className="w-3.5 h-3.5" />
-            <span>{isSplitMode ? 'Mode 2 Consoles (Divisé)' : 'Vue Divisée'}</span>
+            <span>{isSplitMode ? 'Une console' : 'Deux consoles'}</span>
           </button>
         </div>
       </div>
 
-      {/* Server Tabs Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-[var(--line)] no-scrollbar">
+      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
         {displayServers.map((srv) => {
           const isPrimary = srv.id === primaryServer?.id;
           const isSecondary = isSplitMode && srv.id === secondaryServer?.id;
@@ -343,41 +325,22 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
               <button
                 onClick={() => {
                   if (isSplitMode) {
-                    if (!isPrimary) {
-                      setSplitServerId(srv.id);
-                    }
+                    if (!isPrimary) setSplitServerId(srv.id);
                   } else {
                     setActiveServerId(srv.id);
                   }
                 }}
-                className={`pl-3.5 pr-8 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border whitespace-nowrap shrink-0 ${
-                  isPrimary
-                    ? 'theme-accent-active font-semibold border-[var(--line-strong)]'
-                    : isSecondary
-                    ? 'bg-cyan-500/25 border-cyan-500/60 text-cyan-200'
-                    : 'bg-white/[0.03] border-[var(--line)] text-zinc-400 hover:bg-white/[0.08] hover:text-white'
+                className={`h-8 pl-3 pr-3 rounded-md text-xs flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                  isPrimary || isSecondary
+                    ? 'bg-white/[0.08] text-white'
+                    : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04]'
                 }`}
               >
                 <span
-                  className={`w-2 h-2 rounded-full shrink-0 ${
-                    isRunning ? 'bg-green-400 animate-pulse' : 'bg-gray-600'
-                  }`}
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${isRunning ? 'bg-emerald-400' : 'bg-zinc-600'}`}
                 />
-                <span className="font-semibold text-white tracking-tight">{srv.projectName}</span>
-                <span className="text-[11px] font-mono theme-accent-text font-medium">/ {srv.name}</span>
-                <span className="text-[10px] font-mono text-zinc-300 bg-black/40 px-1.5 py-0.5 rounded-md border border-[var(--line)] font-semibold">
-                  :{srv.port}
-                </span>
-                {isPrimary && (
-                  <span className="text-[10px] font-mono font-semibold theme-accent-badge px-1.5 py-0.5 rounded-md ml-0.5">
-                    1
-                  </span>
-                )}
-                {isSecondary && (
-                  <span className="text-[10px] font-mono font-semibold bg-cyan-500/30 text-cyan-200 border border-cyan-500/40 px-1.5 py-0.5 rounded-md ml-0.5">
-                    2
-                  </span>
-                )}
+                <span>{srv.projectName}</span>
+                <span className="text-zinc-500">{srv.name}</span>
               </button>
 
               {!isRunning && (
@@ -388,9 +351,9 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
                   }}
                   title="Lancer ce serveur"
                   aria-label={`Lancer ${srv.name}`}
-                  className="absolute right-1.5 p-0.5 rounded-md bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 opacity-0 group-hover/tab:opacity-100 transition-opacity cursor-pointer"
+                  className="w-6 h-6 flex items-center justify-center rounded-md text-emerald-300 hover:bg-emerald-500/15 transition-colors cursor-pointer"
                 >
-                  <Play className="w-3 h-3 fill-emerald-400 text-emerald-400" />
+                  <Play className="w-3 h-3 fill-current" />
                 </button>
               )}
             </div>

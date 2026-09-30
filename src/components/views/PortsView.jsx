@@ -1,12 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import {
-  Network,
   RefreshCw,
-  Skull,
   ExternalLink,
   Search,
-  Sparkles,
   ShieldAlert,
   XCircle,
 } from 'lucide-react';
@@ -123,229 +120,126 @@ export default function PortsView({ projects = [] }) {
 
   const showSpinner = loading && manualRefreshRef.current;
 
+  const filters = [
+    { id: 'all', label: 'Tous', count: ports.length },
+    { id: 'sprint', label: 'Mes projets', count: sprintPortsCount },
+    { id: 'system', label: 'Autres', count: systemPortsCount },
+  ];
+
   return (
-    <div className="space-y-4 animate-fadeIn select-none pb-12 max-w-6xl mx-auto">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="animate-fadeIn select-none pb-12 max-w-4xl mx-auto">
+      <div className="flex items-end justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-50 tracking-tight flex items-center gap-2.5">
-            <span>Inspecteur de Ports</span>
-            <span className="text-[11px] font-mono font-normal px-1.5 py-px rounded-md bg-white/[0.06] text-zinc-400">
-              {ports.length} actif{ports.length > 1 ? 's' : ''}
-            </span>
-            {sprintPortsCount > 0 && (
-              <span className="text-[11px] font-mono font-medium px-1.5 py-px rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 live-dot"></span>
-                <span>{sprintPortsCount} Sprint</span>
-              </span>
-            )}
-          </h1>
+          <h1 className="text-[22px] font-semibold text-zinc-50 tracking-tight">Connexions</h1>
           <p className="text-[13px] text-zinc-500 mt-1">
-            Surveillez les processus locaux et ports TCP en écoute en temps réel.
+            Ce qui est ouvert sur votre ordinateur (ports). Utile quand un port est déjà pris.
           </p>
         </div>
-
-        {/* Barre d'outils et filtres */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Segmented Control */}
-          <div className="flex items-center gap-1 bg-white/[0.03] border border-[var(--line)] p-0.5 rounded-lg text-xs">
-            <button
-              onClick={() => setFilterType('all')}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
-                filterType === 'all'
-                  ? 'bg-white/[0.12] text-white'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              Tous ({ports.length})
-            </button>
-
-            <button
-              onClick={() => setFilterType('sprint')}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
-                filterType === 'sprint'
-                  ? 'bg-white/[0.12] text-white'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Sparkles className="w-3 h-3 theme-accent-text" />
-              <span>Sprint ({sprintPortsCount})</span>
-            </button>
-
-            <button
-              onClick={() => setFilterType('system')}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
-                filterType === 'system'
-                  ? 'bg-white/[0.12] text-white'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              Système ({systemPortsCount})
-            </button>
-          </div>
-
-          {/* Search Filter */}
+        <div className="flex items-center gap-2">
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2.5 pointer-events-none" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filtrer port, PID, app..."
-              className="pl-9 pr-3 py-1.5 rounded-lg bg-white/[0.04] border border-[var(--line)] text-xs text-white placeholder-zinc-600 focus:outline-none theme-accent-border w-44 sm:w-52 transition-all font-mono"
+              placeholder="Rechercher"
+              className="pl-8 pr-3 h-8 rounded-md bg-transparent hover:bg-white/[0.04] border border-transparent text-xs text-white placeholder-zinc-600 focus:bg-white/[0.04] w-36 focus:w-52 transition-all"
             />
           </div>
-
-          {/* Refresh Button */}
           <button
             onClick={handleManualRefresh}
-            className="p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-[var(--line)] transition-all cursor-pointer shrink-0"
-            title="Actualiser les ports"
+            className="w-8 h-8 flex items-center justify-center rounded-md text-zinc-500 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
+            title="Actualiser"
+            aria-label="Actualiser"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${showSpinner ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
+      <div className="flex items-center gap-1 mb-3">
+        {filters.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setFilterType(f.id)}
+            className={`h-7 px-2.5 rounded-md text-xs transition-colors cursor-pointer ${
+              filterType === f.id ? 'bg-white/[0.08] text-white' : 'text-zinc-500 hover:text-zinc-200'
+            }`}
+          >
+            {f.label} <span className="text-zinc-600 ml-0.5">{f.count}</span>
+          </button>
+        ))}
+      </div>
+
       {fetchError && (
-        <div role="alert" className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-xs text-red-300 flex items-center gap-2">
+        <div role="alert" className="mb-3 p-3 rounded-lg bg-red-500/10 text-xs text-red-300 flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 shrink-0" />
-          <span className="break-words">Erreur de scan des ports : {fetchError}</span>
+          <span className="break-words">Impossible de lire les ports : {fetchError}</span>
         </div>
       )}
 
-      {/* Ports Table */}
-      <div className="rounded-xl border border-[var(--line)] overflow-hidden bg-[var(--surface-1)]">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-[var(--line)] bg-white/[0.02] text-zinc-400 font-mono text-[11px] uppercase tracking-wide">
-                <th scope="col" className="py-2.5 px-4">Port</th>
-                <th scope="col" className="py-2.5 px-4">Processus / Application</th>
-                <th scope="col" className="py-2.5 px-4">PID</th>
-                <th scope="col" className="py-2.5 px-4">Adresse Locale</th>
-                <th scope="col" className="py-2.5 px-4">Protocole</th>
-                <th scope="col" className="py-2.5 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--line)] font-mono text-zinc-300">
-              {filteredPorts.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center text-zinc-500 font-sans italic space-y-1">
-                    <div className="text-sm font-semibold text-zinc-400">Aucun port correspondant</div>
-                    <div className="text-xs text-zinc-500">
-                      {search || filterType !== 'all'
-                        ? 'Essayez de réinitialiser vos critères de recherche.'
-                        : 'Aucun port TCP en écoute détecté sur le système.'}
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredPorts.map((entry) => {
-                  const sprintMatch = sprintServersMap[entry.port];
-                  return (
-                    <tr
-                      key={`${entry.port}-${entry.pid}`}
-                      className={`transition-colors duration-150 ${
-                        sprintMatch
-                          ? 'bg-purple-500/[0.04] hover:bg-purple-500/[0.08]'
-                          : 'hover:bg-white/[0.02]'
-                      }`}
-                    >
-                      {/* Port */}
-                      <td className="py-2.5 px-4">
-                        <span
-                          className={`px-2 py-0.5 rounded-md text-xs font-mono font-semibold ${
-                            sprintMatch
-                              ? 'theme-accent-badge font-semibold'
-                              : 'bg-white/[0.04] text-zinc-300 border border-[var(--line)]'
-                          }`}
-                        >
-                          :{entry.port}
-                        </span>
-                      </td>
-
-                      {/* Process & Project Name */}
-                      <td className="py-2.5 px-4 font-sans font-medium text-white">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold">{entry.process_name}</span>
-                          {sprintMatch && (
-                            <span
-                              className="inline-flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded-md border"
-                              style={{
-                                backgroundColor: `${sprintMatch.projectColor}15`,
-                                borderColor: `${sprintMatch.projectColor}40`,
-                                color: sprintMatch.projectColor,
-                              }}
-                            >
-                              <span
-                                className="w-1.5 h-1.5 rounded-full"
-                                style={{ backgroundColor: sprintMatch.projectColor }}
-                              />
-                              <span>
-                                {sprintMatch.projectName} ({sprintMatch.serverName})
-                              </span>
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* PID */}
-                      <td className="py-2.5 px-4 text-zinc-400 font-mono text-xs">
-                        {entry.pid ?? '—'}
-                      </td>
-
-                      {/* Local Address */}
-                      <td className="py-2.5 px-4 text-zinc-400 font-mono text-xs">
-                        {entry.local_address}
-                      </td>
-
-                      {/* Protocol */}
-                      <td className="py-2.5 px-4">
-                        <span className="px-1.5 py-0.5 rounded bg-white/[0.03] text-zinc-400 border border-[var(--line)] text-[10px] font-mono">
-                          {entry.protocol}
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-2.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* Ouvrir dans le navigateur */}
-                          <button
-                            onClick={() => invoke('open_browser', { url: `http://localhost:${entry.port}` })}
-                            className="p-1.5 rounded-lg hover:bg-white/[0.08] text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                            title={`Ouvrir http://localhost:${entry.port}`}
-                            aria-label="Ouvrir dans le navigateur"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </button>
-
-                          {/* Tuer le processus */}
-                          <button
-                            onClick={() =>
-                              setConfirmKill({
-                                pid: entry.pid,
-                                processName: entry.process_name,
-                                port: entry.port,
-                                isSprint: !!sprintMatch,
-                              })
-                            }
-                            className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/15 transition-colors cursor-pointer"
-                            title={`Arrêter ${entry.process_name} (PID ${entry.pid})`}
-                            aria-label="Arrêter le processus"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+      {filteredPorts.length === 0 ? (
+        <div className="py-20 text-center">
+          <p className="text-sm text-zinc-300">Aucun port trouvé</p>
+          <p className="text-xs text-zinc-500 mt-1">
+            {search || filterType !== 'all' ? 'Essayez un autre filtre.' : 'Aucun port en écoute pour le moment.'}
+          </p>
         </div>
-      </div>
+      ) : (
+        <div>
+          {filteredPorts.map((entry) => {
+            const sprintMatch = sprintServersMap[entry.port];
+            return (
+              <div
+                key={`${entry.port}-${entry.pid}`}
+                className="group flex items-center justify-between gap-4 h-11 px-3 -mx-3 rounded-lg hover:bg-white/[0.03] transition-colors"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="stat-value text-[13px] text-zinc-100 w-14">:{entry.port}</span>
+                  <span className="text-[13px] text-zinc-300 truncate">{entry.process_name}</span>
+                  {sprintMatch && (
+                    <span className="flex items-center gap-1.5 text-xs text-zinc-500 truncate">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: sprintMatch.projectColor }}
+                      />
+                      {sprintMatch.projectName}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-xs font-mono text-zinc-600 mr-2" title="Identifiant du processus">
+                    PID {entry.pid ?? '—'}
+                  </span>
+                  <button
+                    onClick={() => invoke('open_browser', { url: `http://localhost:${entry.port}` })}
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+                    title={`Ouvrir http://localhost:${entry.port}`}
+                    aria-label="Ouvrir dans le navigateur"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() =>
+                      setConfirmKill({
+                        pid: entry.pid,
+                        processName: entry.process_name,
+                        port: entry.port,
+                        isSprint: !!sprintMatch,
+                      })
+                    }
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                    title={`Arrêter ${entry.process_name}`}
+                    aria-label="Arrêter le processus"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!confirmKill}

@@ -6,9 +6,7 @@ import {
   Monitor,
   Check,
   Sparkles,
-  RefreshCw,
   Hash,
-  ChevronRight,
   Download,
   Upload,
   Bot,
@@ -18,7 +16,6 @@ import {
   ExternalLink,
   FolderOpen,
   Info,
-  Sliders,
   Cpu,
   Layers,
   Bell,
@@ -30,6 +27,7 @@ import {
 import ToggleSwitch from '../ui/ToggleSwitch';
 import { triggerToast } from '../../services/toastBus';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import DisplayPrefs from '../ui/DisplayPrefs';
 import pkg from '../../../package.json';
 
 function hexToRgbStr(hex) {
@@ -170,7 +168,7 @@ const PRESET_PALETTES = [
   { name: 'Vert Matrix', hex: '#22c55e', desc: 'Classique console de dev' },
 ];
 
-export default function SettingsView({ projects = [], onOpenUpdateModal, reloadProjects }) {
+export default function SettingsView({ projects = [], onOpenUpdateModal, reloadProjects, prefs, onPrefsChange }) {
   const [activeTab, setActiveTab] = useState('appearance');
 
  // Unified Settings State
@@ -449,46 +447,12 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
   };
 
   const navCategories = [
-    {
-      id: 'appearance',
-      label: 'Thème & Apparence',
-      icon: Palette,
-      badge: settings.custom_hex,
-      badgeColor: settings.custom_hex,
-      desc: 'Couleur (#HEX), fond canvas et style',
-    },
-    {
-      id: 'supervision',
-      label: 'Supervision & Processus',
-      icon: Zap,
-      desc: 'Auto-restart, logs ANSI et RAM Guard',
-    },
-    {
-      id: 'system',
-      label: 'Système & Raccourcis',
-      icon: Monitor,
-      desc: 'Raccourci global, tray et notifications',
-    },
-    {
-      id: 'storage',
-      label: 'Sauvegarde & Stockage',
-      icon: HardDrive,
-      desc: 'Export/Import JSON et données AppData',
-    },
-    {
-      id: 'ai-skill',
-      label: 'Skill IA & Agents',
-      icon: Bot,
-      badge: 'Agentic',
-      desc: 'Intégration Claude, Cursor, Antigravity',
-    },
-    {
-      id: 'about',
-      label: 'À Propos & Mises à Jour',
-      icon: Info,
-      badge: `v${pkg.version}`,
-      desc: 'Version, GitHub et vérification MAJ',
-    },
+    { id: 'appearance', label: 'Apparence' },
+    { id: 'supervision', label: 'Fonctionnement' },
+    { id: 'system', label: 'Système' },
+    { id: 'storage', label: 'Sauvegarde' },
+    { id: 'ai-skill', label: 'Assistants IA' },
+    { id: 'about', label: 'À propos' },
   ];
 
   const SettingRow = ({
@@ -515,21 +479,14 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
             if (onToggle) onToggle(!checked);
           }
         }}
-        className="glass-card p-4 rounded-xl flex items-center justify-between border border-[var(--line)] hover:border-[var(--line-strong)] transition-all duration-200 select-none group focus:outline-none focus:ring-1 focus:ring-white/20"
+        className="py-3.5 flex items-center justify-between gap-6 select-none cursor-pointer border-b border-[var(--line)] last:border-b-0 focus:outline-none focus-visible:bg-white/[0.03] rounded-sm"
       >
-        <div className="flex items-start gap-3.5 pr-4">
-          {IconComponent && (
-            <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-[var(--line)] flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-              <IconComponent className="w-4 h-4 theme-accent-text" />
-            </div>
-          )}
-          <div>
-            <div id={labelId} className="text-xs font-semibold text-white tracking-tight flex items-center gap-2">
-              <span>{title}</span>
-            </div>
-            <div id={descId} className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
-              {description}
-            </div>
+        <div className="pr-4">
+          <div id={labelId} className="text-[13px] text-zinc-100">
+            {title}
+          </div>
+          <div id={descId} className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
+            {description}
           </div>
         </div>
         <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -539,176 +496,82 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
     );
   };
 
-  const totalServersCount = projects.reduce((acc, p) => acc + (p.servers || []).length, 0);
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 animate-fadeIn select-none pb-12">
-      {/* En-tête de page */}
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+    <div className="w-full max-w-2xl mx-auto animate-fadeIn select-none pb-12">
+      <header className="flex items-end justify-between gap-4 mb-6">
         <div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h1 className="text-xl font-semibold text-zinc-50 tracking-tight">Paramètres</h1>
-            <span className="text-[11px] font-mono px-1.5 py-px rounded-md bg-white/[0.06] text-zinc-400">
-              v{pkg.version}
-            </span>
-            {savedSuccess && (
-              <span className="flex items-center gap-1 text-xs font-medium text-emerald-400 animate-fadeIn">
-                <Check className="w-3.5 h-3.5" /> Enregistré
-              </span>
+          <h1 className="text-[22px] font-semibold text-zinc-50 tracking-tight">Réglages</h1>
+          <p className="text-[13px] text-zinc-500 mt-1 h-4">
+            {savedSuccess ? (
+              <span className="text-emerald-400 animate-fadeIn">Enregistré</span>
+            ) : (
+              'Vos changements sont enregistrés automatiquement.'
             )}
-          </div>
-          <p className="text-[13px] text-zinc-500 mt-1">
-            Supervision, thème et préférences système.
           </p>
         </div>
-
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => setConfirmReset(true)}
-            className="h-8 px-3 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium border border-[var(--line)] transition-colors cursor-pointer flex items-center gap-1.5"
+            className="h-8 px-2.5 rounded-md text-xs text-zinc-500 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
             title="Restaurer les valeurs par défaut"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Réinitialiser</span>
+            Réinitialiser
           </button>
-
           {onOpenUpdateModal && (
             <button
               onClick={onOpenUpdateModal}
-              className="h-8 px-3.5 rounded-lg theme-accent-btn text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+              className="h-8 px-3 rounded-md text-xs text-zinc-300 bg-white/[0.05] hover:bg-white/[0.09] transition-colors cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Mises à jour</span>
+              Mises à jour
             </button>
           )}
         </div>
       </header>
 
-      {/* Main Settings Navigation & Content Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 min-h-[520px]">
-        {/* Navigation Sidebar (4 cols) */}
-        <div className="md:col-span-4 lg:col-span-3 glass-panel p-2 rounded-xl space-y-1.5 self-start flex flex-col justify-between">
-          <div className="space-y-1">
-            <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 font-mono flex items-center justify-between">
-              <span>Préférences</span>
-              <Sliders className="w-3 h-3 theme-accent-text" />
-            </div>
+      <nav className="flex items-center gap-1 mb-6 overflow-x-auto no-scrollbar" aria-label="Sections des réglages">
+        {navCategories.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => setActiveTab(cat.id)}
+            aria-current={activeTab === cat.id ? 'page' : undefined}
+            className={`h-8 px-3 rounded-md text-[13px] whitespace-nowrap transition-colors cursor-pointer ${
+              activeTab === cat.id
+                ? 'bg-white/[0.08] text-white'
+                : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04]'
+            }`}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </nav>
 
-            {navCategories.map((cat) => {
-              const Icon = cat.icon;
-              const isActive = activeTab === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => setActiveTab(cat.id)}
-                  className={`w-full flex items-center justify-between p-3.5 rounded-xl text-left transition-all duration-200 cursor-pointer border ${
-                    isActive
-                      ? 'theme-accent-active'
-                      : 'border-transparent text-zinc-400 hover:text-white hover:bg-white/[0.04]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${
-                        isActive ? 'bg-[rgba(var(--accent-color-rgb),0.18)] theme-accent-text border-transparent' : 'bg-white/[0.04] border-[var(--line)] text-zinc-500'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-white truncate flex items-center gap-2">
-                        <span>{cat.label}</span>
-                        {cat.badge && (
-                          <span
-                            className="text-[9px] font-mono font-semibold px-1.5 py-0.2 rounded-full border border-[var(--line)] theme-accent-badge"
-                            style={cat.badgeColor ? { backgroundColor: `${cat.badgeColor}25`, color: cat.badgeColor } : {}}
-                          >
-                            {cat.badge}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-zinc-400 font-normal truncate mt-0.5">{cat.desc}</div>
-                    </div>
-                  </div>
-                  <ChevronRight className={`w-4 h-4 shrink-0 transition-transform ${isActive ? 'theme-accent-text translate-x-0.5' : 'opacity-0'}`} />
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Quick System Status Card at Bottom of Sidebar */}
-          <div className="p-3.5 rounded-xl bg-white/[0.02] border border-[var(--line)] mt-4 space-y-2">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-zinc-400 font-mono">Projets enregistrés</span>
-              <span className="font-semibold text-white font-mono theme-accent-text">{projects.length}</span>
-            </div>
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-zinc-400 font-mono">Serveurs configurés</span>
-              <span className="font-semibold text-white font-mono">{totalServersCount}</span>
-            </div>
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-zinc-400 font-mono">Raccourci global</span>
-              <span className="font-semibold font-mono text-[10px] px-1.5 py-0.5 rounded theme-accent-badge">
-                {settings.global_shortcut}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Dedicated Tab Content (8 cols) */}
-        <div className="md:col-span-8 lg:col-span-9 glass-panel p-6 rounded-xl overflow-hidden">
+      <div>
           {/* TAB 1: APPARENCE & THÈMES */}
           {activeTab === 'appearance' && (
             <div className="space-y-6 animate-fadeIn">
+              {prefs && onPrefsChange && (
+                <>
+                  <DisplayPrefs prefs={prefs} onChange={onPrefsChange} />
+                  <hr className="border-[var(--line)]" />
+                </>
+              )}
               <div className="border-b border-[var(--line)] pb-4 flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-semibold text-white flex items-center gap-2">
+                  <h2 className="text-[15px] font-medium text-white flex items-center gap-2 [&>svg]:hidden">
                     <Palette className="w-5 h-5 theme-accent-text" />
-                    <span>Personnalisation Thème & Couleurs</span>
+                    <span>Couleur principale</span>
                   </h2>
                   <p className="text-xs text-zinc-400 mt-1">
-                    Définissez la couleur thématique (#HEX) synchronisée en direct sur les boutons, bordures et néons.
+                    Choisissez la couleur des boutons et des éléments actifs.
                   </p>
-                </div>
-              </div>
-
-              {/* Live Interactive Accent Preview Banner */}
-              <div className="p-4 rounded-xl border theme-accent-border bg-[var(--surface-2)] flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3.5">
-                  <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center border border-[var(--line-strong)]"
-                    style={{
-                      backgroundColor: settings.custom_hex,
-                      boxShadow: `0 0 20px ${settings.custom_hex}80`,
-                    }}
-                  >
-                    <Sparkles className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-white">Aperçu en Direct du Thème</div>
-                    <div className="text-[11px] theme-accent-text font-mono mt-0.5 font-semibold">
-                      Couleur active : {settings.custom_hex} (RGB: {hexToRgbStr(settings.custom_hex)})
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono font-semibold px-2.5 py-1 rounded-full theme-accent-badge">
-                    Badge Actif
-                  </span>
-                  <button
-                    type="button"
-                    className="px-3 py-1.5 rounded-lg theme-accent-btn text-white text-xs font-semibold cursor-default"
-                  >
-                    Bouton Accent
-                  </button>
                 </div>
               </div>
 
               {/* Custom Hex Picker Input */}
               <div className="space-y-3">
                 <label htmlFor="hex-custom-input" className="text-xs font-semibold text-zinc-200 block">
-                  Couleur d'Accentuation Personnalisée (#HEX) :
+                  Couleur personnalisée
                 </label>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   {/* Pipette / Native Color Input Swatch */}
@@ -830,7 +693,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
           {activeTab === 'supervision' && (
             <div className="space-y-6 animate-fadeIn">
               <div className="border-b border-[var(--line)] pb-4">
-                <h2 className="text-base font-semibold text-white flex items-center gap-2">
+                <h2 className="text-[15px] font-medium text-white flex items-center gap-2 [&>svg]:hidden">
                   <Zap className="w-5 h-5 text-amber-400" />
                   <span>Supervision & Auto-Restart Anti-Crash</span>
                 </h2>
@@ -896,7 +759,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
           {activeTab === 'system' && (
             <div className="space-y-6 animate-fadeIn">
               <div className="border-b border-[var(--line)] pb-4">
-                <h2 className="text-base font-semibold text-white flex items-center gap-2">
+                <h2 className="text-[15px] font-medium text-white flex items-center gap-2 [&>svg]:hidden">
                   <Monitor className="w-5 h-5 text-cyan-400" />
                   <span>Système, Tray & Raccourcis Globaux</span>
                 </h2>
@@ -977,7 +840,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
           {activeTab === 'storage' && (
             <div className="space-y-6 animate-fadeIn">
               <div className="border-b border-[var(--line)] pb-4">
-                <h2 className="text-base font-semibold text-white flex items-center gap-2">
+                <h2 className="text-[15px] font-medium text-white flex items-center gap-2 [&>svg]:hidden">
                   <HardDrive className="w-5 h-5 text-emerald-400" />
                   <span>Sauvegarde, Restauration & Stockage</span>
                 </h2>
@@ -1062,7 +925,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
             <div className="space-y-6 animate-fadeIn">
               <div className="border-b border-[var(--line)] pb-4 flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-semibold text-white flex items-center gap-2">
+                  <h2 className="text-[15px] font-medium text-white flex items-center gap-2 [&>svg]:hidden">
                     <Bot className="w-5 h-5 theme-accent-text" />
                     <span>Skill IA pour Agents (Claude, Cursor, Antigravity)</span>
                   </h2>
@@ -1125,7 +988,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
           {activeTab === 'about' && (
             <div className="space-y-6 animate-fadeIn">
               <div className="border-b border-[var(--line)] pb-4">
-                <h2 className="text-base font-semibold text-white flex items-center gap-2">
+                <h2 className="text-[15px] font-medium text-white flex items-center gap-2 [&>svg]:hidden">
                   <Info className="w-5 h-5 theme-accent-text" />
                   <span>À Propos de Sprint</span>
                 </h2>
@@ -1200,7 +1063,6 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
               </div>
             </div>
           )}
-        </div>
       </div>
 
       <ConfirmDialog

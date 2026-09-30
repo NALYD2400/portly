@@ -1,13 +1,10 @@
 import React from 'react';
-import { Cpu, MemoryStick, Server, Square, ExternalLink, ArrowUpRight, Play } from 'lucide-react';
+import { Square, ExternalLink, Plus } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { triggerToast } from '../../services/toastBus';
 import { markManualStop } from '../../hooks/useTauriIPC';
 
-// Échelle de référence pour la barre RAM cumulative (2 Go)
-const RAM_SCALE_MB = 2048;
-
-export default function DashboardView({ metrics, projects, onSelectTab, onOpenBrowser }) {
+export default function DashboardView({ metrics, projects, onSelectTab, onOpenBrowser, onAddProject }) {
   const totalProjects = projects.length;
   const runningServersList = [];
 
@@ -50,198 +47,123 @@ export default function DashboardView({ metrics, projects, onSelectTab, onOpenBr
       triggerToast({ title: '⚠️ Navigateur', message: String(e), type: 'error' })
     );
 
-  const ramPct = Math.min(100, ((metrics.managed_ram_mb || 0) / RAM_SCALE_MB) * 100);
-
   const cpu = metrics.managed_cpu_pct || 0;
   const ram = metrics.managed_ram_mb || 0;
   const active = metrics.active_servers_count || 0;
   const activePct = totalProjects > 0 ? Math.min(100, (active / totalProjects) * 100) : 0;
 
   const stats = [
+    { label: 'Serveurs actifs', value: String(active), unit: `sur ${totalProjects} projet${totalProjects > 1 ? 's' : ''}` },
+    { label: 'Processeur', value: cpu.toFixed(1), unit: '%' },
     {
-      key: 'cpu',
-      icon: Cpu,
-      label: 'CPU',
-      value: cpu.toFixed(1),
-      unit: '%',
-      hint: 'Cumulé sur vos serveurs',
-      pct: Math.min(100, cpu),
-      aria: 'CPU total des serveurs',
-    },
-    {
-      key: 'ram',
-      icon: MemoryStick,
       label: 'Mémoire',
-      value: ram >= 1024 ? (ram / 1024).toFixed(2) : ram.toFixed(0),
+      value: ram >= 1024 ? (ram / 1024).toFixed(1) : ram.toFixed(0),
       unit: ram >= 1024 ? 'Go' : 'Mo',
-      hint: `Échelle de référence ${RAM_SCALE_MB / 1024} Go`,
-      pct: ramPct,
-      aria: 'RAM cumulée des serveurs',
-    },
-    {
-      key: 'srv',
-      icon: Server,
-      label: 'Serveurs actifs',
-      value: String(active),
-      unit: `/ ${totalProjects} projet${totalProjects > 1 ? 's' : ''}`,
-      hint: 'Processus lancés par Sprint',
-      pct: activePct,
-      aria: 'Serveurs actifs',
-      live: active > 0,
     },
   ];
 
-  return (
-    <div className="max-w-6xl mx-auto space-y-7 animate-fadeIn select-none pb-8">
-      {/* En-tête de page */}
-      <header className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-50 tracking-tight">Tableau de bord</h1>
-          <p className="text-[13px] text-zinc-500 mt-1">
-            Consommation des serveurs lancés par Sprint, actualisée toutes les 2 secondes.
-          </p>
-        </div>
+  // Aucun projet : un seul appel à l'action, clair pour un premier lancement
+  if (totalProjects === 0) {
+    return (
+      <div className="max-w-md mx-auto pt-24 text-center space-y-5 animate-fadeIn select-none">
+        <h1 className="text-2xl font-semibold text-zinc-50 tracking-tight">Bienvenue dans Sprint</h1>
+        <p className="text-sm text-zinc-500 leading-relaxed">
+          Ajoutez le dossier d'un projet. Sprint détecte comment le lancer et vous permet de le démarrer,
+          l'arrêter et voir ses logs en un clic.
+        </p>
         <button
-          onClick={() => onSelectTab('projects')}
-          className="h-8 px-3.5 rounded-lg theme-accent-btn text-xs font-medium flex items-center gap-1.5 cursor-pointer shrink-0"
+          onClick={() => (onAddProject ? onAddProject() : onSelectTab('projects'))}
+          className="h-9 px-4 rounded-md theme-accent-btn text-sm font-medium inline-flex items-center gap-2 cursor-pointer"
         >
-          <span>Gérer les projets</span>
-          <ArrowUpRight className="w-3.5 h-3.5" />
+          <Plus className="w-4 h-4" />
+          Ajouter mon premier projet
         </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto animate-fadeIn select-none pb-8">
+      <header className="mb-8">
+        <h1 className="text-[22px] font-semibold text-zinc-50 tracking-tight">Tableau de bord</h1>
+        <p className="text-[13px] text-zinc-500 mt-1">
+          {active > 0
+            ? `${active} serveur${active > 1 ? 's' : ''} en cours d'exécution.`
+            : 'Rien ne tourne pour le moment.'}
+        </p>
       </header>
 
-      {/* Indicateurs */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {stats.map((st) => {
-          const Icon = st.icon;
-          return (
-            <div key={st.key} className="glass-panel rounded-xl p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2 text-xs font-medium text-zinc-400">
-                  <Icon className="w-3.5 h-3.5 text-zinc-500" />
-                  {st.label}
-                </span>
-                {st.live && (
-                  <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 live-dot" />
-                    En direct
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-baseline gap-1.5">
-                <span className="stat-value text-[32px] leading-none font-semibold text-zinc-50">{st.value}</span>
-                <span className="text-sm text-zinc-500 font-medium">{st.unit}</span>
-              </div>
-
-              <div className="space-y-2">
-                <div
-                  role="progressbar"
-                  aria-label={st.aria}
-                  aria-valuenow={Math.round(st.pct)}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  className="meter"
-                >
-                  <span style={{ width: `${st.pct}%` }} />
-                </div>
-                <p className="text-[11px] text-zinc-500">{st.hint}</p>
-              </div>
-            </div>
-          );
-        })}
+      {/* Chiffres clés : pas de cartes, juste des valeurs lisibles */}
+      <section className="grid grid-cols-3 gap-8 pb-8 mb-8 border-b border-[var(--line)]">
+        {stats.map((st) => (
+          <div key={st.label}>
+            <p className="text-xs text-zinc-500">{st.label}</p>
+            <p className="mt-2 flex items-baseline gap-1.5">
+              <span className="stat-value text-[30px] leading-none font-medium text-zinc-50">{st.value}</span>
+              <span className="text-sm text-zinc-500">{st.unit}</span>
+            </p>
+          </div>
+        ))}
       </section>
 
-      {/* Serveurs en cours */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
-          Serveurs en cours
-          <span className="min-w-5 h-5 px-1.5 inline-flex items-center justify-center rounded-md text-[11px] font-mono bg-white/[0.06] text-zinc-300">
-            {runningServersList.length}
-          </span>
-        </h2>
+      <section>
+        <h2 className="text-sm font-medium text-zinc-300 mb-2">En cours</h2>
 
         {runningServersList.length === 0 ? (
-          <div className="glass-panel rounded-xl py-14 flex flex-col items-center text-center gap-3 border-dashed">
-            <div className="w-10 h-10 rounded-lg bg-white/[0.04] flex items-center justify-center">
-              <Server className="w-5 h-5 text-zinc-500" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-200">Aucun serveur en cours</p>
-              <p className="text-xs text-zinc-500 mt-1">
-                Lancez un serveur depuis vos projets pour suivre sa consommation ici.
-              </p>
-            </div>
+          <div className="py-12 text-center">
+            <p className="text-sm text-zinc-400">Aucun serveur lancé.</p>
             <button
               onClick={() => onSelectTab('projects')}
-              className="h-8 px-3.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-zinc-200 text-xs font-medium border border-[var(--line-strong)] transition-colors cursor-pointer flex items-center gap-1.5"
+              className="mt-3 h-8 px-3 rounded-md text-xs text-zinc-300 bg-white/[0.05] hover:bg-white/[0.09] transition-colors cursor-pointer"
             >
-              <Play className="w-3 h-3" />
-              Ouvrir les projets
+              Aller aux projets
             </button>
           </div>
         ) : (
-          <div className="glass-panel rounded-xl divide-y divide-[var(--line)] overflow-hidden">
+          <div>
             {runningServersList.map((srv) => (
               <div
                 key={srv.id}
-                className="px-4 py-3.5 flex items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors"
+                className="flex items-center justify-between gap-4 h-12 px-3 -mx-3 rounded-lg hover:bg-white/[0.03] transition-colors"
               >
-                <div className="flex items-center gap-3.5 min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
                   <span
                     className="w-2 h-2 rounded-full shrink-0"
                     style={{ backgroundColor: srv.projectColor || 'var(--accent-color)' }}
                   />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-[13px] font-medium text-zinc-100">{srv.projectName}</h3>
-                      <span className="text-[11px] font-mono px-1.5 py-px rounded-md bg-white/[0.06] text-zinc-300">
-                        {srv.name}
-                        {srv.port > 0 ? ` :${srv.port}` : ''}
-                      </span>
-                      {srv.pid && <span className="text-[11px] font-mono text-zinc-500">PID {srv.pid}</span>}
-                    </div>
-                    <p className="text-[11px] font-mono text-zinc-500 mt-1 select-all truncate">{srv.command}</p>
-                  </div>
+                  <span className="text-[13px] text-zinc-100 truncate">{srv.projectName}</span>
+                  <span className="text-xs text-zinc-500 truncate">
+                    {srv.name}
+                    {srv.port > 0 ? ` · :${srv.port}` : ''}
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-6 shrink-0">
-                  <div className="text-right w-16">
-                    <div className="stat-value text-[13px] text-zinc-100">
-                      {srv.cpu_usage ? srv.cpu_usage.toFixed(1) : '0.0'}%
-                    </div>
-                    <div className="text-[10px] text-zinc-500 mt-0.5">CPU</div>
-                  </div>
-                  <div className="text-right w-20">
-                    <div className="stat-value text-[13px] text-zinc-100">
-                      {srv.ram_mb ? srv.ram_mb.toFixed(0) : '0'} Mo
-                    </div>
-                    <div className="text-[10px] text-zinc-500 mt-0.5">RAM</div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 pl-4 border-l border-[var(--line)]">
+                <div className="flex items-center gap-4 shrink-0">
+                  <span className="stat-value text-xs text-zinc-500 w-28 text-right">
+                    {srv.cpu_usage ? srv.cpu_usage.toFixed(1) : '0.0'}% · {srv.ram_mb ? srv.ram_mb.toFixed(0) : '0'} Mo
+                  </span>
+                  <div className="flex items-center gap-1">
                     {srv.port > 0 && (
                       <button
-                        onClick={() => {
-                          if (onOpenBrowser) {
-                            onOpenBrowser(srv.id, `http://localhost:${srv.port}`);
-                          } else {
-                            handleOpenBrowser(`http://localhost:${srv.port}`);
-                          }
-                        }}
-                        className="h-8 w-8 rounded-lg bg-white/[0.04] hover:bg-white/[0.09] text-zinc-400 hover:text-white border border-[var(--line)] transition-colors cursor-pointer flex items-center justify-center"
-                        title="Ouvrir dans l'aperçu web"
-                        aria-label="Aperçu web"
+                        onClick={() =>
+                          onOpenBrowser
+                            ? onOpenBrowser(srv.id, `http://localhost:${srv.port}`)
+                            : handleOpenBrowser(`http://localhost:${srv.port}`)
+                        }
+                        className="w-7 h-7 rounded-md text-zinc-500 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer flex items-center justify-center"
+                        title="Ouvrir l'aperçu"
+                        aria-label="Ouvrir l'aperçu"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                       </button>
                     )}
                     <button
                       onClick={() => handleStopServer(srv.id, srv.name)}
-                      className="h-8 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 text-xs font-medium flex items-center gap-1.5 border border-red-500/25 transition-colors cursor-pointer"
+                      className="w-7 h-7 rounded-md text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 transition-colors cursor-pointer flex items-center justify-center"
+                      title="Arrêter"
+                      aria-label="Arrêter"
                     >
                       <Square className="w-3 h-3 fill-current" />
-                      <span>Arrêter</span>
                     </button>
                   </div>
                 </div>
