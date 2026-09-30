@@ -162,7 +162,7 @@ export default function App() {
       />
 
       {/* Custom Frameless Windows TitleBar */}
-      <TitleBar onOpenCommandPalette={() => setIsPaletteOpen(true)} />
+      <TitleBar />
 
       {/* Main Workspace Layout */}
       <div className="flex-1 flex overflow-hidden z-10">
@@ -172,10 +172,11 @@ export default function App() {
           activeServersCount={activeServersCount}
           onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
           updateAvailable={updateAvailable}
+          onOpenCommandPalette={() => setIsPaletteOpen(true)}
         />
 
         {/* View Container */}
-        <main className="flex-1 min-w-0 px-8 py-7 overflow-y-auto">
+        <main className="flex-1 min-w-0 px-10 py-8 overflow-y-auto">
           {loading ? (
             <div className="h-full flex items-center justify-center text-xs text-zinc-500">
               Chargement des projets…

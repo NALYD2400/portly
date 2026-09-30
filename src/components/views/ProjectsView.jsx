@@ -13,16 +13,42 @@ import {
   Edit3,
   ChevronDown,
   Globe,
-  Clock,
   Search,
   Monitor,
   MoreHorizontal,
-  GitBranch,
+  Copy,
 } from 'lucide-react';
 import { triggerToast } from '../../services/toastBus';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import IframePreviewModal from '../modals/IframePreviewModal';
 import { markManualStop } from '../../hooks/useTauriIPC';
+
+function MenuItem({ icon: Icon, danger, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md transition-colors cursor-pointer text-left ${
+        danger ? 'text-rose-400 hover:bg-rose-500/10' : 'text-zinc-300 hover:text-white hover:bg-white/[0.06]'
+      }`}
+    >
+      <Icon className="w-3.5 h-3.5 opacity-70" />
+      <span>{children}</span>
+    </button>
+  );
+}
+
+function IconBtn({ title, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+    >
+      {children}
+    </button>
+  );
+}
 
 const serverStartTimestamps = {};
 
@@ -62,10 +88,7 @@ function ServerUptimeBadge({ serverId, isRunning }) {
   }, [serverId, isRunning]);
 
   return (
-    <span className="text-[11px] font-mono text-emerald-400 font-medium flex items-center gap-1">
-      <Clock className="w-3 h-3 text-emerald-400" />
-      <span>{uptimeStr}</span>
-    </span>
+    <span>{uptimeStr}</span>
   );
 }
 
@@ -89,7 +112,7 @@ export default function ProjectsView({
     }
   });
   const [search, setSearch] = useState('');
-  const [copiedPath, setCopiedPath] = useState(null);
+  const [, setCopiedPath] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [iframeTarget, setIframeTarget] = useState(null);
   const [openMenu, setOpenMenu] = useState(null); // { type: 'project'|'server', id: string } | null
@@ -325,216 +348,122 @@ export default function ProjectsView({
   );
 
   return (
-    <div className="space-y-4 animate-fadeIn select-none pb-12 max-w-6xl mx-auto">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="animate-fadeIn select-none pb-12 max-w-4xl mx-auto">
+      {/* En-tête */}
+      <div className="flex items-end justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-50 tracking-tight flex items-center gap-2.5">
-            <span>Projets & Serveurs</span>
-            <span className="text-[11px] font-mono font-normal px-1.5 py-px rounded-md bg-white/[0.06] text-zinc-400">
-              {projects.length} projet{projects.length > 1 ? 's' : ''}
-            </span>
-            {totalRunningServers > 0 && (
-              <span className="text-[11px] font-mono font-medium px-1.5 py-px rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 live-dot"></span>
-                <span>{totalRunningServers} actif{totalRunningServers > 1 ? 's' : ''}</span>
-              </span>
-            )}
-          </h1>
+          <h1 className="text-[22px] font-semibold text-zinc-50 tracking-tight">Projets</h1>
           <p className="text-[13px] text-zinc-500 mt-1">
-            Supervisez vos applications et processus locaux en temps réel.
+            {projects.length} projet{projects.length > 1 ? 's' : ''}
+            {totalRunningServers > 0 && (
+              <span className="text-emerald-400"> · {totalRunningServers} en cours</span>
+            )}
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2">
           {projects.length > 0 && (
             <>
               <div className="relative">
-                <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
+                <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2.5 pointer-events-none" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Filtrer projets, ports..."
-                  className="pl-9 pr-3 py-2 rounded-lg bg-white/[0.04] border border-[var(--line)] text-xs text-white placeholder-zinc-600 focus:outline-none theme-accent-border w-44 sm:w-52 transition-all"
+                  placeholder="Filtrer"
+                  className="pl-8 pr-3 h-8 rounded-md bg-transparent hover:bg-white/[0.04] border border-transparent text-xs text-white placeholder-zinc-600 focus:bg-white/[0.04] w-36 focus:w-52 transition-all"
                 />
               </div>
-
               <button
                 onClick={handleToggleAll}
-                className="px-3 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-all duration-200 cursor-pointer flex items-center gap-1.5 border border-[var(--line)] shrink-0"
+                className="h-8 px-2.5 rounded-md text-zinc-400 hover:text-white hover:bg-white/[0.05] text-xs transition-colors cursor-pointer"
                 title="Déplier ou replier tous les projets"
               >
-                <ChevronDown
-                  className={`w-3.5 h-3.5 transition-transform duration-300 ${
-                    projects.every((p) => collapsedProjects[p.id]) ? '-rotate-90' : 'rotate-0'
-                  }`}
-                />
-                <span>{projects.every((p) => collapsedProjects[p.id]) ? 'Tout déplier' : 'Tout replier'}</span>
+                {projects.every((p) => collapsedProjects[p.id]) ? 'Tout déplier' : 'Tout replier'}
               </button>
             </>
           )}
-
           <button
             onClick={onAddProject}
-            className="px-3.5 py-2 rounded-lg theme-accent-btn text-white text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5 shrink-0"
-            title="Ajouter un nouveau projet dans Sprint"
+            className="h-8 px-3 rounded-md theme-accent-btn text-xs font-medium cursor-pointer flex items-center gap-1.5"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Nouveau Projet</span>
+            <span>Nouveau</span>
           </button>
         </div>
       </div>
 
-      {/* Projects List */}
       {projects.length === 0 ? (
-        <div className="glass-panel p-12 rounded-xl text-center space-y-4 border border-[var(--line)]">
-          <div className="w-14 h-14 rounded-xl theme-accent-badge flex items-center justify-center mx-auto">
-            <Folder className="w-7 h-7 theme-accent-text" />
-          </div>
+        <div className="py-20 text-center space-y-4">
+          <Folder className="w-8 h-8 text-zinc-600 mx-auto" />
           <div>
-            <h3 className="text-base font-semibold text-white">Aucun projet trouvé</h3>
-            <p className="text-xs text-zinc-400 max-w-sm mx-auto mt-1">
-              Sélectionnez un dossier de votre ordinateur pour ajouter un projet et détecter ses commandes automatiquement.
+            <h3 className="text-sm font-medium text-white">Aucun projet</h3>
+            <p className="text-xs text-zinc-500 max-w-sm mx-auto mt-1">
+              Ajoutez un dossier pour détecter automatiquement ses commandes.
             </p>
           </div>
           <button
             onClick={onAddProject}
-            className="px-5 py-2.5 rounded-lg theme-accent-btn text-white text-xs font-semibold transition-all cursor-pointer "
+            className="h-8 px-4 rounded-md theme-accent-btn text-xs font-medium cursor-pointer"
           >
-            Sélectionner un Dossier
+            Choisir un dossier
           </button>
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="glass-panel p-10 rounded-xl text-center border border-[var(--line)]">
-          <Search className="w-8 h-8 text-zinc-500 mx-auto mb-3" />
-          <h3 className="text-sm font-semibold text-white">Aucun projet ne correspond</h3>
-          <p className="text-xs text-zinc-400 mt-1">
-            Aucun résultat pour « {search} ». Essayez un autre nom, chemin ou port.
-          </p>
+        <div className="py-20 text-center">
+          <Search className="w-7 h-7 text-zinc-600 mx-auto mb-3" />
+          <p className="text-sm text-zinc-300">Aucun résultat pour « {search} »</p>
         </div>
       ) : (
-        <div className="space-y-3.5">
+        <div className="space-y-7">
           {filteredProjects.map((project) => {
             const isCollapsed = !!collapsedProjects[project.id];
             const servers = project.servers || [];
             const activeServersCount = servers.filter((s) => s.state === 'running').length;
-           const projColor = project.color || 'var(--accent-color)';
-           const isProjectMenuOpen = openMenu?.type === 'project' && openMenu.id === project.id;
-            const hasActiveMenu = isProjectMenuOpen || (openMenu?.type === 'server' && servers.some((s) => s.id === openMenu?.id));
+            const projColor = project.color || 'var(--accent-color)';
+            const isProjectMenuOpen = openMenu?.type === 'project' && openMenu.id === project.id;
+            const hasActiveMenu =
+              isProjectMenuOpen || (openMenu?.type === 'server' && servers.some((s) => s.id === openMenu?.id));
+            const meta = [project.framework, project.branch].filter(Boolean).join(' · ');
 
-           return (
-             <div
-               key={project.id}
-               className={`rounded-xl border transition-all duration-200 bg-[var(--surface-1)] ${
-                  hasActiveMenu
-                   ? 'border-[var(--line-strong)] relative z-30'
-                   : 'border-[var(--line)] hover:border-white/[0.14]'
-               } ${isCollapsed ? 'p-3.5' : 'p-4 space-y-3'}`}
-             >
-                {/* Project Header */}
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    {/* Accordion Collapse Trigger */}
-                    <button
-                      onClick={() => toggleProjectCollapse(project.id)}
-                      className="p-1 rounded-lg hover:bg-white/[0.06] text-zinc-400 hover:text-white transition-all cursor-pointer shrink-0"
-                      title={isCollapsed ? 'Déplier les serveurs' : 'Replier le projet'}
-                      aria-label={isCollapsed ? 'Déplier les serveurs' : 'Replier le projet'}
-                    >
-                      <ChevronDown
-                        className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${
-                          isCollapsed ? '-rotate-90 text-zinc-500' : 'rotate-0 text-white'
-                        }`}
-                      />
-                    </button>
-
-                    {/* Color Dot */}
-                    <div
-                      className="w-3 h-3 rounded-full cursor-pointer hover:scale-125 transition-transform duration-200 shrink-0"
-                      style={{
-                        backgroundColor: projColor,
-                        
-                      }}
-                      onClick={() => toggleProjectCollapse(project.id)}
+            return (
+              <section key={project.id} className={hasActiveMenu ? 'relative z-30' : ''}>
+                {/* Titre de projet */}
+                <div className="group/head flex items-center justify-between gap-3 h-9">
+                  <button
+                    onClick={() => toggleProjectCollapse(project.id)}
+                    className="flex items-center gap-2.5 min-w-0 cursor-pointer text-left"
+                    aria-label={isCollapsed ? 'Déplier le projet' : 'Replier le projet'}
+                  >
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-zinc-600 transition-transform ${isCollapsed ? '-rotate-90' : ''}`}
                     />
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: projColor }} />
+                    <span className="text-sm font-medium text-white truncate">{project.name}</span>
+                    {meta && <span className="text-xs text-zinc-600 truncate">{meta}</span>}
+                    {isCollapsed && activeServersCount > 0 && (
+                      <span className="text-xs text-emerald-400">{activeServersCount} en cours</span>
+                    )}
+                  </button>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h2
-                          className="text-sm font-semibold text-white cursor-pointer hover:text-white/90 transition-colors truncate"
-                          onClick={() => toggleProjectCollapse(project.id)}
-                        >
-                          {project.name}
-                        </h2>
-
-                        {project.framework && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-400 border border-[var(--line)]">
-                            {project.framework}
-                          </span>
-                        )}
-
-                        {project.branch && (
-                          <span
-                            className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.03] text-zinc-400 border border-[var(--line)] flex items-center gap-1 max-w-[140px] truncate"
-                            title={`git branch: ${project.branch}`}
-                          >
-                            <GitBranch className="w-2.5 h-2.5 text-zinc-400 shrink-0" />
-                            <span className="truncate">git: {project.branch}</span>
-                          </span>
-                        )}
-
-                        {/* Active Servers Count Badge */}
-                        {activeServersCount > 0 ? (
-                          <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 live-dot"></span>
-                            <span>{activeServersCount}/{servers.length} actif{activeServersCount > 1 ? 's' : ''}</span>
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-mono text-zinc-500 px-1.5 py-0.5 rounded bg-white/[0.02]">
-                            {servers.length} serveur{servers.length > 1 ? 's' : ''}
-                          </span>
-                        )}
-                      </div>
-
-                      <p
-                        onClick={() => handleCopyPath(project.root)}
-                        className="text-[11px] text-zinc-500 font-mono mt-0.5 cursor-pointer hover:text-zinc-300 transition-colors flex items-center gap-1.5 group/path truncate max-w-lg"
-                        title="Cliquer pour copier le chemin du dossier"
-                      >
-                        <span className="truncate">{project.root}</span>
-                        <span className="text-[10px] opacity-0 group-hover/path:opacity-100 theme-accent-text font-sans transition-opacity shrink-0">
-                          {copiedPath === project.root ? '✓ Copié !' : '📋 Copier'}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Project Quick Action Tools */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {servers.length > 1 && (
-                      activeServersCount > 0 ? (
+                  <div className="flex items-center gap-1 shrink-0">
+                    {servers.length > 1 &&
+                      (activeServersCount > 0 ? (
                         <button
                           onClick={() => handleStopProjectServers(project)}
-                          className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-medium text-xs flex items-center gap-1.5 border border-rose-500/20 transition-all cursor-pointer "
-                          title="Arrêter tous les serveurs"
+                          className="h-7 px-2 rounded-md text-xs text-zinc-400 hover:text-rose-300 hover:bg-rose-500/10 opacity-0 group-hover/head:opacity-100 focus:opacity-100 transition-all cursor-pointer"
                         >
-                          <Square className="w-3 h-3 fill-rose-400 text-rose-400" />
-                          <span>Tout arrêter</span>
+                          Tout arrêter
                         </button>
                       ) : (
                         <button
                           onClick={() => handleStartProjectServers(project)}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-medium text-xs flex items-center gap-1.5 border border-emerald-500/20 transition-all cursor-pointer "
-                          title="Lancer tous les serveurs"
+                          className="h-7 px-2 rounded-md text-xs text-zinc-400 hover:text-emerald-300 hover:bg-emerald-500/10 opacity-0 group-hover/head:opacity-100 focus:opacity-100 transition-all cursor-pointer"
                         >
-                          <Play className="w-3 h-3 fill-emerald-400 text-emerald-400" />
-                          <span>Tout lancer</span>
+                          Tout lancer
                         </button>
-                      )
-                    )}
+                      ))}
 
-                    {/* More Actions Dropdown for Project */}
                     <div className="relative" data-dropdown-container>
                       <button
                         onClick={(e) => {
@@ -545,10 +474,10 @@ export default function ProjectsView({
                               : { type: 'project', id: project.id }
                           );
                         }}
-                        className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                        className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
                           isProjectMenuOpen
-                            ? 'bg-white/[0.12] text-white border-[var(--line-strong)]'
-                            : 'bg-white/[0.02] hover:bg-white/[0.06] text-zinc-400 hover:text-white border-[var(--line)]'
+                            ? 'bg-white/[0.08] text-white'
+                            : 'text-zinc-500 hover:text-white hover:bg-white/[0.05] opacity-0 group-hover/head:opacity-100'
                         }`}
                         title="Options du projet"
                         aria-label="Options du projet"
@@ -557,44 +486,46 @@ export default function ProjectsView({
                       </button>
 
                       {isProjectMenuOpen && (
-                        <div
-                          className="absolute right-0 top-full mt-1.5 w-56 rounded-lg p-1.5 z-50 text-xs font-sans animate-scaleUp select-none bg-[var(--surface-2)] border border-[var(--line-strong)]"
-                        >
-                          <button
+                        <div className="absolute right-0 top-full mt-1 w-56 rounded-lg p-1 z-50 text-xs animate-scaleUp bg-[var(--surface-2)] border border-[var(--line-strong)] shadow-xl shadow-black/40">
+                          <MenuItem
+                            icon={Code2}
                             onClick={() => {
                               setOpenMenu(null);
                               handleOpenVSCode(project.root);
                             }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                           >
-                            <Code2 className="w-3.5 h-3.5 text-blue-400" />
-                            <span>Ouvrir dans VS Code</span>
-                          </button>
-
-                          <button
+                            Ouvrir dans VS Code
+                          </MenuItem>
+                          <MenuItem
+                            icon={Folder}
                             onClick={() => {
                               setOpenMenu(null);
                               handleOpenExplorer(project.root);
                             }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                           >
-                            <Folder className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Ouvrir le dossier</span>
-                          </button>
-
-                          <button
+                            Ouvrir le dossier
+                          </MenuItem>
+                          <MenuItem
+                            icon={Copy}
+                            onClick={() => {
+                              setOpenMenu(null);
+                              handleCopyPath(project.root);
+                            }}
+                          >
+                            Copier le chemin
+                          </MenuItem>
+                          <MenuItem
+                            icon={FileText}
                             onClick={() => {
                               setOpenMenu(null);
                               onOpenEnvModal(project.root);
                             }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                           >
-                            <FileText className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>Variables .env</span>
-                          </button>
-
+                            Variables .env
+                          </MenuItem>
                           {(project.url || (servers[0] && (servers[0].url || servers[0].port > 0))) && (
-                            <button
+                            <MenuItem
+                              icon={Monitor}
                               onClick={() => {
                                 setOpenMenu(null);
                                 const targetUrl =
@@ -605,27 +536,23 @@ export default function ProjectsView({
                                   setIframeTarget({ url: targetUrl, title: project.name });
                                 }
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                             >
-                              <Monitor className="w-3.5 h-3.5 text-purple-400" />
-                              <span>Aperçu Web & Devices</span>
-                            </button>
+                              Aperçu Web & Devices
+                            </MenuItem>
                           )}
-
-                          <button
+                          <MenuItem
+                            icon={Edit3}
                             onClick={() => {
                               setOpenMenu(null);
                               onEditProject && onEditProject(project);
                             }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                           >
-                            <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
-                            <span>Modifier le projet</span>
-                          </button>
-
+                            Modifier le projet
+                          </MenuItem>
                           <div className="my-1 border-t border-[var(--line)]" />
-
-                          <button
+                          <MenuItem
+                            icon={Trash2}
+                            danger
                             onClick={() => {
                               setOpenMenu(null);
                               setConfirmDelete({
@@ -635,20 +562,18 @@ export default function ProjectsView({
                                 serverCount: servers.length,
                               });
                             }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer text-left"
                           >
-                            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                            <span>Supprimer le projet</span>
-                          </button>
+                            Supprimer le projet
+                          </MenuItem>
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Accordion Content */}
+                {/* Serveurs : simples lignes sous un filet fin */}
                 {!isCollapsed && (
-                  <div className="space-y-1.5 pt-2 border-t border-[var(--line)]">
+                  <div className="mt-1 ml-[7px] pl-5 border-l border-[var(--line)]">
                     {servers.map((srv) => {
                       const isRunning = srv.state === 'running';
                       const isServerMenuOpen = openMenu?.type === 'server' && openMenu.id === srv.id;
@@ -656,105 +581,69 @@ export default function ProjectsView({
                       return (
                         <div
                           key={srv.id}
-                          className={`px-3.5 py-2.5 rounded-lg flex items-center justify-between gap-3 transition-all duration-150 border ${
-                            isServerMenuOpen
-                              ? 'bg-white/[0.05] border-[var(--line-strong)] relative z-40'
-                              : isRunning
-                              ? 'bg-emerald-500/[0.03] border-emerald-500/20 hover:border-emerald-500/30'
-                              : 'bg-white/[0.015] border-[var(--line)] hover:bg-white/[0.03] hover:border-[var(--line)]'
+                          className={`group/row flex items-center justify-between gap-3 h-11 px-3 -ml-1 rounded-lg transition-colors ${
+                            isServerMenuOpen ? 'bg-white/[0.04] relative z-40' : 'hover:bg-white/[0.03]'
                           }`}
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
-                            {/* Animated Dual Pulse Status Indicator */}
-                            <div className="shrink-0 flex items-center justify-center">
-                              {isRunning ? (
-                                <span className="relative flex h-2.5 w-2.5">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                                </span>
-                              ) : (
-                                <span className="w-2.5 h-2.5 rounded-full bg-zinc-600/60"></span>
-                              )}
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs font-semibold text-white tracking-tight truncate">
-                                  {srv.name}
-                                </span>
-
-                                {srv.port > 0 && (
-                                  <span className="px-1.5 py-0.5 rounded text-[11px] font-mono font-semibold theme-accent-badge">
-                                    :{srv.port}
-                                  </span>
-                                )}
-
-                                {isRunning ? (
-                                  <ServerUptimeBadge serverId={srv.id} isRunning={isRunning} />
-                                ) : (
-                                  <span className="text-[10px] font-mono text-zinc-500">
-                                    Arrêté
-                                  </span>
-                                )}
-
-                                {srv.pid && (
-                                  <span className="text-[10px] font-mono text-zinc-500">PID {srv.pid}</span>
-                                )}
-                              </div>
-
-                              <p className="text-[11px] font-mono text-zinc-400 truncate mt-0.5 max-w-lg">
-                                {srv.command}
-                              </p>
-                            </div>
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                isRunning ? 'bg-emerald-400 live-dot' : 'bg-zinc-700'
+                              }`}
+                            />
+                            <span className="text-[13px] text-zinc-100 truncate">{srv.name}</span>
+                            <span
+                              className="text-xs font-mono text-zinc-600 truncate hidden md:block"
+                              title={srv.command}
+                            >
+                              {srv.command}
+                            </span>
                           </div>
 
-                          {/* Server Action Controls */}
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex items-center gap-1 shrink-0">
+                            {srv.port > 0 && (
+                              <span className="text-xs font-mono text-zinc-500 mr-2">:{srv.port}</span>
+                            )}
+                            {isRunning && (
+                              <span className="text-xs font-mono text-zinc-500 mr-2">
+                                <ServerUptimeBadge serverId={srv.id} isRunning={isRunning} />
+                              </span>
+                            )}
+
+                            {srv.port > 0 && isRunning && (
+                              <IconBtn
+                                title={`Ouvrir http://localhost:${srv.port}`}
+                                onClick={() => handleOpenBrowser(`http://localhost:${srv.port}`)}
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </IconBtn>
+                            )}
+                            <IconBtn title="Logs" onClick={() => onOpenTerminal(srv.id, srv.name)}>
+                              <Terminal className="w-3.5 h-3.5" />
+                            </IconBtn>
+
                             {isRunning ? (
                               <button
                                 onClick={() => handleStopServer(project.id, srv.id)}
-                                className="px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 font-semibold text-xs flex items-center gap-1.5 border border-rose-500/30 transition-all cursor-pointer "
-                                title="Arrêter ce serveur"
+                                className="h-7 w-7 flex items-center justify-center rounded-md text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 transition-colors cursor-pointer"
+                                title="Arrêter"
+                                aria-label="Arrêter"
                               >
-                                <Square className="w-3 h-3 fill-rose-400 text-rose-400" />
-                                <span>Arrêter</span>
+                                <Square className="w-3 h-3 fill-current" />
                               </button>
                             ) : (
                               <button
                                 onClick={() =>
                                   handleStartServer(project.id, srv.id, project.root, srv.command, srv.env)
                                 }
-                                className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-semibold text-xs flex items-center gap-1.5 border border-emerald-500/40 transition-all cursor-pointer "
-                                title="Démarrer ce serveur"
+                                className="h-7 w-7 flex items-center justify-center rounded-md text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                                title="Lancer"
+                                aria-label="Lancer"
                               >
-                                <Play className="w-3 h-3 fill-emerald-400 text-emerald-400" />
-                                <span>Lancer</span>
+                                <Play className="w-3 h-3 fill-current" />
                               </button>
                             )}
 
-                            {/* Open in Browser (if running and has port) */}
-                            {srv.port > 0 && isRunning && (
-                              <button
-                                onClick={() => handleOpenBrowser(`http://localhost:${srv.port}`)}
-                                className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-[var(--line)] transition-all cursor-pointer "
-                                title={`Ouvrir http://localhost:${srv.port}`}
-                                aria-label="Ouvrir dans le navigateur"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-
-                            {/* Open Terminal / Logs */}
-                            <button
-                              onClick={() => onOpenTerminal(srv.id, srv.name)}
-                              className="p-1.5 rounded-lg bg-white/[0.04] hover-accent-bg text-zinc-300 theme-accent-text border border-[var(--line)] hover-accent-border transition-all cursor-pointer "
-                              title="Voir les logs en direct"
-                              aria-label="Logs du terminal"
-                            >
-                              <Terminal className="w-3.5 h-3.5" />
-                            </button>
-
-                            {/* Server More Actions Dropdown */}
                             <div className="relative" data-dropdown-container>
                               <button
                                 onClick={(e) => {
@@ -765,10 +654,10 @@ export default function ProjectsView({
                                       : { type: 'server', id: srv.id }
                                   );
                                 }}
-                                className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                                className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
                                   isServerMenuOpen
-                                    ? 'bg-white/[0.1] text-white border-[var(--line-strong)]'
-                                    : 'bg-white/[0.03] hover:bg-white/[0.08] text-zinc-400 hover:text-white border-[var(--line)]'
+                                    ? 'bg-white/[0.08] text-white'
+                                    : 'text-zinc-500 hover:text-white hover:bg-white/[0.06] opacity-0 group-hover/row:opacity-100'
                                 }`}
                                 title="Options du serveur"
                                 aria-label="Options du serveur"
@@ -777,11 +666,10 @@ export default function ProjectsView({
                               </button>
 
                               {isServerMenuOpen && (
-                                <div
-                                  className="absolute right-0 top-full mt-1.5 w-52 rounded-lg p-1.5 z-50 text-xs font-sans animate-scaleUp select-none bg-[var(--surface-2)] border border-[var(--line-strong)]"
-                                >
+                                <div className="absolute right-0 top-full mt-1 w-52 rounded-lg p-1 z-50 text-xs animate-scaleUp bg-[var(--surface-2)] border border-[var(--line-strong)] shadow-xl shadow-black/40">
                                   {(srv.url || srv.port > 0) && (
-                                    <button
+                                    <MenuItem
+                                      icon={Monitor}
                                       onClick={() => {
                                         setOpenMenu(null);
                                         const targetUrl = srv.url || `http://localhost:${srv.port}`;
@@ -794,45 +682,35 @@ export default function ProjectsView({
                                           });
                                         }
                                       }}
-                                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                                     >
-                                      <Monitor className="w-3.5 h-3.5 text-purple-400" />
-                                      <span>Aperçu Web & Devices</span>
-                                    </button>
+                                      Aperçu Web & Devices
+                                    </MenuItem>
                                   )}
-
                                   {srv.port > 0 && (
-                                    <button
+                                    <MenuItem
+                                      icon={Globe}
                                       onClick={() => {
                                         setOpenMenu(null);
                                         handleShareTunnel(srv.port, srv.name);
                                       }}
-                                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                                     >
-                                      <Globe className="w-3.5 h-3.5 text-cyan-400" />
-                                      <span>Créer un tunnel public</span>
-                                    </button>
+                                      Créer un tunnel public
+                                    </MenuItem>
                                   )}
-
-                                  <button
+                                  <MenuItem
+                                    icon={Edit3}
                                     onClick={() => {
                                       setOpenMenu(null);
                                       onEditServer &&
-                                        onEditServer({
-                                          projectId: project.id,
-                                          project,
-                                          server: srv,
-                                        });
+                                        onEditServer({ projectId: project.id, project, server: srv });
                                     }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                                   >
-                                    <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
-                                    <span>Modifier le serveur</span>
-                                  </button>
-
+                                    Modifier le serveur
+                                  </MenuItem>
                                   <div className="my-1 border-t border-[var(--line)]" />
-
-                                  <button
+                                  <MenuItem
+                                    icon={Trash2}
+                                    danger
                                     onClick={() => {
                                       setOpenMenu(null);
                                       setConfirmDelete({
@@ -843,11 +721,9 @@ export default function ProjectsView({
                                         projectName: project.name,
                                       });
                                     }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer text-left"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                                    <span>Supprimer le serveur</span>
-                                  </button>
+                                    Supprimer le serveur
+                                  </MenuItem>
                                 </div>
                               )}
                             </div>
@@ -856,17 +732,16 @@ export default function ProjectsView({
                       );
                     })}
 
-                    {/* Discreet Add Server Button */}
-                   <button
-                     onClick={() => onAddServer && onAddServer(project)}
-                     className="w-full py-2 px-3 rounded-lg border border-dashed border-[var(--line)] hover:border-[var(--line-strong)] bg-white/[0.01] hover:bg-white/[0.03] text-zinc-400 hover:text-white text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
-                   >
-                     <Plus className="w-3.5 h-3.5" />
-                     <span>Ajouter un serveur</span>
-                   </button>
-                 </div>
+                    <button
+                      onClick={() => onAddServer && onAddServer(project)}
+                      className="h-9 px-3 -ml-1 flex items-center gap-2 rounded-lg text-xs text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.03] transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Ajouter un serveur</span>
+                    </button>
+                  </div>
                 )}
-              </div>
+              </section>
             );
           })}
         </div>

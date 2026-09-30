@@ -1,8 +1,8 @@
 import React from 'react';
-import { Minus, Square, X, Search } from 'lucide-react';
+import { Minus, Square, X } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 
-export default function TitleBar({ onOpenCommandPalette }) {
+export default function TitleBar() {
   const getWin = async () => {
     try {
       if (typeof window !== 'undefined' && (window.__TAURI_INTERNALS__ || window.__TAURI__)) {
@@ -67,38 +67,18 @@ export default function TitleBar({ onOpenCommandPalette }) {
       : 'Quitter Sprint complètement';
 
   const ctl =
-    'w-11 h-full flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer';
+    'w-11 h-full flex items-center justify-center text-zinc-500 hover:text-white transition-colors cursor-pointer';
 
   return (
     <div
       data-tauri-drag-region
       onDoubleClick={handleDoubleClick}
-      className="h-9 w-full flex items-center justify-between pl-3.5 select-none border-b border-[var(--line)] bg-[var(--surface-1)] z-50 text-xs cursor-default"
+      className="h-9 w-full flex items-center justify-between pl-4 select-none bg-[var(--surface-1)] z-50 text-xs cursor-default"
     >
       {/* Marque */}
-      <div data-tauri-drag-region className="flex items-center gap-2.5 pointer-events-none w-56">
-        <img src="/icon.png" alt="" className="w-[18px] h-[18px] rounded-[5px] object-cover" />
-        <span className="font-semibold tracking-tight text-zinc-100 text-[13px]">Sprint</span>
-      </div>
-
-      {/* Recherche / palette de commandes */}
-      <div data-tauri-drag-region className="flex-1 h-full flex items-center justify-center px-4">
-        {onOpenCommandPalette && (
-          <button
-            type="button"
-            onClick={onOpenCommandPalette}
-            className="flex items-center justify-between gap-3 h-7 px-2.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.07] border border-[var(--line)] hover:border-[var(--line-strong)] text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer w-72 max-w-full pointer-events-auto"
-            title="Rechercher ou exécuter une commande (Ctrl+K)"
-          >
-            <span className="flex items-center gap-2 min-w-0">
-              <Search className="w-3.5 h-3.5 shrink-0" />
-              <span className="text-[12px] truncate">Rechercher une commande…</span>
-            </span>
-            <kbd className="font-mono text-[10px] px-1.5 py-px rounded bg-white/[0.06] text-zinc-500 border border-[var(--line)] shrink-0">
-              Ctrl K
-            </kbd>
-          </button>
-        )}
+      <div data-tauri-drag-region className="flex items-center gap-2 pointer-events-none">
+        <img src="/icon.png" alt="" className="w-4 h-4 rounded-[4px] object-cover" />
+        <span className="font-medium text-zinc-400 text-xs">Sprint</span>
       </div>
 
       {/* Contrôles fenêtre */}

@@ -10,14 +10,14 @@
   color-scheme: dark;
 
   /* Surfaces : graphite neutre, la couleur vient uniquement de l'accent */
-  --bg-base: #09090b;
-  --surface-1: #0f0f12;
+  --bg-base: #0b0b0d;
+  --surface-1: #0b0b0d;
   --surface-2: #151519;
   --surface-3: #1c1c21;
   --bg-panel: #111115;
   --bg-elevated: #131317;
 
-  --line: rgba(255, 255, 255, 0.07);
+  --line: rgba(255, 255, 255, 0.06);
   --line-strong: rgba(255, 255, 255, 0.13);
 
   --text-hi: #f4f4f5;
