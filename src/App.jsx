@@ -189,6 +189,7 @@ export default function App() {
                   projects={projects}
                   onSelectTab={setActiveTab}
                   onOpenBrowser={handleOpenBrowser}
+                  onAddProject={() => setIsAddModalOpen(true)}
                 />
               )}
 
