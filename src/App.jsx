@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import ColorBendsBackground from './components/ui/ColorBendsBackground';
 import TitleBar from './components/layout/TitleBar';
-import Sidebar from './components/layout/Sidebar';
-import DashboardView from './components/views/DashboardView';
+import Sidebar, { NAV_ITEMS } from './components/layout/Sidebar';
+import ErrorBoundary from './components/ui/ErrorBoundary';
+import HelpModal from './components/modals/HelpModal';
+import { loadPrefs, savePrefs, applyPrefs } from './services/prefs';
+import HomeView from './components/views/HomeView';
 import ProjectsView from './components/views/ProjectsView';
 import PortsView from './components/views/PortsView';
 import TerminalView from './components/views/TerminalView';
@@ -41,7 +44,7 @@ function isNewerVersion(latest, current) {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('projects');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -53,8 +56,31 @@ export default function App() {
   const [browserTarget, setBrowserTarget] = useState({ serverId: null, url: null });
   const [iframeModalTarget, setIframeModalTarget] = useState(null); // { url, title }
 
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [prefs, setPrefs] = useState(loadPrefs);
+
   const { projects, saveProjects, reload: reloadProjects, loading } = useProjects();
   const metrics = useSystemMetrics();
+
+  const updatePrefs = (patch) => {
+    setPrefs((prev) => {
+      const next = { ...prev, ...patch };
+      savePrefs(next);
+      return next;
+    });
+  };
+
+  // Applique thème, taille de texte et animations ; suit Windows en mode « Automatique ».
+  useEffect(() => {
+    applyPrefs(prefs);
+    const mqls = [
+      window.matchMedia('(prefers-color-scheme: light)'),
+      window.matchMedia('(prefers-reduced-motion: reduce)'),
+    ];
+    const onSystemChange = () => applyPrefs(prefs);
+    mqls.forEach((m) => m.addEventListener('change', onSystemChange));
+    return () => mqls.forEach((m) => m.removeEventListener('change', onSystemChange));
+  }, [prefs]);
 
   // Check for updates on GitHub Releases silently at app launch
   useEffect(() => {
@@ -100,12 +126,48 @@ export default function App() {
     return () => clearTimeout(shortcutTimer);
   }, []);
 
-  // Global Ctrl+K / Cmd+K Command Palette Shortcut Listener
+  // Raccourcis clavier globaux
   useEffect(() => {
+    const isTyping = (t) =>
+      !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+
     const handleKeyDown = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      const mod = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+
+      if (mod && key === 'k') {
         e.preventDefault();
         setIsPaletteOpen((prev) => !prev);
+        return;
+      }
+      if (mod && /^[1-5]$/.test(e.key)) {
+        e.preventDefault();
+        const target = NAV_ITEMS.find((n) => n.key === e.key);
+        if (target) setActiveTab(target.id);
+        return;
+      }
+      if (mod && e.key === ',') {
+        e.preventDefault();
+        setActiveTab('settings');
+        return;
+      }
+      if (mod && key === 'n' && !isTyping(e.target)) {
+        e.preventDefault();
+        setIsAddModalOpen(true);
+        return;
+      }
+      if (mod && key === 'b') {
+        e.preventDefault();
+        setPrefs((prev) => {
+          const next = { ...prev, sidebarCollapsed: !prev.sidebarCollapsed };
+          savePrefs(next);
+          return next;
+        });
+        return;
+      }
+      if ((e.key === '?' || e.key === 'F1') && !isTyping(e.target) && !mod) {
+        e.preventDefault();
+        setIsHelpOpen((prev) => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -131,6 +193,9 @@ export default function App() {
     0
   );
 
+  const pageLabel =
+    activeTab === 'settings' ? 'Réglages' : NAV_ITEMS.find((n) => n.id === activeTab)?.label || '';
+
   const handleOpenTerminal = (serverId, serverName) => {
     setSelectedTerminal({ id: serverId, name: serverName });
     setActiveTab('terminal');
@@ -148,9 +213,13 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden relative font-sans text-zinc-100 bg-[var(--bg-base)]">
+      <a href="#main-content" className="skip-link">
+        Aller au contenu
+      </a>
+
       {/* Arrière-plan animé optionnel, volontairement discret */}
       {showCanvasBg && (
-        <div className="absolute inset-0 opacity-30 pointer-events-none">
+        <div data-bg-canvas className="absolute inset-0 opacity-30 pointer-events-none">
           <ColorBendsBackground />
         </div>
       )}
@@ -162,7 +231,7 @@ export default function App() {
       />
 
       {/* Custom Frameless Windows TitleBar */}
-      <TitleBar />
+      <TitleBar pageLabel={pageLabel} runningCount={activeServersCount} />
 
       {/* Main Workspace Layout */}
       <div className="flex-1 flex overflow-hidden z-10">
@@ -173,22 +242,29 @@ export default function App() {
           onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
           updateAvailable={updateAvailable}
           onOpenCommandPalette={() => setIsPaletteOpen(true)}
+          onOpenHelp={() => setIsHelpOpen(true)}
+          collapsed={prefs.sidebarCollapsed}
+          onToggleCollapsed={() => updatePrefs({ sidebarCollapsed: !prefs.sidebarCollapsed })}
         />
 
         {/* View Container */}
-        <main className="flex-1 min-w-0 px-10 py-8 overflow-y-auto">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 px-8 lg:px-10 py-7 overflow-y-auto outline-none">
+          <ErrorBoundary resetKey={activeTab}>
           {loading ? (
-            <div className="h-full flex items-center justify-center text-xs text-zinc-500">
-              Chargement des projets…
+            <div className="h-full flex items-center justify-center text-sm text-zinc-500" role="status">
+              Chargement de vos projets…
             </div>
           ) : (
             <>
               {activeTab === 'dashboard' && (
-                <DashboardView
+                <HomeView
                   metrics={metrics}
                   projects={projects}
                   onSelectTab={setActiveTab}
+                  onAddProject={() => setIsAddModalOpen(true)}
                   onOpenBrowser={handleOpenBrowser}
+                  onOpenHelp={() => setIsHelpOpen(true)}
+                  onOpenPalette={() => setIsPaletteOpen(true)}
                 />
               )}
 
@@ -233,10 +309,13 @@ export default function App() {
                   projects={projects}
                   onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
                   reloadProjects={reloadProjects}
+                  prefs={prefs}
+                  onPrefsChange={updatePrefs}
                 />
               )}
             </>
           )}
+          </ErrorBoundary>
         </main>
       </div>
 
@@ -294,6 +373,8 @@ export default function App() {
           title={iframeModalTarget.title}
         />
       )}
+
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
 
       <ToastContainer />
     </div>

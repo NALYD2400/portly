@@ -22,7 +22,7 @@ export default function ToggleSwitch({ checked, onChange, disabled = false, size
       }}
     >
       <span
-        className={`pointer-events-none absolute left-0.5 rounded-full bg-white transition-transform duration-200 ease-out ${
+        className={`pointer-events-none absolute left-0.5 rounded-full bg-[#fff] transition-transform duration-200 ease-out ${
           sm ? 'h-3.5 w-3.5' : 'h-4 w-4'
         } ${checked ? (sm ? 'translate-x-3.5' : 'translate-x-4') : 'translate-x-0'}`}
       />

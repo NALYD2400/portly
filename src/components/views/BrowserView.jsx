@@ -316,7 +316,7 @@ export default function BrowserView({
         key={`${keySuffix}-${iframeKey}`}
         src={currentUrl}
         title="Web Preview"
-        className="w-full h-full border-0 bg-white"
+        className="w-full h-full border-0 bg-[#fff]"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowFullScreen
       />
@@ -545,7 +545,7 @@ export default function BrowserView({
             /* Vue Dual : Desktop (flexible) + Mobile (375px) côte à côte */
             <div className="w-full h-full flex items-center justify-center gap-4 p-1 overflow-auto">
               {/* Cadre Desktop */}
-              <div className="flex-1 h-full rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-white">
+              <div className="flex-1 h-full rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-[#fff]">
                 <div className="h-6 bg-[var(--surface-1)] border-b border-[var(--line)] flex items-center justify-between px-3 shrink-0">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-white/20" />
@@ -561,7 +561,7 @@ export default function BrowserView({
               </div>
 
               {/* Cadre Mobile */}
-              <div className="w-[375px] h-full rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-white shrink-0">
+              <div className="w-[375px] h-full rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-[#fff] shrink-0">
                 <div className="h-6 bg-[var(--surface-1)] border-b border-[var(--line)] flex items-center justify-between px-3 shrink-0">
                   <span className="text-[10px] font-mono text-zinc-400">Mobile (375px)</span>
                 </div>
@@ -572,7 +572,7 @@ export default function BrowserView({
             </div>
           ) : deviceMode === 'mobile' ? (
             /* Vue Mobile seule */
-            <div className="w-[375px] h-full max-h-[750px] rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-white">
+            <div className="w-[375px] h-full max-h-[750px] rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-[#fff]">
               <div className="h-6 bg-[var(--surface-1)] border-b border-[var(--line)] flex items-center justify-between px-3 shrink-0">
                 <span className="text-[10px] font-mono text-zinc-400">Mobile (375 × 812)</span>
               </div>
@@ -582,7 +582,7 @@ export default function BrowserView({
             </div>
           ) : deviceMode === 'tablet' ? (
             /* Vue Tablette seule */
-            <div className="w-[768px] h-full max-h-[820px] rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-white">
+            <div className="w-[768px] h-full max-h-[820px] rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-[#fff]">
               <div className="h-6 bg-[var(--surface-1)] border-b border-[var(--line)] flex items-center justify-between px-3 shrink-0">
                 <span className="text-[10px] font-mono text-zinc-400">Tablette (768 × 1024)</span>
               </div>
@@ -592,7 +592,7 @@ export default function BrowserView({
             </div>
           ) : (
             /* Vue Plein Écran Desktop (100%) */
-            <div className="w-full h-full rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-white">
+            <div className="w-full h-full rounded-lg overflow-hidden border border-[var(--line)] flex flex-col bg-[#fff]">
               {renderIframeContent('desktop-full')}
             </div>
           )}

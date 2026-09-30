@@ -45,7 +45,7 @@ body {
   font-family: var(--font-sans);
   font-feature-settings: 'cv11', 'ss01';
   overflow: hidden;
-  user-select: none;
+  user-select: text;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -215,4 +215,177 @@ select:focus {
   border-radius: inherit;
   background: var(--accent-color);
   transition: width 0.5s ease;
+}
+
+/* ---------- Mouvement réduit (réglage utilisateur ou système) ---------- */
+:root[data-motion='reduce'] *,
+:root[data-motion='reduce'] *::before,
+:root[data-motion='reduce'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+:root[data-motion='reduce'] .live-dot { animation: none; }
+
+/* ---------- Thème clair ----------
+   L'interface est écrite avec les échelles zinc/white de Tailwind. Plutôt que
+   de dupliquer chaque classe, on inverse les variables : le texte clair devient
+   sombre, les fonds sombres deviennent clairs, et les couleurs d'état sont
+   foncées pour rester lisibles sur fond blanc. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-base: #f5f5f7;
+  --surface-1: #f5f5f7;
+  --surface-2: #ffffff;
+  --surface-3: #ececf0;
+  --bg-panel: #ffffff;
+  --bg-elevated: #ffffff;
+
+  --line: rgba(15, 15, 25, 0.09);
+  --line-strong: rgba(15, 15, 25, 0.18);
+
+  --text-hi: #17171a;
+  --text-mid: #52525b;
+  --text-lo: #71717a;
+
+  --color-white: #0f0f14;
+  --color-black: #ffffff;
+
+  --color-zinc-50: #17171a;
+  --color-zinc-100: #202024;
+  --color-zinc-200: #34343a;
+  --color-zinc-300: #46464e;
+  --color-zinc-400: #585862;
+  --color-zinc-500: #6b6b76;
+  --color-zinc-600: #8c8c97;
+  --color-zinc-700: #c9c9d1;
+  --color-zinc-800: #e3e3e8;
+  --color-zinc-900: #eeeef2;
+  --color-zinc-950: #f7f7f9;
+
+  --color-emerald-300: #047857;
+  --color-emerald-400: #059669;
+  --color-green-300: #15803d;
+  --color-green-400: #16a34a;
+  --color-rose-300: #be123c;
+  --color-rose-400: #e11d48;
+  --color-red-300: #b91c1c;
+  --color-red-400: #dc2626;
+  --color-amber-300: #b45309;
+  --color-amber-400: #d97706;
+  --color-yellow-300: #a16207;
+  --color-yellow-400: #ca8a04;
+  --color-sky-300: #0369a1;
+  --color-sky-400: #0284c7;
+  --color-blue-300: #1d4ed8;
+  --color-blue-400: #2563eb;
+  --color-violet-300: #6d28d9;
+  --color-violet-400: #7c3aed;
+  --color-purple-300: #7e22ce;
+  --color-purple-400: #9333ea;
+  --color-cyan-300: #0e7490;
+  --color-cyan-400: #0891b2;
+}
+
+:root[data-theme='light'] body { background-color: var(--bg-base); }
+:root[data-theme='light'] .modal-panel { box-shadow: 0 24px 64px -12px rgba(20, 20, 40, 0.28); }
+:root[data-theme='light'] .glass-panel,
+:root[data-theme='light'] .glass-card { box-shadow: 0 1px 2px rgba(20, 20, 40, 0.05); }
+:root[data-theme='light'] ::-webkit-scrollbar-thumb { background: rgba(20, 20, 40, 0.22); background-clip: content-box; }
+:root[data-theme='light'] * { scrollbar-color: rgba(20, 20, 40, 0.25) transparent; }
+:root[data-theme='light'] .meter { background: rgba(20, 20, 40, 0.09); }
+:root[data-theme='light'] [data-bg-canvas] { display: none; }
+/* Les zones qui affichent du contenu tiers (aperçu web) gardent toujours un fond blanc. */
+:root[data-theme='light'] .keep-white { background: #fff; }
+
+/* ---------- Nouvelles primitives ---------- */
+@layer components {
+.page {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding-bottom: 3rem;
+}
+.page-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--color-zinc-50);
+}
+.page-lead {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-zinc-400);
+  margin-top: 4px;
+  max-width: 44rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-zinc-100);
+  transition: background-color 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
+}
+.btn:hover { background: rgba(255, 255, 255, 0.09); }
+:root[data-theme='light'] .btn { background: #fff; }
+:root[data-theme='light'] .btn:hover { background: #f0f0f4; }
+.btn-lg { height: 44px; padding: 0 20px; font-size: 14px; border-radius: 12px; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-zinc-300);
+}
+
+kbd.key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-zinc-300);
+}
+
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 200;
+  transform: translateY(-200%);
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--accent-color);
+  color: #fff;
+  font-size: 13px;
+}
+.skip-link:focus { transform: translateY(0); }
+}
+
+/* Le texte du contenu reste sélectionnable (chemins, logs, URL) ; seule l'interface de navigation ne l'est pas. */
+aside, nav, header[data-tauri-drag-region], [data-tauri-drag-region], button, kbd, [role='tab'] {
+  user-select: none;
 }

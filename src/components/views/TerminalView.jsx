@@ -296,7 +296,7 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
       {/* Top Header & Multi-Server Tab Bar */}
       <div className="flex items-center justify-between select-none">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-50 tracking-tight">Logs en direct</h1>
+          <h1 className="text-xl font-semibold text-zinc-50 tracking-tight">Journal en direct</h1>
           <p className="text-[13px] text-zinc-500 mt-1">
             Sortie des serveurs en cours d'exécution, en multi-console.
           </p>

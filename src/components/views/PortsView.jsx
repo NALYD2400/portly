@@ -129,7 +129,7 @@ export default function PortsView({ projects = [] }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-zinc-50 tracking-tight flex items-center gap-2.5">
-            <span>Inspecteur de Ports</span>
+            <span>Connexions réseau</span>
             <span className="text-[11px] font-mono font-normal px-1.5 py-px rounded-md bg-white/[0.06] text-zinc-400">
               {ports.length} actif{ports.length > 1 ? 's' : ''}
             </span>
