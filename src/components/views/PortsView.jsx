@@ -130,9 +130,9 @@ export default function PortsView({ projects = [] }) {
     <div className="animate-fadeIn select-none pb-12 max-w-4xl mx-auto">
       <div className="flex items-end justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-[22px] font-semibold text-zinc-50 tracking-tight">Ports</h1>
+          <h1 className="text-[22px] font-semibold text-zinc-50 tracking-tight">Connexions</h1>
           <p className="text-[13px] text-zinc-500 mt-1">
-            Ce qui est ouvert sur votre ordinateur. Utile quand un port est déjà pris.
+            Ce qui est ouvert sur votre ordinateur (ports). Utile quand un port est déjà pris.
           </p>
         </div>
         <div className="flex items-center gap-2">

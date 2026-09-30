@@ -30,6 +30,7 @@ import {
 import ToggleSwitch from '../ui/ToggleSwitch';
 import { triggerToast } from '../../services/toastBus';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import DisplayPrefs from '../ui/DisplayPrefs';
 import pkg from '../../../package.json';
 
 function hexToRgbStr(hex) {
@@ -170,7 +171,7 @@ const PRESET_PALETTES = [
   { name: 'Vert Matrix', hex: '#22c55e', desc: 'Classique console de dev' },
 ];
 
-export default function SettingsView({ projects = [], onOpenUpdateModal, reloadProjects }) {
+export default function SettingsView({ projects = [], onOpenUpdateModal, reloadProjects, prefs, onPrefsChange }) {
   const [activeTab, setActiveTab] = useState('appearance');
 
  // Unified Settings State
@@ -547,7 +548,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
       <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
-            <h1 className="text-xl font-semibold text-zinc-50 tracking-tight">Paramètres</h1>
+            <h1 className="text-xl font-semibold text-zinc-50 tracking-tight">Réglages</h1>
             <span className="text-[11px] font-mono px-1.5 py-px rounded-md bg-white/[0.06] text-zinc-400">
               v{pkg.version}
             </span>
@@ -558,7 +559,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
             )}
           </div>
           <p className="text-[13px] text-zinc-500 mt-1">
-            Supervision, thème et préférences système.
+            Apparence, notifications et comportement de Sprint.
           </p>
         </div>
 
@@ -660,6 +661,12 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
           {/* TAB 1: APPARENCE & THÈMES */}
           {activeTab === 'appearance' && (
             <div className="space-y-6 animate-fadeIn">
+              {prefs && onPrefsChange && (
+                <>
+                  <DisplayPrefs prefs={prefs} onChange={onPrefsChange} />
+                  <hr className="border-[var(--line)]" />
+                </>
+              )}
               <div className="border-b border-[var(--line)] pb-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-base font-semibold text-white flex items-center gap-2">

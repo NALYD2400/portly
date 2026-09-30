@@ -1,0 +1,84 @@
+/**
+ * Préférences d'interface (thème, taille du texte, animations, barre latérale).
+ * Stockées dans localStorage, appliquées sur <html> via des attributs data-*
+ * pour que tout le CSS puisse réagir sans re-render React.
+ */
+
+const KEY = 'sprint_ui_prefs';
+
+export const THEMES = [
+  { id: 'system', label: 'Automatique' },
+  { id: 'dark', label: 'Sombre' },
+  { id: 'light', label: 'Clair' },
+];
+
+export const TEXT_SIZES = [
+  { id: 'sm', label: 'Compact', zoom: 0.92 },
+  { id: 'md', label: 'Standard', zoom: 1 },
+  { id: 'lg', label: 'Confortable', zoom: 1.12 },
+  { id: 'xl', label: 'Très grand', zoom: 1.25 },
+];
+
+export const DEFAULT_PREFS = {
+  theme: 'system',
+  textSize: 'md',
+  reduceMotion: 'system', // 'system' | 'on' | 'off'
+  sidebarCollapsed: false,
+  onboardingDismissed: false,
+};
+
+export function loadPrefs() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    return { ...DEFAULT_PREFS, ...(raw ? JSON.parse(raw) : {}) };
+  } catch {
+    return { ...DEFAULT_PREFS };
+  }
+}
+
+export function savePrefs(prefs) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(prefs));
+  } catch {
+    // stockage indisponible : les préférences restent valables pour la session
+  }
+}
+
+function systemPrefersLight() {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches;
+}
+
+export function resolveTheme(theme) {
+  if (theme === 'light' || theme === 'dark') return theme;
+  return systemPrefersLight() ? 'light' : 'dark';
+}
+
+async function applyZoom(zoom) {
+  const isTauri = typeof window !== 'undefined' && (window.__TAURI_INTERNALS__ || window.__TAURI__);
+  if (isTauri) {
+    try {
+      const { getCurrentWebview } = await import('@tauri-apps/api/webview');
+      await getCurrentWebview().setZoom(zoom);
+      document.documentElement.style.zoom = '';
+      return;
+    } catch {
+      // permission absente : repli sur le zoom CSS ci-dessous
+    }
+  }
+  document.documentElement.style.zoom = zoom === 1 ? '' : String(zoom);
+}
+
+export function applyPrefs(prefs) {
+  const root = document.documentElement;
+  root.dataset.theme = resolveTheme(prefs.theme);
+  root.dataset.motion =
+    prefs.reduceMotion === 'on'
+      ? 'reduce'
+      : prefs.reduceMotion === 'off'
+        ? 'full'
+        : window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+          ? 'reduce'
+          : 'full';
+  const size = TEXT_SIZES.find((s) => s.id === prefs.textSize) || TEXT_SIZES[1];
+  applyZoom(size.zoom);
+}

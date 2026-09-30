@@ -54,15 +54,15 @@ export default function CommandPaletteModal({
       {
         id: 'nav_dash',
         type: 'Navigation',
-        title: "Tableau de bord (Vue d'ensemble)",
-        subtitle: 'Statistiques CPU, RAM et processus actifs',
+        title: "Accueil",
+        subtitle: 'Vos projets et leur état en un coup d’œil',
         action: () => onSelectTab && onSelectTab('dashboard'),
         icon: LayoutDashboard,
       },
       {
         id: 'nav_projects',
         type: 'Navigation',
-        title: 'Projets & Serveurs',
+        title: 'Projets',
         subtitle: 'Gestion des projets locaux et micro-services',
         action: () => onSelectTab && onSelectTab('projects'),
         icon: FolderCode,
@@ -70,7 +70,7 @@ export default function CommandPaletteModal({
       {
         id: 'nav_browser',
         type: 'Navigation',
-        title: 'Aperçu Web & Responsive (Dev Browser)',
+        title: 'Aperçu de votre site',
         subtitle: 'Visualisation en direct, mockups iPhone/tablette et dual split',
         action: () => onSelectTab && onSelectTab('browser'),
         icon: Globe,
@@ -78,7 +78,7 @@ export default function CommandPaletteModal({
       {
         id: 'nav_ports',
         type: 'Navigation',
-        title: 'Inspecteur de Ports',
+        title: 'Connexions réseau',
         subtitle: 'Scan des ports occupés et libération de PID',
         action: () => onSelectTab && onSelectTab('ports'),
         icon: Network,
@@ -86,7 +86,7 @@ export default function CommandPaletteModal({
       {
         id: 'nav_terminal',
         type: 'Navigation',
-        title: 'Logs Temps Réel & Multi-Console',
+        title: 'Journal en direct',
         subtitle: 'Consoles de streaming des logs des serveurs',
         action: () => onSelectTab && onSelectTab('terminal'),
         icon: Terminal,
@@ -94,7 +94,7 @@ export default function CommandPaletteModal({
       {
         id: 'nav_settings',
         type: 'Navigation',
-        title: 'Paramètres & Personnalisation',
+        title: 'Réglages',
         subtitle: 'Couleurs #HEX, Systray et préférences système',
         action: () => onSelectTab && onSelectTab('settings'),
         icon: Settings,
@@ -102,7 +102,7 @@ export default function CommandPaletteModal({
       {
         id: 'act_add_project',
         type: 'Action',
-        title: 'Ajouter un Nouveau Projet',
+        title: 'Ajouter un projet',
         subtitle: 'Importer un dossier local avec détection de stack',
         action: () => onAddProject && onAddProject(),
         icon: Plus,

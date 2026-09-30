@@ -190,13 +190,13 @@ export default function IframePreviewModal({ isOpen, onClose, url, title }) {
         {/* Web Iframe Viewport Container */}
         <div className="flex-1 bg-[var(--bg-base)] p-4 flex items-center justify-center overflow-hidden relative">
           <div
-            className={`h-full transition-all duration-300 rounded-xl overflow-hidden border border-[var(--line)] bg-white ${containerWidthClass}`}
+            className={`h-full transition-all duration-300 rounded-xl overflow-hidden border border-[var(--line)] bg-[#fff] ${containerWidthClass}`}
           >
             <iframe
               key={iframeKey}
               src={url}
               title={title || 'Web Preview'}
-              className="w-full h-full border-0 bg-white"
+              className="w-full h-full border-0 bg-[#fff]"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
             />

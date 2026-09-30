@@ -291,8 +291,8 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
     <div className="space-y-4 animate-fadeIn h-[calc(100vh-8rem)] flex flex-col">
       <div className="flex items-end justify-between select-none">
         <div>
-          <h1 className="text-[22px] font-semibold text-zinc-50 tracking-tight">Logs</h1>
-          <p className="text-[13px] text-zinc-500 mt-1">Ce que vos serveurs affichent, en direct.</p>
+          <h1 className="text-[22px] font-semibold text-zinc-50 tracking-tight">Journal</h1>
+          <p className="text-[13px] text-zinc-500 mt-1">Ce que vos serveurs affichent, en direct (logs).</p>
         </div>
         <div className="flex items-center gap-1">
           <button
