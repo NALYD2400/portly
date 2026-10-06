@@ -6,7 +6,14 @@ const THEME_ICONS = { system: MonitorSmartphone, dark: Moon, light: Sun };
 
 function Segmented({ label, value, options, onChange, renderOption }) {
   return (
-    <div role="radiogroup" aria-label={label} className="grid gap-2" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="grid gap-2"
+      style={{
+        gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))`,
+      }}
+    >
       {options.map((opt) => {
         const active = value === opt.id;
         return (
@@ -16,9 +23,28 @@ function Segmented({ label, value, options, onChange, renderOption }) {
             role="radio"
             aria-checked={active}
             onClick={() => onChange(opt.id)}
-            className={`min-h-11 rounded-xl border px-3 py-2 text-[13px] flex items-center justify-center gap-2 transition-colors cursor-pointer ${
+            tabIndex={active ? 0 : -1}
+            onKeyDown={(event) => {
+              const index = options.findIndex((option) => option.id === opt.id);
+              const next =
+                event.key === 'ArrowRight'
+                  ? (index + 1) % options.length
+                  : event.key === 'ArrowLeft'
+                    ? (index + options.length - 1) % options.length
+                    : event.key === 'Home'
+                      ? 0
+                      : event.key === 'End'
+                        ? options.length - 1
+                        : null;
+              if (next !== null) {
+                event.preventDefault();
+                onChange(options[next].id);
+                event.currentTarget.parentElement.children[next].focus();
+              }
+            }}
+            className={`min-h-9 rounded-md border px-2 py-1.5 text-[12px] flex items-center justify-center gap-2 transition-colors cursor-pointer ${
               active
-                ? 'theme-accent-active font-medium'
+                ? 'border-[var(--line-strong)] bg-[var(--surface-3)] text-zinc-100 font-medium'
                 : 'border-[var(--line)] text-zinc-400 hover:text-zinc-100 hover:border-[var(--line-strong)]'
             }`}
           >
@@ -35,8 +61,12 @@ export default function DisplayPrefs({ prefs, onChange }) {
   return (
     <section className="space-y-6" aria-labelledby="display-prefs-title">
       <div>
-        <h3 id="display-prefs-title" className="text-sm font-semibold text-zinc-50">Affichage</h3>
-        <p className="text-xs text-zinc-400 mt-1">Adaptez Sprint à votre confort. Les changements s’appliquent tout de suite.</p>
+        <h3 id="display-prefs-title" className="text-sm font-semibold text-zinc-50">
+          Affichage
+        </h3>
+        <p className="text-xs text-zinc-400 mt-1">
+          Adaptez Sprint à votre confort. Les changements s’appliquent tout de suite.
+        </p>
       </div>
 
       <div className="space-y-2">
@@ -56,7 +86,9 @@ export default function DisplayPrefs({ prefs, onChange }) {
             );
           }}
         />
-        <p className="text-[11px] text-zinc-500">« Automatique » suit le réglage clair ou sombre de Windows.</p>
+        <p className="text-[11px] text-zinc-500">
+          « Automatique » suit le réglage clair ou sombre de Windows.
+        </p>
       </div>
 
       <div className="space-y-2">
@@ -85,7 +117,9 @@ export default function DisplayPrefs({ prefs, onChange }) {
           ]}
           onChange={(reduceMotion) => onChange({ reduceMotion })}
         />
-        <p className="text-[11px] text-zinc-500">Réduire les animations aide en cas de gêne visuelle ou d’ordinateur lent.</p>
+        <p className="text-[11px] text-zinc-500">
+          Réduire les animations aide en cas de gêne visuelle ou d’ordinateur lent.
+        </p>
       </div>
     </section>
   );

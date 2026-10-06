@@ -4,6 +4,8 @@
  * pour que tout le CSS puisse réagir sans re-render React.
  */
 
+import { DEFAULT_DASHBOARD, dashboardPrefs } from './dashboardPrefs';
+import { applyAccent } from './accent';
 const KEY = 'sprint_ui_prefs';
 
 export const THEMES = [
@@ -25,12 +27,18 @@ export const DEFAULT_PREFS = {
   reduceMotion: 'system', // 'system' | 'on' | 'off'
   sidebarCollapsed: false,
   onboardingDismissed: false,
+  dashboard: DEFAULT_DASHBOARD,
 };
 
 export function loadPrefs() {
   try {
     const raw = localStorage.getItem(KEY);
-    return { ...DEFAULT_PREFS, ...(raw ? JSON.parse(raw) : {}) };
+    const saved = raw ? JSON.parse(raw) : {};
+    return {
+      ...DEFAULT_PREFS,
+      ...saved,
+      dashboard: dashboardPrefs(saved?.dashboard),
+    };
   } catch {
     return { ...DEFAULT_PREFS };
   }
@@ -45,7 +53,9 @@ export function savePrefs(prefs) {
 }
 
 function systemPrefersLight() {
-  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches;
+  return (
+    typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches
+  );
 }
 
 export function resolveTheme(theme) {
@@ -71,6 +81,11 @@ async function applyZoom(zoom) {
 export function applyPrefs(prefs) {
   const root = document.documentElement;
   root.dataset.theme = resolveTheme(prefs.theme);
+  applyAccent(
+    root.style.getPropertyValue('--accent-color') ||
+      localStorage.getItem('portly_custom_hex') ||
+      '#8b5cf6',
+  );
   root.dataset.motion =
     prefs.reduceMotion === 'on'
       ? 'reduce'

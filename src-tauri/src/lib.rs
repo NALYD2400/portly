@@ -3,6 +3,7 @@ mod port_inspector;
 mod process_manager;
 mod project_scanner;
 mod system_metrics;
+mod tray_menu;
 
 use config_store::{
     load_projects, load_settings, save_projects, save_settings, AppSettings, ProjectConfig,
@@ -15,8 +16,6 @@ use std::collections::HashMap;
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::menu::{MenuBuilder, MenuItemBuilder};
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
@@ -102,8 +101,10 @@ async fn get_projects_cmd() -> Result<Vec<ProjectConfig>, String> {
 }
 
 #[tauri::command]
-fn save_projects_cmd(projects: Vec<ProjectConfig>) -> Result<(), String> {
-    save_projects(&projects)
+fn save_projects_cmd(app: AppHandle, projects: Vec<ProjectConfig>) -> Result<(), String> {
+    save_projects(&projects)?;
+    tray_menu::request_refresh(&app);
+    Ok(())
 }
 
 #[tauri::command]
@@ -165,7 +166,12 @@ fn open_vscode(path: String) -> Result<(), String> {
         .arg(&path)
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()
-        .map_err(|e| format!("Impossible de lancer VS Code ('code' dans le PATH ?): {}", e))?;
+        .map_err(|e| {
+            format!(
+                "Impossible de lancer VS Code ('code' dans le PATH ?): {}",
+                e
+            )
+        })?;
     Ok(())
 }
 
@@ -255,7 +261,8 @@ async fn download_update_cmd(app: AppHandle, url: String) -> Result<String, Stri
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let staging_dir = std::env::temp_dir().join(format!("sprint_update_{}_{}", std::process::id(), nonce));
+    let staging_dir =
+        std::env::temp_dir().join(format!("sprint_update_{}_{}", std::process::id(), nonce));
     tokio::fs::create_dir_all(&staging_dir)
         .await
         .map_err(|e| format!("Erreur création du dossier temporaire: {}", e))?;
@@ -296,7 +303,9 @@ async fn download_update_cmd(app: AppHandle, url: String) -> Result<String, Stri
         );
     }
 
-    file.flush().await.map_err(|e| format!("Erreur finalisation fichier: {}", e))?;
+    file.flush()
+        .await
+        .map_err(|e| format!("Erreur finalisation fichier: {}", e))?;
 
     if total_size > 0 && downloaded < total_size {
         let _ = tokio::fs::remove_file(&installer_path).await;
@@ -332,7 +341,10 @@ async fn install_update_and_relaunch_cmd(
     let parent_name_ok = path
         .parent()
         .and_then(|p| p.file_name())
-        .map_or(false, |n| n.to_string_lossy().starts_with("sprint_update_") || n.to_string_lossy().starts_with("portly_update_"));
+        .map_or(false, |n| {
+            n.to_string_lossy().starts_with("sprint_update_")
+                || n.to_string_lossy().starts_with("portly_update_")
+        });
     let is_exe = path
         .extension()
         .map_or(false, |e| e.eq_ignore_ascii_case("exe"));
@@ -359,7 +371,13 @@ async fn install_update_and_relaunch_cmd(
     );
 
     std::process::Command::new("powershell")
-        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &ps_script])
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            &ps_script,
+        ])
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()
         .map_err(|e| format!("Impossible d'exécuter la mise à jour: {}", e))?;
@@ -455,12 +473,7 @@ use tauri_plugin_notification::NotificationExt;
 
 #[tauri::command]
 fn send_windows_notification(app: AppHandle, title: String, body: String) {
-    let _ = app
-        .notification()
-        .builder()
-        .title(title)
-        .body(body)
-        .show();
+    let _ = app.notification().builder().title(title).body(body).show();
 }
 
 #[tauri::command]
@@ -508,7 +521,12 @@ fn register_shortcut_internal(app: &AppHandle, shortcut: &str) -> Result<(), Str
                 }
             }
         })
-        .map_err(|e| format!("Impossible d'enregistrer le raccourci (déjà utilisé ?): {}", e))?;
+        .map_err(|e| {
+            format!(
+                "Impossible d'enregistrer le raccourci (déjà utilisé ?): {}",
+                e
+            )
+        })?;
 
     Ok(())
 }
@@ -522,13 +540,17 @@ fn register_global_shortcut_cmd(app: AppHandle, shortcut: String) -> Result<(), 
 #[tauri::command]
 async fn start_localtunnel_cmd(port: u16) -> Result<String, String> {
     let mut cmd = tokio::process::Command::new("cmd.exe");
-    cmd.arg("/C").arg(format!("npx -y localtunnel --port {}", port));
+    cmd.arg("/C")
+        .arg(format!("npx -y localtunnel --port {}", port));
     cmd.creation_flags(CREATE_NO_WINDOW);
     cmd.stdout(std::process::Stdio::piped());
 
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| format!("Impossible de lancer npx (Node.js est-il installé ?): {}", e))?;
+    let mut child = cmd.spawn().map_err(|e| {
+        format!(
+            "Impossible de lancer npx (Node.js est-il installé ?): {}",
+            e
+        )
+    })?;
 
     let pid = child.id().unwrap_or(0);
     if pid > 0 {
@@ -600,83 +622,7 @@ pub fn run() {
                 eprintln!("Sprint: {}", e);
             }
 
-            let show_item = MenuItemBuilder::with_id("show", "Ouvrir Sprint").build(app)?;
-            let start_all_item =
-                MenuItemBuilder::with_id("start_all", "🚀 Lancer Tous les Serveurs").build(app)?;
-            let stop_all_item =
-                MenuItemBuilder::with_id("stop_all", "⏹️ Arrêter Tous les Serveurs").build(app)?;
-            let quit_item = MenuItemBuilder::with_id("quit", "Quitter Sprint").build(app)?;
-
-            let menu = MenuBuilder::new(app)
-                .items(&[&show_item, &start_all_item, &stop_all_item, &quit_item])
-                .build()?;
-
-            let mut tray_builder = TrayIconBuilder::with_id("main_tray")
-                .tooltip("Sprint - Gestionnaire de Serveurs")
-                .menu(&menu)
-                .show_menu_on_left_click(false);
-
-            if let Some(icon) = app.default_window_icon() {
-                tray_builder = tray_builder.icon(icon.clone());
-            }
-
-            let _ = tray_builder
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "show" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.unminimize();
-                            let _ = window.set_focus();
-                        }
-                    }
-                    "start_all" => {
-                        let projects = load_projects();
-                        let state_lock = app.state::<Mutex<AppState>>();
-                        let process_mgr = &state_lock.lock().process_manager;
-                        for prj in projects {
-                            for srv in prj.servers {
-                                let _ = process_mgr.start_server(
-                                    app.clone(),
-                                    srv.id,
-                                    prj.root.clone(),
-                                    srv.command,
-                                    srv.env.clone(),
-                                );
-                            }
-                        }
-                    }
-                    "stop_all" => {
-                        let projects = load_projects();
-                        let state_lock = app.state::<Mutex<AppState>>();
-                        let process_mgr = &state_lock.lock().process_manager;
-                        for prj in projects {
-                            for srv in prj.servers {
-                                let _ = process_mgr.stop_server(&srv.id);
-                            }
-                        }
-                    }
-                    "quit" => {
-                        shutdown_all_managed_processes(app);
-                        app.exit(0);
-                    }
-                    _ => {}
-                })
-                .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        ..
-                    } = event
-                    {
-                        let app = tray.app_handle();
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.unminimize();
-                            let _ = window.set_focus();
-                        }
-                    }
-                })
-                .build(app);
+            tray_menu::setup(app)?;
 
             Ok(())
         })
@@ -719,4 +665,3 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-

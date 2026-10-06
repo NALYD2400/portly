@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href]:not([tabindex="-1"]), button:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * Socle unique pour toutes les modals de l'app.
@@ -18,8 +19,14 @@ export default function Modal({
   align = 'center',
   maxWidth = 'max-w-lg',
   labelledBy,
+  panelClassName = '',
+  backdropClassName = '',
 }) {
   const panelRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -29,7 +36,7 @@ export default function Modal({
     document.body.style.overflow = 'hidden';
 
     // Focus initial sur le premier élément interactif (ou le panneau)
-    requestAnimationFrame(() => {
+    const focusFrame = requestAnimationFrame(() => {
       const panel = panelRef.current;
       if (!panel) return;
       const focusables = panel.querySelectorAll(FOCUSABLE_SELECTOR);
@@ -46,7 +53,7 @@ export default function Modal({
         if (dismissible) {
           e.preventDefault();
           e.stopPropagation();
-          onClose();
+          onCloseRef.current();
         }
         return;
       }
@@ -55,7 +62,10 @@ export default function Modal({
         if (focusables.length === 0) return;
         const first = focusables[0];
         const last = focusables[focusables.length - 1];
-        if (e.shiftKey && (document.activeElement === first || !panelRef.current.contains(document.activeElement))) {
+        if (
+          e.shiftKey &&
+          (document.activeElement === first || !panelRef.current.contains(document.activeElement))
+        ) {
           e.preventDefault();
           last.focus();
         } else if (!e.shiftKey && document.activeElement === last) {
@@ -68,17 +78,18 @@ export default function Modal({
     window.addEventListener('keydown', handleKeyDown, true);
 
     return () => {
+      cancelAnimationFrame(focusFrame);
       window.removeEventListener('keydown', handleKeyDown, true);
       document.body.style.overflow = prevOverflow;
       if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
         previouslyFocused.focus();
       }
     };
-  }, [isOpen, onClose, dismissible]);
+  }, [isOpen, dismissible]);
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -86,13 +97,13 @@ export default function Modal({
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && dismissible) onClose();
       }}
-      className={`fixed inset-0 z-50 bg-black/75 flex justify-center p-4 select-none animate-fadeIn ${
+      className={`fixed inset-0 z-50 bg-black/75 flex justify-center p-4 select-none animate-fadeIn ${backdropClassName} ${
         align === 'top' ? 'items-start pt-20' : 'items-center'
       }`}
     >
       <div
         ref={panelRef}
-        className={`modal-panel cursor-default animate-scaleUp ${maxWidth}`}
+        className={`modal-panel cursor-default animate-scaleUp ${maxWidth} ${panelClassName}`}
       >
         {showCloseButton && (
           <div className="flex justify-end px-4 pt-3">
@@ -109,6 +120,7 @@ export default function Modal({
         )}
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

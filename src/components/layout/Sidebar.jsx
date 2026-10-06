@@ -14,11 +14,41 @@ import {
 } from 'lucide-react';
 
 export const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Accueil', hint: 'Vue d’ensemble et lancement rapide', icon: Home, key: '1' },
-  { id: 'projects', label: 'Projets', hint: 'Gérer vos projets et leurs commandes', icon: FolderCode, key: '2' },
-  { id: 'browser', label: 'Aperçu', hint: 'Voir votre site sur ordinateur, tablette et mobile', icon: Globe, key: '3' },
-  { id: 'ports', label: 'Connexions', hint: 'Qui utilise quel port réseau sur cet ordinateur', icon: Network, key: '4' },
-  { id: 'terminal', label: 'Journal', hint: 'Ce que vos applications affichent en direct', icon: ScrollText, key: '5' },
+  {
+    id: 'dashboard',
+    label: 'Tableau de bord',
+    hint: 'Statistiques et serveurs',
+    icon: Home,
+    key: '1',
+  },
+  {
+    id: 'projects',
+    label: 'Projets',
+    hint: 'Gérer vos projets et leurs commandes',
+    icon: FolderCode,
+    key: '2',
+  },
+  {
+    id: 'browser',
+    label: 'Aperçu web',
+    hint: 'Voir votre site sur ordinateur, tablette et mobile',
+    icon: Globe,
+    key: '3',
+  },
+  {
+    id: 'ports',
+    label: 'Ports',
+    hint: 'Qui utilise quel port réseau sur cet ordinateur',
+    icon: Network,
+    key: '4',
+  },
+  {
+    id: 'terminal',
+    label: 'Logs',
+    hint: 'Ce que vos applications affichent en direct',
+    icon: ScrollText,
+    key: '5',
+  },
 ];
 
 function NavButton({ item, isActive, onClick, collapsed, badge, shortcut }) {
@@ -34,18 +64,11 @@ function NavButton({ item, isActive, onClick, collapsed, badge, shortcut }) {
         collapsed ? 'justify-center px-0' : 'gap-3 px-3'
       } ${
         isActive
-          ? 'bg-[rgba(var(--accent-color-rgb),0.13)] text-zinc-50 font-medium'
+          ? 'bg-[var(--surface-3)] text-zinc-50 font-medium'
           : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.05]'
       }`}
     >
-      {isActive && (
-        <span
-          aria-hidden="true"
-          className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
-          style={{ backgroundColor: 'var(--accent-color)' }}
-        />
-      )}
-      <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive ? 'theme-accent-text' : ''}`} strokeWidth={1.75} />
+      <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
       {!collapsed && <span className="flex-1 text-left truncate">{item.label}</span>}
       {!collapsed && badge ? (
         <span className="min-w-5 h-5 px-1.5 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
@@ -53,10 +76,15 @@ function NavButton({ item, isActive, onClick, collapsed, badge, shortcut }) {
         </span>
       ) : null}
       {collapsed && badge ? (
-        <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-emerald-400" aria-hidden="true" />
+        <span
+          className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-emerald-400"
+          aria-hidden="true"
+        />
       ) : null}
       {!collapsed && shortcut && !badge ? (
-        <span className="text-[10px] font-mono text-zinc-600 opacity-0 group-hover/nav:opacity-100">^{shortcut}</span>
+        <span className="text-[10px] font-mono text-zinc-600 opacity-0 group-hover/nav:opacity-100">
+          ^{shortcut}
+        </span>
       ) : null}
     </button>
   );
@@ -76,8 +104,8 @@ export default function Sidebar({
   return (
     <aside
       className={`${
-        collapsed ? 'w-[60px]' : 'w-60'
-      } shrink-0 bg-[var(--surface-1)] px-2.5 pt-2 pb-3 flex flex-col justify-between select-none z-10 transition-[width] duration-200`}
+        collapsed ? 'w-14 px-2' : 'w-60 px-2.5'
+      } shrink-0 bg-[var(--surface-1)] pt-2 pb-3 flex flex-col justify-between select-none z-10 transition-[width] duration-200`}
       aria-label="Navigation principale"
     >
       <div className="space-y-4">
@@ -143,7 +171,12 @@ export default function Sidebar({
         </button>
 
         <NavButton
-          item={{ id: 'settings', label: 'Réglages', hint: 'Apparence, notifications et comportement', icon: Settings }}
+          item={{
+            id: 'settings',
+            label: 'Paramètres',
+            hint: 'Apparence, notifications et comportement',
+            icon: Settings,
+          }}
           isActive={activeTab === 'settings'}
           onClick={() => setActiveTab('settings')}
           collapsed={collapsed}
@@ -159,7 +192,11 @@ export default function Sidebar({
           aria-label={collapsed ? 'Agrandir le menu' : 'Réduire le menu'}
           aria-expanded={!collapsed}
         >
-          {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+          {collapsed ? (
+            <PanelLeftOpen className="w-4 h-4" />
+          ) : (
+            <PanelLeftClose className="w-4 h-4" />
+          )}
           {!collapsed && <span>Réduire le menu</span>}
         </button>
       </div>

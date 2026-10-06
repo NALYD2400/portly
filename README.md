@@ -12,6 +12,7 @@ Superviseur de processus de développement local haute performance — moteur na
 - **Auto-Guard RAM** : redémarrage automatique d'un serveur qui dépasse sa limite de mémoire configurée (cooldown 30 s).
 - **Tunnels publics** : partage d'un port local via localtunnel en un clic, process tracké et nettoyé à la fermeture.
 - **Palette de commandes** (`Ctrl+K`) : navigation, projets, VS Code, terminaux — entièrement navigable au clavier.
+- **Zone de notification Windows** : accès à Sprint et aux paramètres, compteur de serveurs en direct, démarrage/arrêt groupé en arrière-plan et actions disponibles selon l’état des serveurs.
 - **Thème dynamique** : couleur d'accent personnalisable (#HEX) synchronisée sur toute l'interface, vagues canvas réactives.
 - **Auto-update** : téléchargement des releases GitHub avec validation du domaine source et dossier de staging aléatoire.
 

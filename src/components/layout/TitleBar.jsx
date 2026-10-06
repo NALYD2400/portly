@@ -77,14 +77,7 @@ export default function TitleBar({ pageLabel, runningCount = 0 }) {
     >
       {/* Marque */}
       <div data-tauri-drag-region className="flex items-center gap-2 pointer-events-none">
-        <img src="/icon.png" alt="" className="w-4 h-4 rounded-[4px] object-cover" />
-        <span className="font-medium text-zinc-300 text-xs">Sprint</span>
-        {pageLabel && (
-          <>
-            <span className="text-zinc-700" aria-hidden="true">/</span>
-            <span className="text-zinc-500 text-xs">{pageLabel}</span>
-          </>
-        )}
+        {pageLabel && <span className="text-zinc-500 text-xs">{pageLabel}</span>}
         {runningCount > 0 && (
           <span className="ml-2 flex items-center gap-1.5 text-[11px] text-emerald-400">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 live-dot" />
@@ -95,7 +88,12 @@ export default function TitleBar({ pageLabel, runningCount = 0 }) {
 
       {/* Contrôles fenêtre */}
       <div className="flex items-stretch h-full">
-        <button type="button" onClick={handleMinimize} className={`${ctl} hover:bg-white/[0.07]`} title="Réduire">
+        <button
+          type="button"
+          onClick={handleMinimize}
+          className={`${ctl} hover:bg-white/[0.07]`}
+          title="Réduire"
+        >
           <Minus className="w-3.5 h-3.5" />
         </button>
         <button
@@ -106,7 +104,12 @@ export default function TitleBar({ pageLabel, runningCount = 0 }) {
         >
           <Square className="w-3 h-3" />
         </button>
-        <button type="button" onClick={handleClose} className={`${ctl} hover:!bg-red-600 hover:!text-[#fff]`} title={closeTitle}>
+        <button
+          type="button"
+          onClick={handleClose}
+          className={`${ctl} hover:!bg-red-600 hover:!text-[#fff]`}
+          title={closeTitle}
+        >
           <X className="w-4 h-4" />
         </button>
       </div>

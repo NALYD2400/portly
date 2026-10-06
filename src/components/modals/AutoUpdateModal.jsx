@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { DownloadCloud, Sparkles, RefreshCw, CheckCircle2, X, Zap, AlertCircle } from 'lucide-react';
+import { DownloadCloud, RefreshCw, CheckCircle2, X, AlertCircle } from 'lucide-react';
 import Modal from '../ui/Modal';
 
 const GITHUB_REPO = 'NALYD2400/portly';
@@ -32,6 +32,7 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
   const [totalBytes, setTotalBytes] = useState('... Mo');
   const [errorMessage, setErrorMessage] = useState('');
   const mountedRef = useRef(true);
+  const titleId = useId();
 
   // Le téléchargement/ l'installation verrouillent la fermeture de la modal
   const isBusy = status === 'downloading' || status === 'installing';
@@ -57,7 +58,9 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
 
         if (!res.ok) {
           if (res.status === 403) {
-            setErrorMessage('Limite de requêtes GitHub API atteinte (60 req/h). Réessayez plus tard.');
+            setErrorMessage(
+              'Limite de requêtes GitHub API atteinte (60 req/h). Réessayez plus tard.',
+            );
           } else {
             setErrorMessage(`Serveur GitHub indisponible (code HTTP ${res.status}).`);
           }
@@ -71,12 +74,14 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
         setReleaseNotes(data.body || 'Dernières améliorations et correctifs de performance.');
 
         const asset = (data.assets || []).find(
-          (a) => a.name.toLowerCase().endsWith('.exe') || a.name.toLowerCase().endsWith('.msi')
+          (a) => a.name.toLowerCase().endsWith('.exe') || a.name.toLowerCase().endsWith('.msi'),
         );
         if (asset) {
           setDownloadUrl(asset.browser_download_url);
         } else if (tag) {
-          setDownloadUrl(`https://github.com/${GITHUB_REPO}/releases/download/v${tag}/Portly_${tag}_x64-setup.exe`);
+          setDownloadUrl(
+            `https://github.com/${GITHUB_REPO}/releases/download/v${tag}/Portly_${tag}_x64-setup.exe`,
+          );
         }
 
         if (tag && isNewerVersion(tag, currentVersion)) {
@@ -90,7 +95,7 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
         setStatus('error');
       }
     },
-    [currentVersion]
+    [currentVersion],
   );
 
   useEffect(() => {
@@ -150,231 +155,145 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
     }
   };
 
+  const percentage = Math.min(100, Math.max(0, Number(progress) || 0));
+  const messages = {
+    checking: ['Recherche de mise à jour…', 'Vérification des versions disponibles.'],
+    upToDate: ['Sprint est à jour', `Vous utilisez la version ${currentVersion}.`],
+    available: [`Sprint ${latestVersion} est disponible`, `Version installée : ${currentVersion}.`],
+    downloading: [
+      `Téléchargement de Sprint ${latestVersion}`,
+      'Vous pourrez installer la mise à jour une fois le téléchargement terminé.',
+    ],
+    installing: [
+      'Lancement de l’installateur…',
+      'Sprint va se fermer pour appliquer la mise à jour.',
+    ],
+    completed: ['La mise à jour est prête', `Sprint ${latestVersion} a été téléchargé.`],
+    error: ['La mise à jour a échoué', errorMessage],
+  };
+  const [heading, detail] = messages[status];
+  const StatusIcon =
+    status === 'error'
+      ? AlertCircle
+      : status === 'upToDate' || status === 'completed'
+        ? CheckCircle2
+        : status === 'checking' || status === 'downloading' || status === 'installing'
+          ? RefreshCw
+          : DownloadCloud;
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} dismissible={!isBusy} maxWidth="max-w-md">
-      <div style={{ boxShadow: '0 25px 80px rgba(var(--accent-color-rgb), 0.25)' }}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--line)] bg-white/[0.02]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl theme-accent-badge flex items-center justify-center">
-              <DownloadCloud className="w-5 h-5 theme-accent-text" />
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      dismissible={!isBusy}
+      maxWidth="max-w-md"
+      labelledBy={titleId}
+      panelClassName="workspace-dialog"
+      backdropClassName="workspace-modal-backdrop"
+    >
+      <header className="update-header">
+        <div>
+          <h2 id={titleId}>Mises à jour</h2>
+          <p>Sprint · version {currentVersion}</p>
+        </div>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={onClose}
+          disabled={isBusy}
+          aria-label="Fermer la fenêtre de mise à jour"
+        >
+          <X size={16} />
+        </button>
+      </header>
+      <div className="update-body">
+        <div className="update-status" role={status === 'error' ? 'alert' : 'status'}>
+          <StatusIcon
+            size={20}
+            aria-hidden="true"
+            className={status === 'checking' || status === 'installing' ? 'animate-spin' : ''}
+          />
+          <div>
+            <h3>{heading}</h3>
+            <p>{detail}</p>
+          </div>
+        </div>
+        {status === 'available' && (
+          <section className="update-notes" aria-label="Notes de version">
+            <h3>Notes de version</h3>
+            <div>{releaseNotes}</div>
+          </section>
+        )}
+        {status === 'downloading' && (
+          <div className="update-download">
+            <div
+              className="update-progress"
+              role="progressbar"
+              aria-label="Téléchargement de la mise à jour"
+              aria-valuenow={percentage}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div style={{ width: percentage + '%' }} />
             </div>
-            <div>
-              <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
-                <span>Mise à Jour Sprint</span>
-                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full theme-accent-badge">
-                  v{currentVersion}
-                </span>
-              </h3>
-              <p className="text-xs text-zinc-400">Centre de mise à jour automatique</p>
+            <div className="update-download-details">
+              <span>
+                {downloadedBytes} / {totalBytes}
+              </span>
+              <span>{Math.round(percentage)} %</span>
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isBusy}
-            aria-label="Fermer"
-            className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] text-zinc-400 hover:text-white transition-all duration-200 hover:rotate-90 hover:scale-110 cursor-pointer disabled:opacity-30 disabled:hover:rotate-0 disabled:cursor-not-allowed"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Content Body */}
-        <div className="p-6 space-y-5">
-          {status === 'checking' && (
-            <div className="py-8 text-center space-y-4">
-              <div className="relative w-14 h-14 mx-auto flex items-center justify-center">
-                <div
-                  className="absolute inset-0 rounded-full border-2 animate-spin"
-                  style={{
-                    borderColor: 'rgba(var(--accent-color-rgb), 0.2)',
-                    borderTopColor: 'var(--accent-color)',
-                  }}
-                />
-                <Sparkles className="w-6 h-6 theme-accent-text animate-pulse" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">Recherche de mise à jour...</p>
-                <p className="text-xs text-zinc-400 mt-1">Connexion aux serveurs GitHub Releases</p>
-              </div>
-            </div>
-          )}
-
-          {status === 'upToDate' && (
-            <div className="py-6 text-center space-y-4">
-              <div className="w-14 h-14 rounded-xl theme-accent-badge flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-7 h-7 theme-accent-text" />
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-white">Sprint est déjà à jour !</h4>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Vous utilisez la dernière version <span className="theme-accent-text font-mono font-semibold">v{currentVersion}</span>.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-full py-2.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-semibold border border-[var(--line)] transition-all cursor-pointer "
-              >
-                Fermer
-              </button>
-            </div>
-          )}
-
-          {status === 'available' && (
-            <div className="space-y-4">
-              <div className="p-4 rounded-xl theme-accent-badge flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wide theme-accent-text font-semibold">
-                    Nouvelle Version Disponible
-                  </span>
-                  <h4 className="text-lg font-semibold text-white mt-0.5 flex items-center gap-2">
-                    <span>Sprint v{latestVersion}</span>
-                    <span className="text-xs font-mono font-normal px-2 py-0.5 rounded-full theme-accent-badge">Nouveau</span>
-                  </h4>
-                </div>
-                <div className="w-10 h-10 rounded-lg theme-accent-badge flex items-center justify-center">
-                  <Zap className="w-5 h-5 theme-accent-text" />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-400 font-mono flex items-center gap-1.5">
-                  <span>Notes de Version</span>
-                </label>
-                <div className="p-3.5 bg-black/40 border border-[var(--line)] rounded-xl text-xs text-zinc-300 font-mono whitespace-pre-line max-h-32 overflow-y-auto leading-relaxed">
-                  {releaseNotes}
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="w-1/3 py-2.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 text-xs font-semibold border border-[var(--line)] transition-all cursor-pointer "
-                >
-                  Plus tard
-                </button>
-                <button
-                  type="button"
-                  onClick={handleStartUpdate}
-                  className="w-2/3 py-2.5 rounded-lg theme-accent-btn text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer hover:brightness-110 group"
-                >
-                  <DownloadCloud className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-                  <span>Télécharger & Installer</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {status === 'downloading' && (
-            <div className="space-y-5 py-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 theme-accent-text animate-spin" />
-                    <span>Téléchargement de Sprint v{latestVersion}</span>
-                  </h4>
-                  <p className="text-xs text-zinc-400 mt-0.5">Transfert sécurisé depuis GitHub Releases</p>
-                </div>
-                <span className="text-xl font-semibold font-mono theme-accent-text">{progress}%</span>
-              </div>
-
-              <div
-                role="progressbar"
-                aria-valuenow={progress}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                className="relative w-full h-3 rounded-full bg-white/[0.08] overflow-hidden border border-[var(--line)] p-0.5"
-              >
-                <div
-                  className="h-full rounded-full theme-accent-btn transition-all duration-300 ease-out"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-xs font-mono text-zinc-400 pt-1">
-                <span>
-                  {downloadedBytes} / {totalBytes}
-                </span>
-                <span className="theme-accent-text font-semibold">En cours</span>
-              </div>
-            </div>
-          )}
-
-          {status === 'installing' && (
-            <div className="py-8 text-center space-y-4">
-              <div className="relative w-14 h-14 mx-auto flex items-center justify-center">
-                <div
-                  className="absolute inset-0 rounded-full border-2 animate-spin"
-                  style={{
-                    borderColor: 'rgba(var(--accent-color-rgb), 0.2)',
-                    borderTopColor: 'var(--accent-color)',
-                  }}
-                />
-                <Zap className="w-6 h-6 theme-accent-text animate-bounce" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">Lancement de l'installateur Windows...</p>
-                <p className="text-xs text-zinc-400 mt-1">L'application va se fermer pour appliquer la mise à jour.</p>
-              </div>
-            </div>
-          )}
-
-          {status === 'completed' && (
-            <div className="py-4 text-center space-y-5">
-              <div className="w-14 h-14 rounded-xl theme-accent-badge flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-7 h-7 theme-accent-text" />
-              </div>
-
-              <div>
-                <h4 className="text-base font-semibold text-white">Mise à jour v{latestVersion} téléchargée !</h4>
-                <p className="text-xs text-zinc-400 mt-1">L'installateur est prêt. Cliquez pour appliquer et relancer.</p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleRestart}
-                className="w-full py-3 rounded-lg theme-accent-btn text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer "
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Installer & Relancer Sprint</span>
-              </button>
-            </div>
-          )}
-
-          {status === 'error' && (
-            <div className="py-6 text-center space-y-4">
-              <div className="w-14 h-14 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center mx-auto">
-                <AlertCircle className="w-7 h-7 text-red-400" />
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-white">Échec de la mise à jour</h4>
-                <p className="text-xs text-red-300 mt-1 max-w-xs mx-auto break-words">{errorMessage}</p>
-              </div>
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="w-1/2 py-2.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 text-xs font-semibold border border-[var(--line)] transition-all cursor-pointer "
-                >
-                  Fermer
-                </button>
-                <button
-                  type="button"
-                  onClick={() => checkForUpdates(undefined)}
-                  className="w-1/2 py-2.5 rounded-lg theme-accent-btn text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer "
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Réessayer</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
+      <footer className="update-actions">
+        {status === 'checking' && (
+          <button type="button" className="btn" onClick={onClose}>
+            Fermer
+          </button>
+        )}
+        {status === 'upToDate' && (
+          <button type="button" className="btn" onClick={onClose}>
+            Fermer
+          </button>
+        )}
+        {status === 'available' && (
+          <>
+            <button type="button" className="quiet-button" onClick={onClose}>
+              Plus tard
+            </button>
+            <button type="button" className="btn theme-accent-btn" onClick={handleStartUpdate}>
+              <DownloadCloud size={14} />
+              Télécharger la mise à jour
+            </button>
+          </>
+        )}
+        {isBusy && (
+          <span>
+            {status === 'downloading' ? 'Téléchargement en cours…' : 'Installation en cours…'}
+          </span>
+        )}
+        {status === 'completed' && (
+          <>
+            <button type="button" className="quiet-button" onClick={onClose}>
+              Plus tard
+            </button>
+            <button type="button" className="btn theme-accent-btn" onClick={handleRestart}>
+              Installer et relancer Sprint
+            </button>
+          </>
+        )}
+        {status === 'error' && (
+          <>
+            <button type="button" className="quiet-button" onClick={onClose}>
+              Fermer
+            </button>
+            <button type="button" className="btn" onClick={() => checkForUpdates(undefined)}>
+              <RefreshCw size={14} />
+              Réessayer
+            </button>
+          </>
+        )}
+      </footer>
     </Modal>
   );
 }

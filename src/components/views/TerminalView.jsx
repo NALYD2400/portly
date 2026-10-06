@@ -1,7 +1,21 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useServerLogs } from '../../hooks/useTauriIPC';
-import { Terminal, Trash2, Copy, Search, ArrowDown, Columns, Play, ArrowRight, Loader2 } from 'lucide-react';
+import {
+  Terminal,
+  Trash2,
+  Copy,
+  Check,
+  Download,
+  Search,
+  ArrowDown,
+  Columns,
+  Play,
+  ArrowRight,
+  Loader2,
+} from 'lucide-react';
+import PageHeader from '../ui/PageHeader';
+import { triggerToast } from '../../services/toastBus';
 
 // Nombre max de lignes rendues dans le DOM (fenêtre glissante)
 const MAX_RENDERED_LINES = 500;
@@ -13,12 +27,12 @@ const LogLine = React.memo(function LogLine({ entry, lineNumber, showRaw }) {
     <div
       className={`flex items-start px-2 py-0.5 rounded leading-relaxed break-all ${
         isError
-          ? 'bg-red-500/10 text-red-300 border-l-2 border-red-500'
+          ? 'bg-red-500/10 text-red-300'
           : isSuccess
-          ? 'bg-emerald-500/10 text-emerald-300 border-l-2 border-emerald-500'
-          : isInfo
-          ? 'theme-accent-text'
-          : 'text-zinc-300 hover:bg-white/[0.02]'
+            ? 'bg-emerald-500/10 text-emerald-300'
+            : isInfo
+              ? 'theme-accent-text'
+              : 'text-zinc-300 hover:bg-white/[0.02]'
       }`}
     >
       <span className="text-zinc-500 select-none mr-2.5 text-[10px] min-w-[2.2rem] text-right">
@@ -30,11 +44,14 @@ const LogLine = React.memo(function LogLine({ entry, lineNumber, showRaw }) {
 });
 
 // Single Terminal Panel Component
-function TerminalPanel({ server, titlePrefix = 'Console' }) {
+function TerminalPanel({ server, titlePrefix = 'Console', servers, onServerChange }) {
   const { logs, clearLogs } = useServerLogs(server?.id);
   const [filter, setFilter] = useState('');
   const [autoScroll, setAutoScroll] = useState(true);
   const [expandedHistory, setExpandedHistory] = useState(false);
+  const [level, setLevel] = useState('all');
+  const [copied, setCopied] = useState(false);
+  const copyTimer = useRef(null);
   const scrollRef = useRef(null);
 
   // Réglage utilisateur : nettoyage ANSI des logs
@@ -47,39 +64,97 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
   }, [logs, autoScroll]);
 
   const filteredLogs = useMemo(() => {
-    if (!filter) return logs;
     const q = filter.toLowerCase();
-    return logs.filter((entry) => entry.clean.toLowerCase().includes(q));
-  }, [logs, filter]);
+    return logs.filter(
+      (entry) =>
+        entry.clean.toLowerCase().includes(q) &&
+        (level === 'all' ||
+          (level === 'errors' && entry.isError) ||
+          (level === 'success' && entry.isSuccess) ||
+          (level === 'info' && entry.isInfo)),
+    );
+  }, [logs, filter, level]);
+  useEffect(() => {
+    setExpandedHistory(false);
+    setFilter('');
+    setAutoScroll(true);
+  }, [server?.id]);
+  useEffect(() => () => clearTimeout(copyTimer.current), []);
 
-  const hiddenByWindow = expandedHistory ? 0 : Math.max(0, filteredLogs.length - MAX_RENDERED_LINES);
+  const hiddenByWindow = expandedHistory
+    ? 0
+    : Math.max(0, filteredLogs.length - MAX_RENDERED_LINES);
   const visibleLogs = expandedHistory ? filteredLogs : filteredLogs.slice(-MAX_RENDERED_LINES);
 
-  const handleCopyLogs = () => {
-    const cleanAll = logs.map((entry) => entry.clean).join('\n');
-    navigator.clipboard.writeText(cleanAll);
+  const handleCopyLogs = async () => {
+    try {
+      await navigator.clipboard.writeText(filteredLogs.map((entry) => entry.clean).join('\n'));
+      setCopied(true);
+      clearTimeout(copyTimer.current);
+      copyTimer.current = setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      triggerToast({
+        title: 'Copie impossible',
+        message: String(error),
+        type: 'error',
+      });
+    }
+  };
+  const exportLogs = () => {
+    const url = URL.createObjectURL(
+      new Blob([filteredLogs.map((entry) => entry.clean).join('\n')], {
+        type: 'text/plain;charset=utf-8',
+      }),
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${(server?.name || 'sprint').replace(/[^a-z0-9_-]/gi, '_')}-logs.txt`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full rounded-xl p-4 bg-[var(--surface-2)] overflow-hidden select-none">
+    <div className="terminal-panel">
       {/* Panel Header */}
-      <div className="flex items-center justify-between pb-3 mb-2">
-        <div className="flex items-center gap-2">
+      <div className="terminal-toolbar">
+        <div className="terminal-server-control flex items-center gap-2">
           <span
             className={`w-2.5 h-2.5 rounded-full ${
               server?.state === 'running' ? 'bg-green-500 animate-pulse' : 'bg-gray-600'
             }`}
           />
           <div>
-            <span className="text-[10px] font-mono uppercase font-semibold mr-1.5 px-1.5 py-0.5 rounded theme-accent-badge">
-              {titlePrefix}
-            </span>
-            <span className="text-xs font-semibold text-white">{server?.name || 'Aucun serveur'}</span>
-            {server && <span className="text-[10px] font-mono text-zinc-400 ml-2">:{server.port}</span>}
+            <select
+              className="control-input max-w-56"
+              aria-label={titlePrefix}
+              value={server?.id || ''}
+              onChange={(event) => onServerChange(event.target.value)}
+            >
+              {servers.length ? (
+                servers.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.projectName} · {item.name}
+                  </option>
+                ))
+              ) : (
+                <option value="">Aucun serveur</option>
+              )}
+            </select>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="terminal-actions flex items-center gap-1.5 flex-wrap ml-auto">
+          <select
+            className="control-input"
+            aria-label={`Niveau des logs · ${titlePrefix}`}
+            value={level}
+            onChange={(event) => setLevel(event.target.value)}
+          >
+            <option value="all">Tous</option>
+            <option value="errors">Erreurs</option>
+            <option value="success">Succès</option>
+            <option value="info">Infos</option>
+          </select>
           <div className="relative">
             <Search className="w-3 h-3 text-zinc-400 absolute left-2 top-2" />
             <input
@@ -87,33 +162,49 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Filtrer..."
-              className="pl-7 pr-2 py-1 rounded-lg bg-white/[0.04] border border-transparent text-[11px] text-white placeholder-zinc-600 font-mono w-32"
+              aria-label={`Rechercher dans les logs · ${titlePrefix}`}
+              className="control-input log-filter !pl-7"
             />
           </div>
 
           <button
             onClick={() => setAutoScroll(!autoScroll)}
             aria-pressed={autoScroll}
-            className={`p-1.5 rounded-lg text-xs flex items-center transition-colors cursor-pointer ${
+            className={`icon-button ${
               autoScroll ? 'theme-accent-active' : 'bg-white/[0.04] text-zinc-400'
             }`}
             title="Défilement automatique"
+            aria-label="Défilement automatique"
           >
             <ArrowDown className="w-3.5 h-3.5" />
           </button>
 
           <button
             onClick={handleCopyLogs}
-            className="p-1.5 rounded-md text-zinc-500 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+            className="icon-button"
             title="Copier les logs"
+            aria-label="Copier les logs filtrés"
+            disabled={!filteredLogs.length}
           >
-            <Copy className="w-3.5 h-3.5" />
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+          </button>
+
+          <button
+            className="icon-button"
+            title="Exporter les logs"
+            aria-label="Exporter les logs filtrés"
+            disabled={!filteredLogs.length}
+            onClick={exportLogs}
+          >
+            <Download size={14} />
           </button>
 
           <button
             onClick={clearLogs}
-            className="p-1.5 rounded-md text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+            className="icon-button hover:text-rose-400"
             title="Effacer"
+            aria-label="Effacer les logs"
+            disabled={!logs.length}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -128,7 +219,7 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
           const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
           if (!atBottom && autoScroll) setAutoScroll(false);
         }}
-        className="flex-1 font-mono text-xs overflow-y-auto space-y-0.5 select-text"
+        className="terminal-log-screen flex-1 font-mono text-xs overflow-y-auto space-y-0.5 select-text"
       >
         {!server ? (
           <div className="h-full flex flex-col items-center justify-center gap-2 text-zinc-500 italic select-none">
@@ -139,10 +230,12 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
         ) : filteredLogs.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center gap-2 text-zinc-500 italic select-none">
             <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white/[0.04] border border-[var(--line)] text-xs not-italic">
-              {filter ? (
+              {filter || level !== 'all' ? (
                 <>
                   <Search className="w-3 h-3 text-zinc-400" />
-                  <span className="text-zinc-300 font-mono">Aucune ligne ne correspond au filtre « {filter} »</span>
+                  <span className="text-zinc-300 font-mono">
+                    Aucune ligne ne correspond aux filtres.
+                  </span>
                 </>
               ) : (
                 <>
@@ -181,6 +274,13 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
           </>
         )}
       </div>
+      <div className="terminal-footer">
+        <span>
+          {filteredLogs.length} lignes
+          {filteredLogs.length !== logs.length ? ` sur ${logs.length}` : ''}
+        </span>
+        <span>{autoScroll ? 'Suivi en direct' : 'Défilement en pause'}</span>
+      </div>
     </div>
   );
 }
@@ -188,7 +288,7 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
 export default function TerminalView({ projects = [], initialServerId, onSelectTab }) {
   // Réglage utilisateur : n'afficher que les serveurs actifs par défaut
   const [showAllServers, setShowAllServers] = useState(
-    () => localStorage.getItem('portly_cfg_hidestopped') === 'false'
+    () => localStorage.getItem('portly_cfg_hidestopped') === 'false',
   );
 
   // Collect all servers from projects
@@ -202,15 +302,18 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
     return list;
   }, [projects]);
 
-  const runningServers = useMemo(() => allServers.filter((s) => s.state === 'running'), [allServers]);
+  const runningServers = useMemo(
+    () => allServers.filter((s) => s.state === 'running'),
+    [allServers],
+  );
   const displayServers = showAllServers
     ? allServers
     : runningServers.length > 0
-    ? runningServers
-    : allServers;
+      ? runningServers
+      : allServers;
 
   const [activeServerId, setActiveServerId] = useState(
-    initialServerId || (displayServers[0] ? displayServers[0].id : null)
+    initialServerId || (displayServers[0] ? displayServers[0].id : null),
   );
   const [splitServerId, setSplitServerId] = useState(null);
   const [isSplitMode, setIsSplitMode] = useState(false);
@@ -218,6 +321,7 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
   useEffect(() => {
     if (initialServerId) {
       setActiveServerId(initialServerId);
+      setShowAllServers(true);
     }
   }, [initialServerId]);
 
@@ -225,7 +329,9 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
   const primaryServer = displayServers.find((s) => s.id === activeServerId) || displayServers[0];
 
   // Secondary Server: strictly different from primaryServer
-  let secondaryServer = displayServers.find((s) => s.id === splitServerId && s.id !== primaryServer?.id);
+  let secondaryServer = displayServers.find(
+    (s) => s.id === splitServerId && s.id !== primaryServer?.id,
+  );
   if (!secondaryServer) {
     secondaryServer = displayServers.find((s) => s.id !== primaryServer?.id) || null;
   }
@@ -248,7 +354,11 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
         env: server.env || {},
       });
     } catch (e) {
-      console.warn('Failed to start server from terminal:', e);
+      triggerToast({
+        title: 'Lancement impossible',
+        message: String(e),
+        type: 'error',
+      });
     }
   };
 
@@ -256,31 +366,34 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
   if (runningServers.length === 0 && !showAllServers) {
     const stoppedServers = allServers;
     return (
-      <div className="animate-fadeIn h-[calc(100vh-8rem)] flex flex-col items-center justify-center select-none text-center">
-        <div className="max-w-sm space-y-4">
-          <Terminal className="w-8 h-8 text-zinc-600 mx-auto" />
-          <div>
-            <h2 className="text-sm font-medium text-white">Aucun serveur en cours</h2>
-            <p className="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-              Lancez un serveur depuis vos projets : ses logs s'afficheront ici en direct.
-            </p>
-          </div>
-          <div className="flex items-center justify-center gap-2">
-            <button
-              onClick={() => onSelectTab && onSelectTab('projects')}
-              className="h-8 px-3.5 rounded-md theme-accent-btn text-xs font-medium flex items-center gap-2 cursor-pointer"
-            >
-              <span>Aller aux projets</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-            {stoppedServers.length > 0 && (
+      <div className="page logs-page animate-fadeIn">
+        <PageHeader title="Logs" />
+        <div className="flex-1 flex flex-col items-center justify-center text-center">
+          <div className="max-w-sm space-y-4">
+            <Terminal className="w-8 h-8 text-zinc-600 mx-auto" />
+            <div>
+              <h2 className="text-sm font-medium text-white">Aucun serveur en cours</h2>
+              <p className="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+                Lancez un serveur depuis vos projets : ses logs s'afficheront ici en direct.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-2">
               <button
-                onClick={() => setShowAllServers(true)}
-                className="h-8 px-3 rounded-md text-xs text-zinc-400 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
+                onClick={() => onSelectTab && onSelectTab('projects')}
+                className="h-8 px-3.5 rounded-md theme-accent-btn text-xs font-medium flex items-center gap-2 cursor-pointer"
               >
-                Voir les serveurs arrêtés ({stoppedServers.length})
+                <span>Aller aux projets</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
-            )}
+              {stoppedServers.length > 0 && (
+                <button
+                  onClick={() => setShowAllServers(true)}
+                  className="h-8 px-3 rounded-md text-xs text-zinc-400 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
+                >
+                  Voir les serveurs arrêtés ({stoppedServers.length})
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -288,11 +401,10 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
   }
 
   return (
-    <div className="space-y-4 animate-fadeIn h-[calc(100vh-8rem)] flex flex-col">
-      <div className="flex items-end justify-between select-none">
+    <div className="page logs-page animate-fadeIn">
+      <div className="logs-header flex items-center justify-between select-none">
         <div>
-          <h1 className="text-[22px] font-semibold text-zinc-50 tracking-tight">Journal</h1>
-          <p className="text-[13px] text-zinc-500 mt-1">Ce que vos serveurs affichent, en direct (logs).</p>
+          <h1 className="page-title">Logs</h1>
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -305,7 +417,9 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
           <button
             onClick={toggleSplitMode}
             className={`h-8 px-2.5 rounded-md text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
-              isSplitMode ? 'bg-white/[0.08] text-white' : 'text-zinc-400 hover:text-white hover:bg-white/[0.05]'
+              isSplitMode
+                ? 'bg-white/[0.08] text-white'
+                : 'text-zinc-400 hover:text-white hover:bg-white/[0.05]'
             }`}
           >
             <Columns className="w-3.5 h-3.5" />
@@ -314,7 +428,7 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
         </div>
       </div>
 
-      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+      <div className="logs-servers flex items-center gap-1 overflow-x-auto no-scrollbar">
         {displayServers.map((srv) => {
           const isPrimary = srv.id === primaryServer?.id;
           const isSecondary = isSplitMode && srv.id === secondaryServer?.id;
@@ -346,7 +460,9 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
               {!isRunning && (
                 <button
                   onClick={() => {
-                    const project = projects.find((p) => (p.servers || []).some((s) => s.id === srv.id));
+                    const project = projects.find((p) =>
+                      (p.servers || []).some((s) => s.id === srv.id),
+                    );
                     if (project) handleStartServer(srv, project);
                   }}
                   title="Lancer ce serveur"
@@ -362,9 +478,21 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
       </div>
 
       {/* Main Terminal Grid Area */}
-      <div className={`flex-1 grid gap-4 overflow-hidden ${isSplitMode ? 'grid-cols-2' : 'grid-cols-1'}`}>
-        <TerminalPanel server={primaryServer} titlePrefix="Console 1" />
-        {isSplitMode && <TerminalPanel server={secondaryServer} titlePrefix="Console 2" />}
+      <div className={`terminal-grid ${isSplitMode ? 'split' : ''}`}>
+        <TerminalPanel
+          server={primaryServer}
+          titlePrefix="Console 1"
+          servers={displayServers.filter((item) => !isSplitMode || item.id !== secondaryServer?.id)}
+          onServerChange={setActiveServerId}
+        />
+        {isSplitMode && (
+          <TerminalPanel
+            server={secondaryServer}
+            titlePrefix="Console 2"
+            servers={displayServers.filter((item) => item.id !== primaryServer?.id)}
+            onServerChange={setSplitServerId}
+          />
+        )}
       </div>
     </div>
   );

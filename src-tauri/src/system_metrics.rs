@@ -19,6 +19,9 @@ pub struct ServerMetric {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SystemMetricsPayload {
+    pub cpu_usage: f32,
+    pub ram_used_mb: f64,
+    pub ram_total_mb: f64,
     pub managed_cpu_pct: f32,
     pub managed_ram_mb: f64,
     pub active_servers_count: usize,
@@ -27,6 +30,59 @@ pub struct SystemMetricsPayload {
 
 const RESTART_COOLDOWN: Duration = Duration::from_secs(30);
 
+fn collect_metrics(
+    system: &mut System,
+    active_pids: &HashMap<String, u32>,
+) -> SystemMetricsPayload {
+    system.refresh_cpu_usage();
+    system.refresh_memory();
+    // Le suivi système reste disponible à l'arrêt, sans scanner les processus.
+    if !active_pids.is_empty() {
+        system.refresh_processes_specifics(ProcessRefreshKind::everything());
+    }
+
+    let mut server_metrics = HashMap::new();
+    let mut total_cpu: f32 = 0.0;
+    let mut total_ram_bytes: u64 = 0;
+
+    for (server_id, root_pid) in active_pids {
+        let mut srv_cpu: f32 = 0.0;
+        let mut srv_ram: u64 = 0;
+
+        // Somme les métriques du process racine et de ses enfants
+        for (pid, process) in system.processes() {
+            let pid_u32 = pid.as_u32();
+            if pid_u32 == *root_pid || is_descendant(system.processes(), pid_u32, *root_pid) {
+                srv_cpu += process.cpu_usage();
+                srv_ram += process.memory();
+            }
+        }
+
+        total_cpu += srv_cpu;
+        total_ram_bytes += srv_ram;
+
+        server_metrics.insert(
+            server_id.clone(),
+            ServerMetric {
+                server_id: server_id.clone(),
+                pid: *root_pid,
+                cpu_usage: srv_cpu,
+                ram_mb: (srv_ram as f64) / (1024.0 * 1024.0),
+            },
+        );
+    }
+
+    SystemMetricsPayload {
+        cpu_usage: system.global_cpu_info().cpu_usage(),
+        ram_used_mb: (system.used_memory() as f64) / (1024.0 * 1024.0),
+        ram_total_mb: (system.total_memory() as f64) / (1024.0 * 1024.0),
+        managed_cpu_pct: total_cpu,
+        managed_ram_mb: (total_ram_bytes as f64) / (1024.0 * 1024.0),
+        active_servers_count: active_pids.len(),
+        server_metrics,
+    }
+}
+
 pub fn start_metrics_poller(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let sys = Arc::new(Mutex::new(System::new_with_specifics(
@@ -34,7 +90,6 @@ pub fn start_metrics_poller(app: AppHandle) {
         )));
         let last_restart: Arc<Mutex<HashMap<String, Instant>>> =
             Arc::new(Mutex::new(HashMap::new()));
-        let mut had_servers_last_tick = false;
 
         loop {
             tokio::time::sleep(Duration::from_secs(2)).await;
@@ -44,57 +99,9 @@ pub fn start_metrics_poller(app: AppHandle) {
             };
             let active_pids = state.lock().process_manager.get_active_pids();
 
-            // Évite de rafraîchir toute la table des processus toutes les 2s
-            // quand aucun serveur n'est actif (et n'émet qu'une fois des zéros).
-            if active_pids.is_empty() && !had_servers_last_tick {
-                continue;
-            }
-            had_servers_last_tick = !active_pids.is_empty();
-
             let mut to_restart: Vec<(String, u32)> = Vec::new();
 
-            let metrics = {
-                let mut s = sys.lock();
-                s.refresh_processes_specifics(ProcessRefreshKind::everything());
-
-                let mut server_metrics = HashMap::new();
-                let mut total_cpu: f32 = 0.0;
-                let mut total_ram_bytes: u64 = 0;
-
-                for (server_id, root_pid) in &active_pids {
-                    let mut srv_cpu: f32 = 0.0;
-                    let mut srv_ram: u64 = 0;
-
-                    // Somme les métriques du process racine et de ses enfants
-                    for (pid, process) in s.processes() {
-                        let pid_u32 = pid.as_u32();
-                        if pid_u32 == *root_pid || is_descendant(s.processes(), pid_u32, *root_pid) {
-                            srv_cpu += process.cpu_usage();
-                            srv_ram += process.memory();
-                        }
-                    }
-
-                    total_cpu += srv_cpu;
-                    total_ram_bytes += srv_ram;
-
-                    server_metrics.insert(
-                        server_id.clone(),
-                        ServerMetric {
-                            server_id: server_id.clone(),
-                            pid: *root_pid,
-                            cpu_usage: srv_cpu,
-                            ram_mb: (srv_ram as f64) / (1024.0 * 1024.0),
-                        },
-                    );
-                }
-
-                SystemMetricsPayload {
-                    managed_cpu_pct: total_cpu,
-                    managed_ram_mb: (total_ram_bytes as f64) / (1024.0 * 1024.0),
-                    active_servers_count: active_pids.len(),
-                    server_metrics,
-                }
-            };
+            let metrics = collect_metrics(&mut sys.lock(), &active_pids);
 
             // Auto-Guard RAM : redémarre un serveur qui dépasse sa limite
             // configurée, avec un cooldown anti crash-loop.
@@ -107,9 +114,9 @@ pub fn start_metrics_poller(app: AppHandle) {
                             if let Some(m) = metrics.server_metrics.get(&srv.id) {
                                 if m.ram_mb > limit as f64 {
                                     let now = Instant::now();
-                                    let cooldown_ok = restarts
-                                        .get(&srv.id)
-                                        .map_or(true, |t| now.duration_since(*t) >= RESTART_COOLDOWN);
+                                    let cooldown_ok = restarts.get(&srv.id).map_or(true, |t| {
+                                        now.duration_since(*t) >= RESTART_COOLDOWN
+                                    });
                                     if cooldown_ok {
                                         restarts.insert(srv.id.clone(), now);
                                         to_restart.push((srv.id.clone(), m.pid));
@@ -162,11 +169,18 @@ async fn restart_server(app: &AppHandle, server_id: &str) {
         srv.env,
     );
     if let Err(e) = result {
-        eprintln!("Sprint Auto-Guard: échec du redémarrage de {}: {}", server_id, e);
+        eprintln!(
+            "Sprint Auto-Guard: échec du redémarrage de {}: {}",
+            server_id, e
+        );
     }
 }
 
-fn is_descendant(processes: &HashMap<Pid, sysinfo::Process>, target_pid: u32, root_pid: u32) -> bool {
+fn is_descendant(
+    processes: &HashMap<Pid, sysinfo::Process>,
+    target_pid: u32,
+    root_pid: u32,
+) -> bool {
     let mut current = target_pid;
     let mut depth = 0;
     while depth < 32 {
@@ -189,4 +203,34 @@ fn is_descendant(processes: &HashMap<Pid, sysinfo::Process>, target_pid: u32, ro
         }
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn system_resources_remain_available_without_managed_servers() {
+        let metrics = collect_metrics(&mut System::new(), &HashMap::new());
+        assert!(metrics.ram_total_mb > 0.0);
+        assert!(metrics.ram_used_mb > 0.0);
+        assert!(metrics.ram_used_mb <= metrics.ram_total_mb);
+        assert!(metrics.cpu_usage.is_finite());
+        assert_eq!(metrics.managed_ram_mb, 0.0);
+        assert_eq!(metrics.managed_cpu_pct, 0.0);
+        assert_eq!(metrics.active_servers_count, 0);
+        assert!(metrics.server_metrics.is_empty());
+    }
+
+    #[test]
+    fn managed_resources_include_a_real_running_process() {
+        let pids = HashMap::from([("test-process".to_string(), std::process::id())]);
+        let metrics = collect_metrics(&mut System::new(), &pids);
+        assert_eq!(metrics.active_servers_count, 1);
+        assert!(metrics.managed_ram_mb > 0.0);
+        assert!(metrics.managed_cpu_pct.is_finite());
+        let process = &metrics.server_metrics["test-process"];
+        assert_eq!(process.pid, std::process::id());
+        assert!(process.ram_mb > 0.0);
+    }
 }

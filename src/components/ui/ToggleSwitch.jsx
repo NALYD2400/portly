@@ -1,12 +1,21 @@
 import React from 'react';
 
-export default function ToggleSwitch({ checked, onChange, disabled = false, size = 'md' }) {
+export default function ToggleSwitch({
+  checked,
+  onChange,
+  disabled = false,
+  size = 'md',
+  labelledBy,
+  label,
+}) {
   const sm = size === 'sm';
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-labelledby={labelledBy}
+      aria-label={label}
       disabled={disabled}
       onClick={(e) => {
         // Empêche le double-déclenchement quand le switch est imbriqué
@@ -18,7 +27,7 @@ export default function ToggleSwitch({ checked, onChange, disabled = false, size
         sm ? 'h-[18px] w-8' : 'h-5 w-9'
       } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
       style={{
-        backgroundColor: checked ? 'var(--accent-color)' : 'rgba(255, 255, 255, 0.12)',
+        backgroundColor: checked ? 'var(--accent-color)' : 'var(--switch-off)',
       }}
     >
       <span

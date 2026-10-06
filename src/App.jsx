@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { triggerToast } from './services/toastBus';
 import ColorBendsBackground from './components/ui/ColorBendsBackground';
 import TitleBar from './components/layout/TitleBar';
 import Sidebar, { NAV_ITEMS } from './components/layout/Sidebar';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 import HelpModal from './components/modals/HelpModal';
 import { loadPrefs, savePrefs, applyPrefs } from './services/prefs';
+import { applyAccent } from './services/accent';
 import HomeView from './components/views/HomeView';
 import ProjectsView from './components/views/ProjectsView';
 import PortsView from './components/views/PortsView';
@@ -52,15 +55,46 @@ export default function App() {
   const [envModalRoot, setEnvModalRoot] = useState(null);
   const [editProjectTarget, setEditProjectTarget] = useState(null);
   const [serverForm, setServerForm] = useState(null); // { mode: 'add'|'edit', project, server }
-  const [selectedTerminal, setSelectedTerminal] = useState({ id: null, name: null });
-  const [browserTarget, setBrowserTarget] = useState({ serverId: null, url: null });
+  const [selectedTerminal, setSelectedTerminal] = useState({
+    id: null,
+    name: null,
+  });
+  const [browserTarget, setBrowserTarget] = useState({
+    serverId: null,
+    url: null,
+  });
   const [iframeModalTarget, setIframeModalTarget] = useState(null); // { url, title }
 
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [prefs, setPrefs] = useState(loadPrefs);
+  const [settingsSection, setSettingsSection] = useState('appearance');
 
   const { projects, saveProjects, reload: reloadProjects, loading } = useProjects();
   const metrics = useSystemMetrics();
+
+  useEffect(() => {
+    let disposed = false;
+    const subscriptions = [];
+    const subscribe = (name, handler) => {
+      listen(name, handler).then((unsubscribe) => {
+        if (disposed) unsubscribe();
+        else subscriptions.push(unsubscribe);
+      }).catch((error) => console.warn('Tray event subscription failed:', error));
+    };
+    subscribe('tray-navigate', ({ payload }) => {
+      if (payload === 'settings') {
+        setIsPaletteOpen(false);
+        setActiveTab('settings');
+      }
+    });
+    subscribe('tray-action-error', ({ payload }) => {
+      triggerToast({ title: 'Action impossible', message: payload, type: 'error' });
+    });
+    return () => {
+      disposed = true;
+      subscriptions.forEach((unsubscribe) => unsubscribe());
+    };
+  }, []);
 
   const updatePrefs = (patch) => {
     setPrefs((prev) => {
@@ -106,16 +140,7 @@ export default function App() {
   // Initialize custom Hex accent color & Register Global OS Shortcut at launch
   useEffect(() => {
     const savedHex = localStorage.getItem('portly_custom_hex');
-    if (savedHex && savedHex.startsWith('#')) {
-      let c = savedHex.replace('#', '');
-      if (c.length === 3) c = c.split('').map((x) => x + x).join('');
-      const num = parseInt(c, 16);
-      if (!isNaN(num)) {
-        const rgb = `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
-        document.documentElement.style.setProperty('--accent-color', savedHex);
-        document.documentElement.style.setProperty('--accent-color-rgb', rgb);
-      }
-    }
+    if (savedHex) applyAccent(savedHex);
 
     const savedShortcut = localStorage.getItem('portly_cfg_shortcut') || 'Ctrl+Alt+P';
     const shortcutTimer = setTimeout(() => {
@@ -129,7 +154,11 @@ export default function App() {
   // Raccourcis clavier globaux
   useEffect(() => {
     const isTyping = (t) =>
-      !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+      !!t &&
+      (t.tagName === 'INPUT' ||
+        t.tagName === 'TEXTAREA' ||
+        t.tagName === 'SELECT' ||
+        t.isContentEditable);
 
     const handleKeyDown = (e) => {
       const mod = e.ctrlKey || e.metaKey;
@@ -174,7 +203,9 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const [showCanvasBg, setShowCanvasBg] = useState(() => localStorage.getItem('portly_cfg_canvas') !== 'false');
+  const [showCanvasBg, setShowCanvasBg] = useState(
+    () => localStorage.getItem('portly_cfg_canvas') !== 'false',
+  );
 
   useEffect(() => {
     const handleCanvasToggle = () => {
@@ -190,11 +221,13 @@ export default function App() {
 
   const activeServersCount = projects.reduce(
     (acc, p) => acc + (p.servers || []).filter((s) => s.state === 'running').length,
-    0
+    0,
   );
 
   const pageLabel =
-    activeTab === 'settings' ? 'Réglages' : NAV_ITEMS.find((n) => n.id === activeTab)?.label || '';
+    activeTab === 'settings'
+      ? 'Paramètres'
+      : NAV_ITEMS.find((n) => n.id === activeTab)?.label || '';
 
   const handleOpenTerminal = (serverId, serverName) => {
     setSelectedTerminal({ id: serverId, name: serverName });
@@ -225,16 +258,16 @@ export default function App() {
       )}
 
       {/* Global Right-Click App Context Menu */}
-      <ContextMenu
-        onOpenCommandPalette={() => setIsPaletteOpen(true)}
-        onSelectTab={setActiveTab}
-      />
+      <ContextMenu onOpenCommandPalette={() => setIsPaletteOpen(true)} onSelectTab={setActiveTab} />
 
       {/* Custom Frameless Windows TitleBar */}
       <TitleBar pageLabel={pageLabel} runningCount={activeServersCount} />
 
       {/* Main Workspace Layout */}
-      <div className="flex-1 flex overflow-hidden z-10">
+      <div
+        className="flex-1 flex overflow-hidden z-10"
+        data-sidebar-collapsed={prefs.sidebarCollapsed ? 'true' : 'false'}
+      >
         <Sidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -248,74 +281,88 @@ export default function App() {
         />
 
         {/* View Container */}
-        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 px-8 lg:px-10 py-7 overflow-y-auto outline-none">
+        <main
+          id="main-content"
+          data-view={activeTab}
+          tabIndex={-1}
+          className="flex-1 min-w-0 px-8 lg:px-10 py-7 overflow-y-auto outline-none"
+        >
           <ErrorBoundary resetKey={activeTab}>
-          {loading ? (
-            <div className="h-full flex items-center justify-center text-sm text-zinc-500" role="status">
-              Chargement de vos projets…
-            </div>
-          ) : (
-            <>
-              {activeTab === 'dashboard' && (
-                <HomeView
-                  metrics={metrics}
-                  projects={projects}
-                  onSelectTab={setActiveTab}
-                  onAddProject={() => setIsAddModalOpen(true)}
-                  onOpenBrowser={handleOpenBrowser}
-                  onAddProject={() => setIsAddModalOpen(true)}
-                  onOpenHelp={() => setIsHelpOpen(true)}
-                  onOpenPalette={() => setIsPaletteOpen(true)}
-                />
-              )}
+            {loading ? (
+              <div
+                className="h-full flex items-center justify-center text-sm text-zinc-500"
+                role="status"
+              >
+                Chargement de vos projets…
+              </div>
+            ) : (
+              <>
+                {activeTab === 'dashboard' && (
+                  <HomeView
+                    metrics={metrics}
+                    projects={projects}
+                    onSelectTab={setActiveTab}
+                    onAddProject={() => setIsAddModalOpen(true)}
+                    onOpenBrowser={handleOpenBrowser}
+                    prefs={prefs}
+                    onCustomize={() => {
+                      setSettingsSection('dashboard');
+                      setActiveTab('settings');
+                    }}
+                    onOpenTerminal={handleOpenTerminal}
+                    onOpenHelp={() => setIsHelpOpen(true)}
+                    onOpenPalette={() => setIsPaletteOpen(true)}
+                  />
+                )}
 
-              {activeTab === 'projects' && (
-                <ProjectsView
-                  projects={projects}
-                  saveProjects={saveProjects}
-                  onOpenTerminal={handleOpenTerminal}
-                  onOpenBrowser={handleOpenBrowser}
-                  onOpenEnvModal={(root) => setEnvModalRoot(root)}
-                  onAddProject={() => setIsAddModalOpen(true)}
-                  onEditProject={(project) => setEditProjectTarget(project)}
-                  onEditServer={({ project, server }) =>
-                    setServerForm({ mode: 'edit', project, server })
-                  }
-                  onAddServer={(project) => setServerForm({ mode: 'add', project })}
-                  onOpenIframeModal={(target) => setIframeModalTarget(target)}
-                />
-              )}
+                {activeTab === 'projects' && (
+                  <ProjectsView
+                    projects={projects}
+                    saveProjects={saveProjects}
+                    onOpenTerminal={handleOpenTerminal}
+                    onOpenBrowser={handleOpenBrowser}
+                    onOpenEnvModal={(root) => setEnvModalRoot(root)}
+                    onAddProject={() => setIsAddModalOpen(true)}
+                    onEditProject={(project) => setEditProjectTarget(project)}
+                    onEditServer={({ project, server }) =>
+                      setServerForm({ mode: 'edit', project, server })
+                    }
+                    onAddServer={(project) => setServerForm({ mode: 'add', project })}
+                    onOpenIframeModal={(target) => setIframeModalTarget(target)}
+                  />
+                )}
 
-              {activeTab === 'browser' && (
-                <BrowserView
-                  projects={projects}
-                  initialServerId={browserTarget.serverId}
-                  initialUrl={browserTarget.url}
-                  onSelectTab={setActiveTab}
-                />
-              )}
+                {activeTab === 'browser' && (
+                  <BrowserView
+                    projects={projects}
+                    initialServerId={browserTarget.serverId}
+                    initialUrl={browserTarget.url}
+                    onSelectTab={setActiveTab}
+                  />
+                )}
 
-              {activeTab === 'ports' && <PortsView projects={projects} />}
+                {activeTab === 'ports' && <PortsView projects={projects} />}
 
-              {activeTab === 'terminal' && (
-                <TerminalView
-                  projects={projects}
-                  initialServerId={selectedTerminal.id}
-                  onSelectTab={setActiveTab}
-                />
-              )}
+                {activeTab === 'terminal' && (
+                  <TerminalView
+                    projects={projects}
+                    initialServerId={selectedTerminal.id}
+                    onSelectTab={setActiveTab}
+                  />
+                )}
 
-              {activeTab === 'settings' && (
-                <SettingsView
-                  projects={projects}
-                  onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
-                  reloadProjects={reloadProjects}
-                  prefs={prefs}
-                  onPrefsChange={updatePrefs}
-                />
-              )}
-            </>
-          )}
+                {activeTab === 'settings' && (
+                  <SettingsView
+                    projects={projects}
+                    onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
+                    reloadProjects={reloadProjects}
+                    prefs={prefs}
+                    onPrefsChange={updatePrefs}
+                    initialSection={settingsSection}
+                  />
+                )}
+              </>
+            )}
           </ErrorBoundary>
         </main>
       </div>

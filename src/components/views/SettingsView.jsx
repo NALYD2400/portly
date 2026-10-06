@@ -1,43 +1,15 @@
-import React, { useState, useEffect, useRef, useId } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import {
-  Palette,
-  Zap,
-  Monitor,
-  Check,
-  Sparkles,
-  Hash,
-  Download,
-  Upload,
-  Bot,
-  Copy,
-  Pipette,
-  Keyboard,
-  ExternalLink,
-  FolderOpen,
-  Info,
-  Cpu,
-  Layers,
-  Bell,
-  HardDrive,
-  Code,
-  Radio,
-  Terminal,
-} from 'lucide-react';
-import ToggleSwitch from '../ui/ToggleSwitch';
+import { Check, Download, Copy, Keyboard, ArrowUp, ArrowDown, RotateCcw } from 'lucide-react';
+import SettingRow from '../ui/SettingRow';
+import PageHeader from '../ui/PageHeader';
+import { DEFAULT_PREFS } from '../../services/prefs';
+import { DASHBOARD_BLOCKS, DEFAULT_DASHBOARD, dashboardPrefs } from '../../services/dashboardPrefs';
 import { triggerToast } from '../../services/toastBus';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import DisplayPrefs from '../ui/DisplayPrefs';
 import pkg from '../../../package.json';
-
-function hexToRgbStr(hex) {
-  if (!hex || !hex.startsWith('#')) return '168, 85, 247';
-  let c = hex.replace('#', '');
-  if (c.length === 3) c = c.split('').map((x) => x + x).join('');
-  const num = parseInt(c, 16);
-  if (isNaN(num)) return '168, 85, 247';
-  return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
-}
+import { applyAccent } from '../../services/accent';
 
 function isValidHex(hex) {
   return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex);
@@ -94,7 +66,11 @@ function ShortcutRecorder({ value, onChange }) {
         }`}
       >
         <Keyboard className="w-3.5 h-3.5 theme-accent-text" />
-        <span>{isRecording ? '⌨️ Appuyez sur les touches... (Esc pour annuler)' : 'Modifier le raccourci'}</span>
+        <span>
+          {isRecording
+            ? '⌨️ Appuyez sur les touches... (Esc pour annuler)'
+            : 'Modifier le raccourci'}
+        </span>
       </button>
 
       {!isRecording && (
@@ -158,30 +134,72 @@ const SKILL_MARKDOWN = [
 ].join('\n');
 
 const PRESET_PALETTES = [
-  { name: 'Violet Cyberpunk', hex: '#a855f7', desc: 'Thème emblématique Sprint' },
-  { name: 'Cyan Néon', hex: '#06b6d4', desc: 'Lumineux & ultra-lisible' },
-  { name: 'Émeraude Tech', hex: '#10b981', desc: 'Énergique & moderne' },
-  { name: 'Rose Synthwave', hex: '#ec4899', desc: 'Vibrant & contrasté' },
-  { name: 'Or Solaire', hex: '#f59e0b', desc: 'Chaud & dynamique' },
-  { name: 'Bleu Électrique', hex: '#3b82f6', desc: 'Calme & professionnel' },
-  { name: 'Rouge Crimson', hex: '#ef4444', desc: 'Audacieux & percutant' },
-  { name: 'Vert Matrix', hex: '#22c55e', desc: 'Classique console de dev' },
+  { name: 'Violet', hex: '#a855f7', desc: 'Thème emblématique Sprint' },
+  { name: 'Cyan', hex: '#06b6d4', desc: 'Lumineux & ultra-lisible' },
+  { name: 'Émeraude', hex: '#10b981', desc: 'Énergique & moderne' },
+  { name: 'Rose', hex: '#ec4899', desc: 'Vibrant & contrasté' },
+  { name: 'Ambre', hex: '#f59e0b', desc: 'Chaud & dynamique' },
+  { name: 'Bleu', hex: '#3b82f6', desc: 'Calme & professionnel' },
+  { name: 'Rouge', hex: '#ef4444', desc: 'Audacieux & percutant' },
+  { name: 'Vert', hex: '#22c55e', desc: 'Classique console de dev' },
 ];
 
-export default function SettingsView({ projects = [], onOpenUpdateModal, reloadProjects, prefs, onPrefsChange }) {
-  const [activeTab, setActiveTab] = useState('appearance');
+const Select = ({ label, value, options, onChange }) => (
+  <select
+    aria-label={label}
+    className="control-input"
+    value={value}
+    onChange={(event) => onChange(event.target.value)}
+  >
+    {options.map(([id, text]) => (
+      <option value={id} key={id}>
+        {text}
+      </option>
+    ))}
+  </select>
+);
 
- // Unified Settings State
- const [settings, setSettings] = useState({
-    custom_hex: localStorage.getItem('sprint_custom_hex') || localStorage.getItem('portly_custom_hex') || '#a855f7',
-    canvas_bg: (localStorage.getItem('sprint_cfg_canvas') ?? localStorage.getItem('portly_cfg_canvas')) !== 'false',
-    auto_restart: (localStorage.getItem('sprint_cfg_autorestart') ?? localStorage.getItem('portly_cfg_autorestart')) === 'true',
-    hide_stopped_servers: (localStorage.getItem('sprint_cfg_hidestopped') ?? localStorage.getItem('portly_cfg_hidestopped')) !== 'false',
-    clean_ansi_logs: (localStorage.getItem('sprint_cfg_cleanansi') ?? localStorage.getItem('portly_cfg_cleanansi')) !== 'false',
-    minimize_to_tray: (localStorage.getItem('sprint_cfg_minimizetotray') ?? localStorage.getItem('portly_cfg_minimizetotray')) !== 'false',
-    notif_windows: (localStorage.getItem('sprint_cfg_notif_windows') ?? localStorage.getItem('portly_cfg_notif_windows')) !== 'false',
-    notif_app: (localStorage.getItem('sprint_cfg_notif_app') ?? localStorage.getItem('portly_cfg_notif_app')) !== 'false',
-    global_shortcut: localStorage.getItem('sprint_cfg_shortcut') || localStorage.getItem('portly_cfg_shortcut') || 'Ctrl+Alt+P',
+export default function SettingsView({
+  projects = [],
+  onOpenUpdateModal,
+  reloadProjects,
+  prefs,
+  onPrefsChange,
+  initialSection = 'appearance',
+}) {
+  const [activeTab, setActiveTab] = useState(initialSection);
+
+  // Unified Settings State
+  const [settings, setSettings] = useState({
+    custom_hex:
+      localStorage.getItem('sprint_custom_hex') ||
+      localStorage.getItem('portly_custom_hex') ||
+      '#a855f7',
+    canvas_bg:
+      (localStorage.getItem('sprint_cfg_canvas') ?? localStorage.getItem('portly_cfg_canvas')) !==
+      'false',
+    auto_restart:
+      (localStorage.getItem('sprint_cfg_autorestart') ??
+        localStorage.getItem('portly_cfg_autorestart')) === 'true',
+    hide_stopped_servers:
+      (localStorage.getItem('sprint_cfg_hidestopped') ??
+        localStorage.getItem('portly_cfg_hidestopped')) !== 'false',
+    clean_ansi_logs:
+      (localStorage.getItem('sprint_cfg_cleanansi') ??
+        localStorage.getItem('portly_cfg_cleanansi')) !== 'false',
+    minimize_to_tray:
+      (localStorage.getItem('sprint_cfg_minimizetotray') ??
+        localStorage.getItem('portly_cfg_minimizetotray')) !== 'false',
+    notif_windows:
+      (localStorage.getItem('sprint_cfg_notif_windows') ??
+        localStorage.getItem('portly_cfg_notif_windows')) !== 'false',
+    notif_app:
+      (localStorage.getItem('sprint_cfg_notif_app') ??
+        localStorage.getItem('portly_cfg_notif_app')) !== 'false',
+    global_shortcut:
+      localStorage.getItem('sprint_cfg_shortcut') ||
+      localStorage.getItem('portly_cfg_shortcut') ||
+      'Ctrl+Alt+P',
     autostart: false,
   });
 
@@ -202,14 +220,20 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
         if (backendSettings) {
           setSettings((prev) => ({ ...prev, ...backendSettings }));
           setHexDraft(backendSettings.custom_hex);
-          applyAccentColor(backendSettings.custom_hex);
+          applyAccent(backendSettings.custom_hex);
           // Sync localStorage
           localStorage.setItem('portly_custom_hex', backendSettings.custom_hex);
           localStorage.setItem('portly_cfg_canvas', String(backendSettings.canvas_bg));
           localStorage.setItem('portly_cfg_autorestart', String(backendSettings.auto_restart));
-          localStorage.setItem('portly_cfg_hidestopped', String(backendSettings.hide_stopped_servers));
+          localStorage.setItem(
+            'portly_cfg_hidestopped',
+            String(backendSettings.hide_stopped_servers),
+          );
           localStorage.setItem('portly_cfg_cleanansi', String(backendSettings.clean_ansi_logs));
-          localStorage.setItem('portly_cfg_minimizetotray', String(backendSettings.minimize_to_tray));
+          localStorage.setItem(
+            'portly_cfg_minimizetotray',
+            String(backendSettings.minimize_to_tray),
+          );
           localStorage.setItem('portly_cfg_notif_windows', String(backendSettings.notif_windows));
           localStorage.setItem('portly_cfg_notif_app', String(backendSettings.notif_app));
           localStorage.setItem('portly_cfg_shortcut', backendSettings.global_shortcut);
@@ -229,7 +253,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
       if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
     },
-    []
+    [],
   );
 
   const showAutoSaved = () => {
@@ -238,19 +262,20 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
     savedTimerRef.current = setTimeout(() => setSavedSuccess(false), 2000);
   };
 
-  const applyAccentColor = (color) => {
-    document.documentElement.style.setProperty('--accent-color', color);
-    document.documentElement.style.setProperty('--accent-color-rgb', hexToRgbStr(color));
-  };
-
   const saveUpdatedSettings = (newSettings, silent = false) => {
     setSettings(newSettings);
     // Sync backend Rust
-    invoke('save_settings_cmd', { settings: newSettings }).catch((e) => {
-      console.warn('Failed to save settings to backend:', e);
-    });
-
-    if (!silent) showAutoSaved();
+    invoke('save_settings_cmd', { settings: newSettings })
+      .then(() => {
+        if (!silent) showAutoSaved();
+      })
+      .catch((error) =>
+        triggerToast({
+          title: 'Enregistrement impossible',
+          message: String(error),
+          type: 'error',
+        }),
+      );
   };
 
   const commitHexColor = (candidate) => {
@@ -258,7 +283,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
     if (isValidHex(trimmed)) {
       setHexError(false);
       setHexDraft(trimmed);
-      applyAccentColor(trimmed);
+      applyAccent(trimmed);
       localStorage.setItem('portly_custom_hex', trimmed);
       const updated = { ...settings, custom_hex: trimmed };
       saveUpdatedSettings(updated);
@@ -293,31 +318,31 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
       await invoke('set_autostart_cmd', { enable: val });
       const updated = { ...settings, autostart: val };
       saveUpdatedSettings(updated);
-     triggerToast({
-       title: val ? '🚀 Démarrage Windows Activé' : '⏹ Démarrage Windows Désactivé',
-       message: val
+      triggerToast({
+        title: val ? '🚀 Démarrage Windows Activé' : '⏹ Démarrage Windows Désactivé',
+        message: val
           ? 'Sprint se lancera automatiquement à la connexion.'
           : 'Sprint ne se lancera plus automatiquement.',
-       type: 'info',
-     });
-   } catch (e) {
-     triggerToast({
-       title: '⚠️ Échec du Réglage OS',
-       message: `Impossible de modifier le démarrage automatique: ${String(e)}`,
-       type: 'error',
-     });
-   }
- };
+        type: 'info',
+      });
+    } catch (e) {
+      triggerToast({
+        title: '⚠️ Échec du Réglage OS',
+        message: `Impossible de modifier le démarrage automatique: ${String(e)}`,
+        type: 'error',
+      });
+    }
+  };
 
- const handleOpenConfigDir = async () => {
-   try {
-     const path = await invoke('open_config_dir_cmd');
-     setConfigDirPath(path);
-     triggerToast({
-       title: '📂 Dossier de Configuration',
+  const handleOpenConfigDir = async () => {
+    try {
+      const path = await invoke('open_config_dir_cmd');
+      setConfigDirPath(path);
+      triggerToast({
+        title: '📂 Dossier de Configuration',
         message: 'Explorateur ouvert dans le dossier AppData/sprint',
-       type: 'info',
-     });
+        type: 'info',
+      });
     } catch (e) {
       triggerToast({
         title: '⚠️ Explorateur',
@@ -411,7 +436,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
     });
   };
 
-  const executeResetDefaults = () => {
+  const executeResetDefaults = async () => {
     const def = {
       custom_hex: '#a855f7',
       canvas_bg: true,
@@ -424,9 +449,24 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
       global_shortcut: 'Ctrl+Alt+P',
       autostart: false,
     };
+    try {
+      await invoke('register_global_shortcut_cmd', {
+        shortcut: def.global_shortcut,
+      });
+      await invoke('set_autostart_cmd', { enable: false });
+      await invoke('save_settings_cmd', { settings: def });
+    } catch (error) {
+      triggerToast({
+        title: 'Réinitialisation incomplète',
+        message: String(error),
+        type: 'error',
+      });
+      return;
+    }
+    onPrefsChange({ ...DEFAULT_PREFS, dashboard: { ...DEFAULT_DASHBOARD } });
     setSettings(def);
     setHexDraft('#a855f7');
-    applyAccentColor('#a855f7');
+    applyAccent('#a855f7');
     localStorage.setItem('portly_custom_hex', '#a855f7');
     localStorage.setItem('portly_cfg_canvas', 'true');
     localStorage.setItem('portly_cfg_autorestart', 'false');
@@ -437,7 +477,7 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
     localStorage.setItem('portly_cfg_notif_app', 'true');
     localStorage.setItem('portly_cfg_shortcut', 'Ctrl+Alt+P');
     window.dispatchEvent(new Event('portly_canvas_toggle'));
-    saveUpdatedSettings(def);
+    showAutoSaved();
     setConfirmReset(false);
     triggerToast({
       title: '🔄 Paramètres Réinitialisés',
@@ -446,637 +486,402 @@ export default function SettingsView({ projects = [], onOpenUpdateModal, reloadP
     });
   };
 
-  const navCategories = [
-    { id: 'appearance', label: 'Apparence' },
-    { id: 'supervision', label: 'Fonctionnement' },
-    { id: 'system', label: 'Système' },
-    { id: 'storage', label: 'Sauvegarde' },
-    { id: 'ai-skill', label: 'Assistants IA' },
-    { id: 'about', label: 'À propos' },
+  const config = dashboardPrefs(prefs?.dashboard);
+  const changeDashboard = (patch) => {
+    onPrefsChange({ dashboard: { ...config, ...patch } });
+    showAutoSaved();
+  };
+  const moveBlock = (id, direction) => {
+    const blocks = [...config.blocks];
+    const index = blocks.indexOf(id);
+    const target = index + direction;
+    if (target < 0 || target >= blocks.length) return;
+    [blocks[index], blocks[target]] = [blocks[target], blocks[index]];
+    changeDashboard({ blocks });
+  };
+  const toggleSetting = (key, storageKey, value) => {
+    localStorage.setItem(storageKey, String(value));
+    saveUpdatedSettings({ ...settings, [key]: value });
+    if (key === 'canvas_bg') window.dispatchEvent(new Event('portly_canvas_toggle'));
+  };
+  const categories = [
+    ['appearance', 'Apparence', 'Thème, couleur et confort de lecture.'],
+    ['dashboard', 'Tableau de bord', 'Composez votre vue d’ensemble.'],
+    ['supervision', 'Serveurs & logs', 'Comportement des serveurs et du journal.'],
+    ['system', 'Système', 'Raccourcis, démarrage et notifications.'],
+    ['storage', 'Sauvegardes', 'Exportez ou restaurez vos projets.'],
+    ['ai-skill', 'Assistants IA', 'Configurez Sprint avec votre assistant.'],
+    ['about', 'À propos', 'Version et mises à jour.'],
   ];
 
-  const SettingRow = ({
-    title,
-    description,
-    checked,
-    onToggle,
-    icon: IconComponent,
-    children,
-  }) => {
-    const labelId = useId();
-    const descId = useId();
-
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        aria-labelledby={labelId}
-        aria-describedby={descId}
-        onClick={() => onToggle && onToggle(!checked)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            if (onToggle) onToggle(!checked);
-          }
-        }}
-        className="py-3.5 flex items-center justify-between gap-6 select-none cursor-pointer border-b border-[var(--line)] last:border-b-0 focus:outline-none focus-visible:bg-white/[0.03] rounded-sm"
-      >
-        <div className="pr-4">
-          <div id={labelId} className="text-[13px] text-zinc-100">
-            {title}
-          </div>
-          <div id={descId} className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
-            {description}
-          </div>
-        </div>
-        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-          {children || <ToggleSwitch checked={!!checked} onChange={(val) => onToggle && onToggle(val)} />}
-        </div>
-      </div>
-    );
-  };
-
-
   return (
-    <div className="w-full max-w-2xl mx-auto animate-fadeIn select-none pb-12">
-      <header className="flex items-end justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-[22px] font-semibold text-zinc-50 tracking-tight">Réglages</h1>
-          <p className="text-[13px] text-zinc-500 mt-1 h-4">
-            {savedSuccess ? (
-              <span className="text-emerald-400 animate-fadeIn">Enregistré</span>
-            ) : (
-              'Vos changements sont enregistrés automatiquement.'
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={() => setConfirmReset(true)}
-            className="h-8 px-2.5 rounded-md text-xs text-zinc-500 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
-            title="Restaurer les valeurs par défaut"
-          >
+    <div className="page workspace-page settings-page animate-fadeIn">
+      <PageHeader
+        title="Paramètres"
+        lead="Une interface à votre façon."
+        actions={
+          <button className="quiet-button" onClick={() => setConfirmReset(true)}>
+            <RotateCcw size={14} />
             Réinitialiser
           </button>
-          {onOpenUpdateModal && (
+        }
+      />
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label="Sections des paramètres">
+          {categories.map(([id, label]) => (
             <button
-              onClick={onOpenUpdateModal}
-              className="h-8 px-3 rounded-md text-xs text-zinc-300 bg-white/[0.05] hover:bg-white/[0.09] transition-colors cursor-pointer"
+              key={id}
+              onClick={() => setActiveTab(id)}
+              aria-current={activeTab === id ? 'page' : undefined}
             >
-              Mises à jour
+              {label}
             </button>
-          )}
-        </div>
-      </header>
-
-      <nav className="flex items-center gap-1 mb-6 overflow-x-auto no-scrollbar" aria-label="Sections des réglages">
-        {navCategories.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveTab(cat.id)}
-            aria-current={activeTab === cat.id ? 'page' : undefined}
-            className={`h-8 px-3 rounded-md text-[13px] whitespace-nowrap transition-colors cursor-pointer ${
-              activeTab === cat.id
-                ? 'bg-white/[0.08] text-white'
-                : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04]'
-            }`}
-          >
-            {cat.label}
-          </button>
-        ))}
-      </nav>
-
-      <div>
-          {/* TAB 1: APPARENCE & THÈMES */}
+          ))}
+        </nav>
+        <div className="settings-content">
+          <div className="settings-section-heading">
+            <h2>{categories.find(([id]) => id === activeTab)?.[1]}</h2>
+            <p>{categories.find(([id]) => id === activeTab)?.[2]}</p>
+          </div>
+          <div className="settings-save-status" role="status">
+            {savedSuccess ? 'Enregistré' : 'Enregistrement automatique'}
+          </div>
           {activeTab === 'appearance' && (
-            <div className="space-y-6 animate-fadeIn">
-              {prefs && onPrefsChange && (
-                <>
-                  <DisplayPrefs prefs={prefs} onChange={onPrefsChange} />
-                  <hr className="border-[var(--line)]" />
-                </>
-              )}
-              <div className="border-b border-[var(--line)] pb-4 flex items-center justify-between">
-                <div>
-                  <h2 className="text-[15px] font-medium text-white flex items-center gap-2 [&>svg]:hidden">
-                    <Palette className="w-5 h-5 theme-accent-text" />
-                    <span>Couleur principale</span>
-                  </h2>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Choisissez la couleur des boutons et des éléments actifs.
-                  </p>
-                </div>
-              </div>
-
-              {/* Custom Hex Picker Input */}
-              <div className="space-y-3">
-                <label htmlFor="hex-custom-input" className="text-xs font-semibold text-zinc-200 block">
-                  Couleur personnalisée
-                </label>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                  {/* Pipette / Native Color Input Swatch */}
-                  <div className="relative group shrink-0">
-                    <div
-                      className="w-11 h-11 rounded-xl border-2 border-[var(--line-strong)] group-hover:scale-105 transition-all flex items-center justify-center cursor-pointer relative overflow-hidden"
-                      style={{
-                        backgroundColor: settings.custom_hex,
-                        boxShadow: `0 0 16px ${settings.custom_hex}70`,
-                      }}
+            <>
+              <DisplayPrefs
+                prefs={prefs}
+                onChange={(patch) => {
+                  onPrefsChange(patch);
+                  showAutoSaved();
+                }}
+              />
+              <section className="settings-group">
+                <h3>Couleur d’accent</h3>
+                <p className="settings-help">Pour les actions et les éléments sélectionnés.</p>
+                <div className="accent-options">
+                  {PRESET_PALETTES.map((palette) => (
+                    <button
+                      key={palette.hex}
+                      aria-label={palette.name}
+                      title={palette.name}
+                      aria-pressed={settings.custom_hex.toLowerCase() === palette.hex.toLowerCase()}
+                      style={{ backgroundColor: palette.hex }}
+                      onClick={() => commitHexColor(palette.hex)}
                     >
-                      <Pipette className="w-4 h-4 text-white opacity-80 group-hover:opacity-100 transition-all" />
-                      <input
-                        type="color"
-                        value={isValidHex(settings.custom_hex) ? settings.custom_hex : '#a855f7'}
-                        onChange={(e) => commitHexColor(e.target.value)}
-                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                        title="Sélectionner une couleur personnalisée"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="relative flex-1">
-                    <Hash className="w-4 h-4 text-zinc-400 absolute left-3 top-3.5" />
-                    <input
-                      id="hex-custom-input"
-                      type="text"
-                      value={hexDraft}
-                      onChange={(e) => {
-                        setHexDraft(e.target.value);
-                        setHexError(false);
-                      }}
-                      onBlur={() => commitHexColor(hexDraft)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') commitHexColor(hexDraft);
-                      }}
-                      placeholder="#a855f7 (Entrée pour valider)"
-                      aria-invalid={hexError}
-                      className={`w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/[0.04] border text-xs font-mono text-white focus:outline-none uppercase font-semibold ${
-                        hexError ? 'border-red-500/60' : 'border-white/[0.1] theme-accent-border'
-                      }`}
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => commitHexColor(hexDraft)}
-                    className="px-4 py-2.5 rounded-xl theme-accent-btn text-white text-xs font-semibold transition-all cursor-pointer shrink-0"
-                  >
+                      {settings.custom_hex.toLowerCase() === palette.hex.toLowerCase() && (
+                        <Check size={15} color="#fff" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="color"
+                    aria-label="Couleur personnalisée"
+                    value={settings.custom_hex}
+                    onChange={(event) => commitHexColor(event.target.value)}
+                    className="color-input"
+                  />
+                  <input
+                    id="hex-custom-input"
+                    aria-label="Code couleur hexadécimal"
+                    className="control-input w-36"
+                    value={hexDraft}
+                    aria-invalid={hexError}
+                    onChange={(event) => {
+                      setHexDraft(event.target.value);
+                      setHexError(false);
+                    }}
+                    onBlur={() => commitHexColor(hexDraft)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') commitHexColor(hexDraft);
+                    }}
+                  />
+                  <button className="btn" onClick={() => commitHexColor(hexDraft)}>
                     Appliquer
                   </button>
                 </div>
-
                 {hexError && (
-                  <p className="text-[11px] text-red-400 font-mono">
-                    Format de couleur invalide. Utilisez un code hexadécimal valide (ex: #a855f7).
+                  <p role="alert" className="text-xs text-rose-400 mt-2">
+                    Utilisez une couleur valide, par exemple #06b6d4.
                   </p>
                 )}
-              </div>
-
-              {/* Preset Curated Palettes Grid */}
-              <div className="space-y-3 pt-4 border-t border-[var(--line)]">
-                <label className="text-xs font-semibold text-zinc-200 block">
-                  Palettes Thématiques Recommandées :
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                  {PRESET_PALETTES.map((p) => {
-                    const isSelected = settings.custom_hex.toLowerCase() === p.hex.toLowerCase();
-                    return (
-                      <button
-                        key={p.hex}
-                        type="button"
-                        onClick={() => commitHexColor(p.hex)}
-                        className={`p-3 rounded-xl flex items-center justify-between border transition-all duration-200 cursor-pointer text-left ${
-                          isSelected
-                            ? 'border-white bg-white/10 scale-[1.02]'
-                            : 'border-[var(--line)] bg-white/[0.03] hover:bg-white/[0.06] hover:border-[var(--line-strong)]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span
-                            className="w-4 h-4 rounded-full border border-[var(--line-strong)] shrink-0"
-                            style={{
-                              backgroundColor: p.hex,
-                              boxShadow: `0 0 8px ${p.hex}80`,
-                            }}
-                          />
-                          <div className="min-w-0">
-                            <div className="text-xs font-semibold text-white truncate">{p.name}</div>
-                            <div className="text-[9px] text-zinc-400 font-mono truncate">{p.hex}</div>
-                          </div>
-                        </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Reactive Canvas Background Toggle */}
-              <div className="pt-4 border-t border-[var(--line)]">
-                <SettingRow
-                  title="Fond Canvas Animé Réactif (Color Bends)"
-                  description="Afficher les douces vagues de lumière colorées interactives en arrière-plan"
-                  checked={settings.canvas_bg}
-                  icon={Layers}
-                  onToggle={(val) => {
-                    localStorage.setItem('portly_cfg_canvas', String(val));
-                    window.dispatchEvent(new Event('portly_canvas_toggle'));
-                    const updated = { ...settings, canvas_bg: val };
-                    saveUpdatedSettings(updated);
-                  }}
-                />
-              </div>
-            </div>
+              </section>
+              <SettingRow
+                title="Arrière-plan animé"
+                description="Une touche de couleur discrète derrière les pages."
+                checked={settings.canvas_bg}
+                onToggle={(value) => toggleSetting('canvas_bg', 'portly_cfg_canvas', value)}
+              />
+              <SettingRow
+                title="Barre latérale compacte"
+                description="Afficher uniquement les icônes de navigation."
+                checked={prefs.sidebarCollapsed}
+                onToggle={(value) => onPrefsChange({ sidebarCollapsed: value })}
+              />
+            </>
           )}
-
-          {/* TAB 2: SUPERVISION & PROCESSUS */}
+          {activeTab === 'dashboard' && (
+            <>
+              <SettingRow
+                title="Mesures affichées"
+                description="Choisissez les ressources que vous souhaitez suivre."
+              >
+                <Select
+                  label="Mesures affichées"
+                  value={config.scope}
+                  options={[
+                    ['projects', 'Mes projets'],
+                    ['system', 'Tout l’ordinateur'],
+                  ]}
+                  onChange={(scope) => changeDashboard({ scope })}
+                />
+              </SettingRow>
+              <SettingRow title="Style des graphiques">
+                <Select
+                  label="Style des graphiques"
+                  value={config.chartStyle}
+                  options={[
+                    ['area', 'Aire'],
+                    ['line', 'Courbe'],
+                    ['bars', 'Barres'],
+                  ]}
+                  onChange={(chartStyle) => changeDashboard({ chartStyle })}
+                />
+              </SettingRow>
+              <SettingRow
+                title="Période visible"
+                description="Historique conservé pendant cette session."
+              >
+                <Select
+                  label="Période visible"
+                  value={config.period}
+                  options={[
+                    [60, '1 minute'],
+                    [300, '5 minutes'],
+                    [900, '15 minutes'],
+                  ]}
+                  onChange={(period) => changeDashboard({ period: Number(period) })}
+                />
+              </SettingRow>
+              <SettingRow
+                title="Affichage compact"
+                description="Réduire l’espacement des statistiques et des serveurs."
+                checked={config.compact}
+                onToggle={(compact) => changeDashboard({ compact })}
+              />
+              <section className="settings-group">
+                <div className="flex justify-between items-baseline">
+                  <h3>Blocs & ordre d’affichage</h3>
+                  <button
+                    className="quiet-button"
+                    onClick={() => changeDashboard(DEFAULT_DASHBOARD)}
+                  >
+                    Restaurer
+                  </button>
+                </div>
+                <p className="settings-help">Masquez les blocs inutiles et déplacez les autres.</p>
+                {config.blocks.map((id, index) => {
+                  const block = DASHBOARD_BLOCKS.find((item) => item.id === id);
+                  return (
+                    <SettingRow key={id} title={block.label} description={block.description}>
+                      <div className="flex gap-2 items-center">
+                        <button
+                          className="icon-button"
+                          aria-label={'Monter ' + block.label}
+                          disabled={index === 0}
+                          onClick={() => moveBlock(id, -1)}
+                        >
+                          <ArrowUp size={14} />
+                        </button>
+                        <button
+                          className="icon-button"
+                          aria-label={'Descendre ' + block.label}
+                          disabled={index === config.blocks.length - 1}
+                          onClick={() => moveBlock(id, 1)}
+                        >
+                          <ArrowDown size={14} />
+                        </button>
+                        <input
+                          type="checkbox"
+                          className="dashboard-checkbox"
+                          aria-label={'Afficher ' + block.label}
+                          checked={!config.hidden.includes(id)}
+                          onChange={(event) =>
+                            changeDashboard({
+                              hidden: event.target.checked
+                                ? config.hidden.filter((hidden) => hidden !== id)
+                                : [...config.hidden, id],
+                            })
+                          }
+                        />
+                      </div>
+                    </SettingRow>
+                  );
+                })}
+              </section>
+            </>
+          )}
           {activeTab === 'supervision' && (
-            <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-[var(--line)] pb-4">
-                <h2 className="text-[15px] font-medium text-white flex items-center gap-2 [&>svg]:hidden">
-                  <Zap className="w-5 h-5 text-amber-400" />
-                  <span>Supervision & Auto-Restart Anti-Crash</span>
-                </h2>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Règles de relance automatique des processus en cas de plantage et options des flux de logs.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <SettingRow
-                  title="Auto-Restart Anti-Crash"
-                  description="Relance automatiquement un serveur de développement s'il plante de manière inattendue (protection crash-loop : max 3 relances en 2 minutes)"
-                  checked={settings.auto_restart}
-                  icon={Zap}
-                  onToggle={(val) => {
-                    localStorage.setItem('portly_cfg_autorestart', String(val));
-                    const updated = { ...settings, auto_restart: val };
-                    saveUpdatedSettings(updated);
-                  }}
-                />
-
-                <SettingRow
-                  title="Filtrage des Serveurs Arrêtés (Consoles)"
-                  description="N'afficher dans la barre d'onglets du terminal que les serveurs actuellement en cours d'exécution pour alléger la vue"
-                  checked={settings.hide_stopped_servers}
-                  icon={Radio}
-                  onToggle={(val) => {
-                    localStorage.setItem('portly_cfg_hidestopped', String(val));
-                    const updated = { ...settings, hide_stopped_servers: val };
-                    saveUpdatedSettings(updated);
-                  }}
-                />
-
-                <SettingRow
-                  title="Nettoyage Automatique des Séquences ANSI"
-                  description="Filtrer et nettoyer les codes ANSI bruts dans les flux de logs tout en conservant la coloration sémantique (erreurs en rouge, succès en vert)"
-                  checked={settings.clean_ansi_logs}
-                  icon={Code}
-                  onToggle={(val) => {
-                    localStorage.setItem('portly_cfg_cleanansi', String(val));
-                    const updated = { ...settings, clean_ansi_logs: val };
-                    saveUpdatedSettings(updated);
-                  }}
-                />
-
-                {/* Auto-Guard RAM Info Banner */}
-                <div className="p-4 rounded-xl bg-white/[0.02] border border-[var(--line)] flex items-start gap-3.5">
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20 mt-0.5">
-                    <Cpu className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-white">Auto-Guard RAM Natif (Moteur Rust)</div>
-                    <div className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
-                      Chaque serveur dispose d'une limite de mémoire RAM configurable individuellement (ex: 500 Mo). Si le processus ou ses sous-processus dépassent ce seuil, le superviseur Rust le redémarre proprement avec un cooldown de sécurité de 30 secondes pour libérer la mémoire.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <>
+              <SettingRow
+                title="Relancer après un crash"
+                description="Jusqu’à 3 tentatives en 2 minutes pour éviter les relances en boucle."
+                checked={settings.auto_restart}
+                onToggle={(value) => toggleSetting('auto_restart', 'portly_cfg_autorestart', value)}
+              />
+              <SettingRow
+                title="Masquer les serveurs arrêtés"
+                description="Le journal s’ouvre sur les serveurs actifs. Vous pouvez toujours afficher les autres."
+                checked={settings.hide_stopped_servers}
+                onToggle={(value) =>
+                  toggleSetting('hide_stopped_servers', 'portly_cfg_hidestopped', value)
+                }
+              />
+              <SettingRow
+                title="Nettoyer les codes ANSI"
+                description="Garder des logs lisibles, avec les erreurs et succès en couleur."
+                checked={settings.clean_ansi_logs}
+                onToggle={(value) =>
+                  toggleSetting('clean_ansi_logs', 'portly_cfg_cleanansi', value)
+                }
+              />
+              <p className="settings-note">
+                Les limites de mémoire se règlent pour chaque serveur dans Projets.
+              </p>
+            </>
           )}
-
-          {/* TAB 3: SYSTÈME & RACCOURCIS */}
           {activeTab === 'system' && (
-            <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-[var(--line)] pb-4">
-                <h2 className="text-[15px] font-medium text-white flex items-center gap-2 [&>svg]:hidden">
-                  <Monitor className="w-5 h-5 text-cyan-400" />
-                  <span>Système, Tray & Raccourcis Globaux</span>
-                </h2>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Intégration avec le système d'exploitation Windows, raccourci global et centre de notifications.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Global Keyboard Shortcut Card */}
-                <div className="glass-card p-4 rounded-xl border border-[var(--line)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-8 h-8 rounded-lg theme-accent-badge flex items-center justify-center shrink-0 mt-0.5">
-                      <Keyboard className="w-4 h-4 theme-accent-text" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold text-white">Raccourci Clavier Global Windows (Show / Hide)</div>
-                      <div className="text-[11px] text-zinc-400 mt-0.5">
-                        Affiche ou masque instantanément Sprint depuis n'importe quelle application
-                      </div>
-                    </div>
-                  </div>
-
-                  <ShortcutRecorder
-                    value={settings.global_shortcut}
-                    onChange={handleUpdateShortcut}
-                  />
-                </div>
-
-                <SettingRow
-                  title="Réduire dans la Barre des Tâches (Bouton Croix X)"
-                  description="Le bouton X masque la fenêtre dans la zone de notification sans couper vos serveurs (décochez pour quitter complètement l'application)"
-                  checked={settings.minimize_to_tray}
-                  icon={Monitor}
-                  onToggle={(val) => {
-                    localStorage.setItem('portly_cfg_minimizetotray', String(val));
-                    const updated = { ...settings, minimize_to_tray: val };
-                    saveUpdatedSettings(updated);
-                  }}
+            <>
+              <SettingRow
+                title="Raccourci global"
+                description="Afficher ou masquer Sprint depuis une autre application."
+              >
+                <ShortcutRecorder
+                  value={settings.global_shortcut}
+                  onChange={handleUpdateShortcut}
                 />
-
-                <SettingRow
-                  title="Démarrage Automatique avec Windows"
-                  description="Lancer Sprint en arrière-plan dès l'ouverture de votre session Windows"
-                  checked={settings.autostart}
-                  icon={Zap}
-                  onToggle={toggleAutoStart}
-                />
-
-                <SettingRow
-                  title="Notifications In-App (Toasts Néons)"
-                  description="Afficher les alertes visuelles flottantes en bas à droite de l'interface Sprint"
-                  checked={settings.notif_app}
-                  icon={Sparkles}
-                  onToggle={(val) => {
-                    localStorage.setItem('portly_cfg_notif_app', String(val));
-                    const updated = { ...settings, notif_app: val };
-                    saveUpdatedSettings(updated);
-                  }}
-                />
-
-                <SettingRow
-                  title="Notifications Systèmes Windows (Action Center)"
-                  description="Transmettre les alertes de démarrage/crash au Centre de Notifications natif de Windows"
-                  checked={settings.notif_windows}
-                  icon={Bell}
-                  onToggle={(val) => {
-                    localStorage.setItem('portly_cfg_notif_windows', String(val));
-                    const updated = { ...settings, notif_windows: val };
-                    saveUpdatedSettings(updated);
-                  }}
-                />
-              </div>
-            </div>
+              </SettingRow>
+              <SettingRow
+                title="Fermer dans la zone de notification"
+                description="La croix masque la fenêtre et laisse vos serveurs en marche."
+                checked={settings.minimize_to_tray}
+                onToggle={(value) =>
+                  toggleSetting('minimize_to_tray', 'portly_cfg_minimizetotray', value)
+                }
+              />
+              <SettingRow
+                title="Lancer avec Windows"
+                checked={settings.autostart}
+                onToggle={toggleAutoStart}
+              />
+              <SettingRow
+                title="Notifications dans Sprint"
+                checked={settings.notif_app}
+                onToggle={(value) => toggleSetting('notif_app', 'portly_cfg_notif_app', value)}
+              />
+              <SettingRow
+                title="Notifications Windows"
+                checked={settings.notif_windows}
+                onToggle={(value) =>
+                  toggleSetting('notif_windows', 'portly_cfg_notif_windows', value)
+                }
+              />
+            </>
           )}
-
-          {/* TAB 4: SAUVEGARDE & STOCKAGE */}
           {activeTab === 'storage' && (
-            <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-[var(--line)] pb-4">
-                <h2 className="text-[15px] font-medium text-white flex items-center gap-2 [&>svg]:hidden">
-                  <HardDrive className="w-5 h-5 text-emerald-400" />
-                  <span>Sauvegarde, Restauration & Stockage</span>
-                </h2>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Gestion des fichiers de configuration, export/import JSON et accès aux données locales.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Storage Location Card with Direct Explorer Open */}
-                <div className="p-4 rounded-xl bg-white/[0.02] border border-[var(--line)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 mt-0.5">
-                      <FolderOpen className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold text-white">Répertoire Local de Configuration</div>
-                      <div className="text-[11px] font-mono text-emerald-400 mt-0.5 truncate max-w-md">
-                        {configDirPath}
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleOpenConfigDir}
-                    className="px-3.5 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-semibold border border-[var(--line)] transition-all flex items-center gap-1.5 cursor-pointer shrink-0 "
-                  >
-                    <FolderOpen className="w-3.5 h-3.5" />
-                    <span>Ouvrir dans l'Explorateur</span>
-                  </button>
-                </div>
-
-                {/* Export / Import Bento Actions */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={handleExportConfig}
-                    className="p-4 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/25 text-left transition-all cursor-pointer group active:scale-[0.99]"
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-                        <Download className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold text-white">Exporter la Configuration</div>
-                        <div className="text-[10px] text-emerald-400 font-mono">Fichier backup .json</div>
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-zinc-300 leading-relaxed">
-                      Télécharger une copie complète de vos projets, serveurs et variables d'environnement.
-                    </p>
-                  </button>
-
-                  <label className="p-4 rounded-xl bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/25 text-left transition-all cursor-pointer group block active:scale-[0.99]">
-                    <input
-                      type="file"
-                      accept=".json"
-                      onChange={handleImportConfig}
-                      className="hidden"
-                    />
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-                        <Upload className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold text-white">Importer une Sauvegarde</div>
-                        <div className="text-[10px] text-blue-400 font-mono">Restaurer .json</div>
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-zinc-300 leading-relaxed">
-                      Restaurer instantanément l'ensemble de vos projets et configurations sur cette machine.
-                    </p>
-                  </label>
-                </div>
-              </div>
-            </div>
+            <>
+              <SettingRow title="Dossier de configuration" description={configDirPath}>
+                <button className="btn" onClick={handleOpenConfigDir}>
+                  Ouvrir le dossier
+                </button>
+              </SettingRow>
+              <SettingRow
+                title="Exporter les projets"
+                description="Télécharger la configuration des projets au format JSON."
+              >
+                <button className="btn" onClick={handleExportConfig}>
+                  Exporter
+                </button>
+              </SettingRow>
+              <SettingRow
+                title="Restaurer une sauvegarde"
+                description="Remplacer la liste de projets par une sauvegarde JSON."
+              >
+                <label className="btn">
+                  Importer
+                  <input
+                    aria-label="Importer une sauvegarde"
+                    type="file"
+                    accept=".json"
+                    onChange={handleImportConfig}
+                    className="sr-only"
+                  />
+                </label>
+              </SettingRow>
+              <p className="settings-note">
+                {projects.length} projets enregistrés ·{' '}
+                {projects.reduce((count, project) => count + (project.servers || []).length, 0)}{' '}
+                serveurs configurés
+              </p>
+            </>
           )}
-
-          {/* TAB 5: SKILL IA & AGENTS */}
           {activeTab === 'ai-skill' && (
-            <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-[var(--line)] pb-4 flex items-center justify-between">
-                <div>
-                  <h2 className="text-[15px] font-medium text-white flex items-center gap-2 [&>svg]:hidden">
-                    <Bot className="w-5 h-5 theme-accent-text" />
-                    <span>Skill IA pour Agents (Claude, Cursor, Antigravity)</span>
-                  </h2>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Permettez à vos agents d'automatiser l'enregistrement de projets dans Sprint avec la commande <code className="font-mono text-emerald-400 font-semibold">/sprint</code>.
-                  </p>
-                </div>
+            <>
+              <p className="settings-help">
+                Le skill Sprint permet à votre assistant de configurer les projets et leurs
+                commandes.
+              </p>
+              <div className="flex gap-2 flex-wrap mt-4">
+                <button className="btn" onClick={handleCopySkill}>
+                  <Copy size={14} />
+                  {copiedSkill ? 'Copié' : 'Copier le skill'}
+                </button>
+                <button className="btn" onClick={handleDownloadSkill}>
+                  <Download size={14} />
+                  Télécharger
+                </button>
               </div>
-
-              <div className="space-y-4">
-                {/* AI Card */}
-                <div className="p-5 rounded-xl bg-[var(--surface-2)] border theme-accent-border space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg theme-accent-btn flex items-center justify-center shrink-0">
-                        <Bot className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold text-white">Skill Officiel Sprint (SKILL.md)</div>
-                        <div className="text-[11px] text-zinc-400 font-mono">
-                          Compatible Claude Code, Cursor, Antigravity, OpenCodex
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={handleCopySkill}
-                        className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-medium border border-[var(--line)] transition-all flex items-center gap-1.5 cursor-pointer "
-                      >
-                        {copiedSkill ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-zinc-300" />}
-                        <span>{copiedSkill ? 'Copié !' : 'Copier Markdown'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleDownloadSkill}
-                        className="px-3.5 py-1.5 rounded-lg theme-accent-btn text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer "
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Télécharger SKILL.md</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-zinc-300 leading-relaxed">
-                    Placez ce fichier dans le répertoire <code className="theme-accent-text font-mono">.agents/skills/sprint/SKILL.md</code> ou <code className="theme-accent-text font-mono">.cursor/skills/</code> de votre projet pour qu'un agent IA configure automatiquement vos serveurs et ports lors de la création d'un nouveau projet.
-                  </p>
-
-                  <div className="p-3.5 rounded-lg bg-black/40 border border-[var(--line)] font-mono text-[11px] text-zinc-300 max-h-48 overflow-y-auto leading-relaxed">
-                    <pre className="whitespace-pre-wrap">{SKILL_MARKDOWN}</pre>
-                  </div>
-                </div>
-              </div>
-            </div>
+              <details className="skill-details">
+                <summary>Voir le contenu du skill</summary>
+                <pre>{SKILL_MARKDOWN}</pre>
+              </details>
+            </>
           )}
-
-          {/* TAB 6: À PROPOS & MISES À JOUR */}
           {activeTab === 'about' && (
-            <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-[var(--line)] pb-4">
-                <h2 className="text-[15px] font-medium text-white flex items-center gap-2 [&>svg]:hidden">
-                  <Info className="w-5 h-5 theme-accent-text" />
-                  <span>À Propos de Sprint</span>
-                </h2>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Informations de version, stack technologique et suivi des mises à jour officielles.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Product Info Bento */}
-                <div className="p-5 rounded-xl glass-card border border-[var(--line)] flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-xl theme-accent-btn flex items-center justify-center">
-                      <Terminal className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
-                        <span>Sprint Developer Supervisor</span>
-                        <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full theme-accent-badge">
-                          v{pkg.version}
-                        </span>
-                      </div>
-                      <div className="text-xs text-zinc-400 mt-0.5">
-                        Moteur natif Rust (Tauri 2) + Interface React 19 & Tailwind CSS 4
-                      </div>
-                    </div>
-                  </div>
-
-                  {onOpenUpdateModal && (
-                    <button
-                      type="button"
-                      onClick={onOpenUpdateModal}
-                      className="px-4 py-2 rounded-lg theme-accent-btn text-white text-xs font-semibold flex items-center gap-2 hover:brightness-110 transition-all cursor-pointer shrink-0"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Rechercher une MAJ</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Tech Specs Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-[var(--line)]">
-                    <div className="text-[11px] text-zinc-400 font-mono">Backend Engine</div>
-                    <div className="text-xs font-semibold text-white mt-1">Rust + Tauri 2.1</div>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-[var(--line)]">
-                    <div className="text-[11px] text-zinc-400 font-mono">Frontend UI</div>
-                    <div className="text-xs font-semibold text-white mt-1">React 19 + Tailwind 4</div>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-[var(--line)]">
-                    <div className="text-[11px] text-zinc-400 font-mono">Architecture</div>
-                    <div className="text-xs font-semibold text-emerald-400 font-mono mt-1">x86_64 Windows</div>
-                  </div>
-                </div>
-
-                {/* GitHub Links Card */}
-                <div className="p-4 rounded-xl bg-white/[0.02] border border-[var(--line)] flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <Code className="w-4 h-4 theme-accent-text" />
-                    <span className="text-xs font-semibold text-white">Code Source & Dépôt GitHub</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => invoke('open_browser', { url: 'https://github.com/NALYD2400/portly' })}
-                    className="px-3.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-white text-xs font-medium border border-[var(--line)] transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span>github.com/NALYD2400/portly</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
-                  </button>
-                </div>
-              </div>
-            </div>
+            <>
+              <SettingRow title="Sprint" description={'Version ' + pkg.version}>
+                <button className="btn" onClick={onOpenUpdateModal}>
+                  Mises à jour
+                </button>
+              </SettingRow>
+              <SettingRow
+                title="Code source"
+                description="Retrouvez le projet et ses versions sur GitHub."
+              >
+                <button
+                  className="btn"
+                  onClick={() =>
+                    invoke('open_browser', {
+                      url: 'https://github.com/NALYD2400/portly',
+                    })
+                  }
+                >
+                  GitHub
+                </button>
+              </SettingRow>
+            </>
           )}
+        </div>
       </div>
-
       <ConfirmDialog
         open={confirmReset}
         title="Réinitialiser les paramètres ?"
-        message="Cette action va réinitialiser le thème, les raccourcis et les préférences d'affichage à leurs valeurs par défaut. Vos projets et serveurs ne seront pas affectés."
-        confirmLabel="Réinitialiser les préférences"
-        danger
+        message="Restaurer les préférences d’affichage, les réglages du tableau de bord et les options de Sprint. Vos projets sont conservés."
+        confirmLabel="Réinitialiser"
         onConfirm={executeResetDefaults}
         onCancel={() => setConfirmReset(false)}
       />
     </div>
   );
 }
-
-
-

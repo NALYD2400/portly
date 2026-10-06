@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { triggerToast } from '../services/toastBus';
 
-const isTauriEnv = () => typeof window !== 'undefined' && (!!window.__TAURI_INTERNALS__ || !!window.__TAURI__);
+const isTauriEnv = () =>
+  typeof window !== 'undefined' && (!!window.__TAURI_INTERNALS__ || !!window.__TAURI__);
 
 const MAX_LOG_LINES = 2000;
 const LOG_BATCH_MS = 100;
@@ -29,7 +30,8 @@ export function parseLogLine(rawText) {
   return {
     clean,
     isError: lower.includes('error') || lower.includes('failed') || lower.includes('uncaught'),
-    isSuccess: lower.includes('ready in') || lower.includes('success') || lower.includes('finished'),
+    isSuccess:
+      lower.includes('ready in') || lower.includes('success') || lower.includes('finished'),
     isInfo: lower.includes('vite') || lower.includes('tauri') || lower.includes('running'),
   };
 }
@@ -85,7 +87,7 @@ if (isTauriEnv()) {
 
 export function useServerLogs(serverId) {
   const [logs, setLogs] = useState(() =>
-    serverId && globalLogCache[serverId] ? [...globalLogCache[serverId]] : []
+    serverId && globalLogCache[serverId] ? [...globalLogCache[serverId]] : [],
   );
 
   useEffect(() => {
@@ -237,14 +239,16 @@ export function useProjects() {
           const { server_id, state } = event.payload;
 
           const wasRunning = projectsRef.current.some((p) =>
-            (p.servers || []).some((s) => s.id === server_id && s.state === 'running')
+            (p.servers || []).some((s) => s.id === server_id && s.state === 'running'),
           );
 
           setProjects((prev) =>
             prev.map((p) => ({
               ...p,
-              servers: (p.servers || []).map((s) => (s.id === server_id ? { ...s, state, pid: null } : s)),
-            }))
+              servers: (p.servers || []).map((s) =>
+                s.id === server_id ? { ...s, state, pid: null } : s,
+              ),
+            })),
           );
 
           // Auto-restart anti-crash : seulement si le serveur tournait, n'a pas
@@ -266,7 +270,13 @@ export function useProjects() {
     };
   }, []);
 
-  return { projects, setProjects, saveProjects, reload: fetchProjects, loading };
+  return {
+    projects,
+    setProjects,
+    saveProjects,
+    reload: fetchProjects,
+    loading,
+  };
 }
 
 export function useSystemMetrics() {
@@ -280,25 +290,43 @@ export function useSystemMetrics() {
     disk_usage_pct: 0,
     uptime_seconds: 0,
   });
+  const [history, setHistory] = useState([]);
 
   useEffect(() => {
     if (!isTauriEnv()) return undefined;
     let unlistenFn = null;
+    let disposed = false;
     import('@tauri-apps/api/event')
       .then(({ listen }) => {
         listen('system-metrics', (event) => {
+          if (disposed) return;
           setMetrics(event.payload);
+          const { cpu_usage, ram_used_mb, managed_cpu_pct, managed_ram_mb } = event.payload;
+          const sample = {
+            cpu_usage,
+            ram_used_mb,
+            managed_cpu_pct,
+            managed_ram_mb,
+            timestamp: Date.now(),
+          };
+          setHistory((previous) =>
+            [
+              ...previous.filter((point) => point.timestamp >= sample.timestamp - 900000),
+              sample,
+            ].slice(-1000),
+          );
         }).then((fn) => {
-          unlistenFn = fn;
+          if (disposed) fn();
+          else unlistenFn = fn;
         });
       })
       .catch(() => {});
 
     return () => {
+      disposed = true;
       if (unlistenFn) unlistenFn();
     };
   }, []);
 
-  return metrics;
+  return { ...metrics, history };
 }
-
