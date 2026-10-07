@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle2, AlertTriangle, XCircle, X, Zap, Info } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 
 export default function ToastContainer() {
   const [toasts, setToasts] = useState([]);
+  const timers = useRef(new Map());
 
   useEffect(() => {
     const handleAddToast = (event) => {
@@ -12,7 +13,7 @@ export default function ToastContainer() {
 
       const isAppEnabled = (localStorage.getItem('sprint_cfg_notif_app') ?? localStorage.getItem('portly_cfg_notif_app')) !== 'false';
      if (isAppEnabled) {
-       setToasts((prev) => [...prev, newToast]);
+       setToasts((prev) => [...prev.filter(toast => toast.id !== id), newToast].slice(-4));
      }
 
       const isWindowsEnabled = (localStorage.getItem('sprint_cfg_notif_windows') ?? localStorage.getItem('portly_cfg_notif_windows')) !== 'false';
@@ -28,17 +29,26 @@ export default function ToastContainer() {
       }
 
       if (duration > 0) {
-        setTimeout(() => {
+        clearTimeout(timers.current.get(id));
+        timers.current.set(id, setTimeout(() => {
+          timers.current.delete(id);
           setToasts((prev) => prev.filter((t) => t.id !== id));
-        }, duration);
+        }, duration));
       }
     };
 
     window.addEventListener('portly-toast', handleAddToast);
-    return () => window.removeEventListener('portly-toast', handleAddToast);
+    const activeTimers = timers.current;
+    return () => {
+      window.removeEventListener('portly-toast', handleAddToast);
+      activeTimers.forEach(clearTimeout);
+      activeTimers.clear();
+    };
   }, []);
 
   const removeToast = (id) => {
+    clearTimeout(timers.current.get(id));
+    timers.current.delete(id);
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
@@ -52,7 +62,7 @@ export default function ToastContainer() {
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 pointer-events-none max-w-sm w-full">
+    <div style={{ zIndex: 'var(--layer-toast)', maxWidth: 'min(24rem, calc(100% - 40px))' }} className="fixed bottom-5 right-5 flex flex-col gap-2.5 pointer-events-none w-full">
       {toasts.map((toast) => {
         const { Icon, color } = kinds[toast.type] || { Icon: Zap, color: 'var(--accent-color)' };
         return (
@@ -61,7 +71,6 @@ export default function ToastContainer() {
             role="status"
             className="pointer-events-auto relative overflow-hidden pl-4 pr-3 py-3 rounded-xl bg-[var(--surface-2)] border border-[var(--line-strong)] shadow-[0_12px_32px_-8px_rgba(0,0,0,0.7)] animate-slideUp flex items-start justify-between gap-3"
           >
-            <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: color }} />
             <div className="flex items-start gap-2.5 min-w-0">
               <Icon className="w-4 h-4 mt-px shrink-0" style={{ color }} />
               <div className="min-w-0">

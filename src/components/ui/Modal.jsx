@@ -1,9 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 const FOCUSABLE_SELECTOR =
   'a[href]:not([tabindex="-1"]), button:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
+const modalStack = [];
+let originalOverflow;
 
 /**
  * Socle unique pour toutes les modals de l'app.
@@ -23,6 +25,8 @@ export default function Modal({
   backdropClassName = '',
 }) {
   const panelRef = useRef(null);
+  const backdropRef = useRef(null);
+  const titleId = useId();
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -31,14 +35,24 @@ export default function Modal({
   useEffect(() => {
     if (!isOpen) return undefined;
 
+    if (!labelledBy) {
+      const heading = panelRef.current?.querySelector('h1, h2, h3, h4, h5, h6');
+      if (heading) {
+        if (!heading.id) heading.id = titleId;
+        backdropRef.current.setAttribute('aria-labelledby', heading.id);
+      }
+    }
+
     const previouslyFocused = document.activeElement;
-    const prevOverflow = document.body.style.overflow;
+    if (!modalStack.length) originalOverflow = document.body.style.overflow;
+    modalStack.push(panelRef.current);
+    backdropRef.current.style.zIndex = 50 + modalStack.length;
     document.body.style.overflow = 'hidden';
 
     // Focus initial sur le premier élément interactif (ou le panneau)
     const focusFrame = requestAnimationFrame(() => {
       const panel = panelRef.current;
-      if (!panel) return;
+      if (!panel || modalStack.at(-1) !== panel) return;
       const focusables = panel.querySelectorAll(FOCUSABLE_SELECTOR);
       if (focusables.length > 0) {
         focusables[0].focus();
@@ -49,16 +63,17 @@ export default function Modal({
     });
 
     const handleKeyDown = (e) => {
+      if (modalStack.at(-1) !== panelRef.current) return;
       if (e.key === 'Escape') {
         if (dismissible) {
           e.preventDefault();
-          e.stopPropagation();
+          e.stopImmediatePropagation();
           onCloseRef.current();
         }
         return;
       }
       if (e.key === 'Tab' && panelRef.current) {
-        const focusables = panelRef.current.querySelectorAll(FOCUSABLE_SELECTOR);
+        const focusables = [...panelRef.current.querySelectorAll(FOCUSABLE_SELECTOR)].filter(element => element.getClientRects().length);
         if (focusables.length === 0) return;
         const first = focusables[0];
         const last = focusables[focusables.length - 1];
@@ -68,7 +83,7 @@ export default function Modal({
         ) {
           e.preventDefault();
           last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
+        } else if (!e.shiftKey && (document.activeElement === last || !panelRef.current.contains(document.activeElement))) {
           e.preventDefault();
           first.focus();
         }
@@ -77,27 +92,31 @@ export default function Modal({
 
     window.addEventListener('keydown', handleKeyDown, true);
 
+    const activePanel = panelRef.current;
     return () => {
       cancelAnimationFrame(focusFrame);
       window.removeEventListener('keydown', handleKeyDown, true);
-      document.body.style.overflow = prevOverflow;
-      if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+      const index = modalStack.indexOf(activePanel);
+      if (index !== -1) modalStack.splice(index, 1);
+      if (!modalStack.length) document.body.style.overflow = originalOverflow;
+      if (previouslyFocused?.isConnected && (!modalStack.length || modalStack.at(-1).contains(previouslyFocused))) {
         previouslyFocused.focus();
       }
     };
-  }, [isOpen, dismissible]);
+  }, [isOpen, dismissible, labelledBy, titleId]);
 
   if (!isOpen) return null;
 
   return createPortal(
     <div
+      ref={backdropRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby={labelledBy}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && dismissible) onClose();
       }}
-      className={`fixed inset-0 z-50 bg-black/75 flex justify-center p-4 select-none animate-fadeIn ${backdropClassName} ${
+      className={`modal-backdrop fixed inset-0 z-50 bg-black/75 flex justify-center p-4 select-none animate-fadeIn ${backdropClassName} ${
         align === 'top' ? 'items-start pt-20' : 'items-center'
       }`}
     >

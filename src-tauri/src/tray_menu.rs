@@ -1,12 +1,16 @@
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicU8, Ordering};
+use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
+use serde::Serialize;
 use tauri::menu::{MenuBuilder, MenuItem, MenuItemBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Listener, Manager};
+use tauri::{
+    AppHandle, Emitter, Listener, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder,
+};
 
-use crate::config_store::load_projects;
+use crate::config_store::{load_projects, ProjectConfig};
 use crate::{shutdown_all_managed_processes, AppState};
 
 const IDLE: u8 = 0;
@@ -21,6 +25,7 @@ struct TrayMenuState {
     quit: MenuItem<tauri::Wry>,
     activity: AtomicU8,
     rendered: Mutex<Option<MenuModel>>,
+    last_double_click: Mutex<Option<Instant>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -65,6 +70,9 @@ fn menu_model(configured: &HashSet<String>, running: &HashSet<String>, activity:
 }
 
 fn show_window(app: &AppHandle) {
+    if let Some(panel) = app.get_webview_window("tray") {
+        let _ = panel.hide();
+    }
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
         let _ = window.unminimize();
@@ -104,6 +112,7 @@ fn refresh(app: &AppHandle) {
         let _ = tray.set_tooltip(Some(format!("Sprint · {}", model.status)));
     }
     *rendered = Some(model);
+    let _ = app.emit("tray-state-changed", ());
 }
 
 pub fn request_refresh(app: &AppHandle) {
@@ -113,14 +122,14 @@ pub fn request_refresh(app: &AppHandle) {
     tauri::async_runtime::spawn_blocking(move || refresh(&app));
 }
 
-fn run_action(app: &AppHandle, activity: u8) {
+fn run_action(app: &AppHandle, activity: u8, server_id: Option<String>) -> Result<(), String> {
     let menu = app.state::<TrayMenuState>();
     if menu
         .activity
         .compare_exchange(IDLE, activity, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
     {
-        return;
+        return Err("Une action est déjà en cours.".to_string());
     }
     let app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
@@ -134,6 +143,9 @@ fn run_action(app: &AppHandle, activity: u8) {
         if activity == STARTING {
             for project in load_projects() {
                 for server in project.servers {
+                    if server_id.as_ref().is_some_and(|id| id != &server.id) {
+                        continue;
+                    }
                     let state = app.state::<Mutex<AppState>>();
                     let guard = state.lock();
                     if guard.process_manager.is_running(&server.id) {
@@ -160,8 +172,11 @@ fn run_action(app: &AppHandle, activity: u8) {
                 .into_keys()
                 .collect();
             for id in ids {
+                if server_id.as_ref().is_some_and(|target| target != &id) {
+                    continue;
+                }
                 let state = app.state::<Mutex<AppState>>();
-                let result = state.lock().process_manager.stop_server(&id);
+                let result = state.lock().process_manager.stop_server(&app, &id);
                 if let Err(error) = result {
                     errors.push(error);
                 }
@@ -176,6 +191,135 @@ fn run_action(app: &AppHandle, activity: u8) {
             let _ = app.emit("tray-action-error", errors.join("\n"));
         }
     });
+    Ok(())
+}
+
+#[derive(Serialize)]
+pub struct TraySnapshot {
+    projects: Vec<ProjectConfig>,
+    activity: u8,
+    running_count: usize,
+}
+
+#[tauri::command]
+pub async fn get_tray_state_cmd(app: AppHandle) -> Result<TraySnapshot, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let running = app
+            .state::<Mutex<AppState>>()
+            .lock()
+            .process_manager
+            .get_active_pids();
+        let mut projects = load_projects();
+        for project in &mut projects {
+            for server in &mut project.servers {
+                if running.contains_key(&server.id) {
+                    server.state = "running".to_string();
+                }
+            }
+        }
+        TraySnapshot {
+            projects,
+            running_count: running.len(),
+            activity: app.state::<TrayMenuState>().activity.load(Ordering::SeqCst),
+        }
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn tray_action_cmd(
+    app: AppHandle,
+    action: String,
+    server_id: Option<String>,
+    tab: Option<String>,
+) -> Result<(), String> {
+    match action.as_str() {
+        "open" => {
+            show_window(&app);
+            if let Some(tab) = tab {
+                if !["dashboard", "projects", "terminal", "settings"].contains(&tab.as_str()) {
+                    return Err("Page inconnue.".to_string());
+                }
+                app.emit(
+                    "tray-navigate",
+                    serde_json::json!({ "tab": tab, "serverId": server_id }),
+                )
+                .map_err(|error| error.to_string())?;
+            }
+            Ok(())
+        }
+        "start-all" => run_action(&app, STARTING, None),
+        "stop-all" => run_action(&app, STOPPING, None),
+        "quit" => run_action(&app, QUITTING, None),
+        "toggle-server" => {
+            let id = server_id.ok_or("Serveur manquant.")?;
+            if !load_projects()
+                .iter()
+                .any(|project| project.servers.iter().any(|server| server.id == id))
+            {
+                return Err("Ce serveur n’existe plus.".to_string());
+            }
+            let running = app
+                .state::<Mutex<AppState>>()
+                .lock()
+                .process_manager
+                .is_running(&id);
+            run_action(&app, if running { STOPPING } else { STARTING }, Some(id))
+        }
+        _ => Err("Action inconnue.".to_string()),
+    }
+}
+
+fn panel_position(cursor: (f64, f64), size: (f64, f64), area: (f64, f64, f64, f64)) -> (i32, i32) {
+    let (left, top, width, height) = area;
+    let x =
+        (cursor.0 - size.0 + 16.0).clamp(left + 8.0, (left + width - size.0 - 8.0).max(left + 8.0));
+    let y =
+        (cursor.1 - size.1 - 12.0).clamp(top + 8.0, (top + height - size.1 - 8.0).max(top + 8.0));
+    (x.round() as i32, y.round() as i32)
+}
+
+fn show_panel(app: &AppHandle, cursor: PhysicalPosition<f64>) {
+    let Some(panel) = app.get_webview_window("tray") else {
+        show_window(app);
+        return;
+    };
+    if let Ok(monitors) = panel.available_monitors() {
+        let monitor = monitors.into_iter().find(|monitor| {
+            let p = monitor.position();
+            let s = monitor.size();
+            cursor.x >= p.x as f64
+                && cursor.x < p.x as f64 + s.width as f64
+                && cursor.y >= p.y as f64
+                && cursor.y < p.y as f64 + s.height as f64
+        });
+        if let Some(monitor) = monitor {
+            let area = monitor.work_area();
+            let scale = monitor.scale_factor();
+            let width = 360.0_f64
+                .min(area.size.width as f64 / scale - 16.0)
+                .max(1.0);
+            let height = 540.0_f64
+                .min(area.size.height as f64 / scale - 16.0)
+                .max(1.0);
+            let _ = panel.set_size(tauri::LogicalSize::new(width, height));
+            let (x, y) = panel_position(
+                (cursor.x, cursor.y),
+                (width * scale, height * scale),
+                (
+                    area.position.x as f64,
+                    area.position.y as f64,
+                    area.size.width as f64,
+                    area.size.height as f64,
+                ),
+            );
+            let _ = panel.set_position(PhysicalPosition::new(x, y));
+        }
+    }
+    let _ = panel.show();
+    let _ = panel.set_focus();
+    let _ = panel.emit("tray-panel-opened", ());
 }
 
 pub fn setup(app: &tauri::App) -> tauri::Result<()> {
@@ -205,11 +349,36 @@ pub fn setup(app: &tauri::App) -> tauri::Result<()> {
         quit,
         activity: AtomicU8::new(IDLE),
         rendered: Mutex::new(None),
+        last_double_click: Mutex::new(None),
     });
+    // A dedicated webview provides the same theme, spacing and server controls as Sprint.
+    // Keep the native menu as a fallback if Windows cannot create the panel.
+    let custom_panel =
+        WebviewWindowBuilder::new(app, "tray", WebviewUrl::App("index.html?tray=1".into()))
+            .title("Sprint · Accès rapide")
+            .inner_size(360.0, 540.0)
+            .decorations(false)
+            .resizable(false)
+            .visible(false)
+            .focused(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .shadow(true)
+            .build();
+    if let Ok(panel) = &custom_panel {
+        let handle = panel.clone();
+        panel.on_window_event(move |event| {
+            if matches!(event, tauri::WindowEvent::Focused(false)) {
+                let _ = handle.hide();
+            }
+        });
+    }
     let mut tray = TrayIconBuilder::with_id("main_tray")
         .tooltip("Sprint")
-        .menu(&menu)
         .show_menu_on_left_click(false);
+    if custom_panel.is_err() {
+        tray = tray.menu(&menu);
+    }
     if let Some(icon) = app.default_window_icon() {
         tray = tray.icon(icon.clone());
     }
@@ -219,18 +388,51 @@ pub fn setup(app: &tauri::App) -> tauri::Result<()> {
             show_window(app);
             let _ = app.emit("tray-navigate", "settings");
         }
-        "tray_start" => run_action(app, STARTING),
-        "tray_stop" => run_action(app, STOPPING),
-        "tray_quit" => run_action(app, QUITTING),
+        "tray_start" => {
+            let _ = run_action(app, STARTING, None);
+        }
+        "tray_stop" => {
+            let _ = run_action(app, STOPPING, None);
+        }
+        "tray_quit" => {
+            let _ = run_action(app, QUITTING, None);
+        }
         _ => {}
     })
     .on_tray_icon_event(|tray, event| {
         if let TrayIconEvent::Click {
-            button: MouseButton::Left,
+            position,
+            button,
             button_state: MouseButtonState::Up,
             ..
         } = event
         {
+            let app = tray.app_handle();
+            if app
+                .state::<TrayMenuState>()
+                .last_double_click
+                .lock()
+                .is_some_and(|time| time.elapsed() < Duration::from_millis(350))
+            {
+                return;
+            }
+            if app.get_webview_window("tray").is_some() {
+                show_panel(app, position);
+            } else if button == MouseButton::Left {
+                show_window(app);
+            }
+        } else if matches!(
+            event,
+            TrayIconEvent::DoubleClick {
+                button: MouseButton::Left,
+                ..
+            }
+        ) {
+            *tray
+                .app_handle()
+                .state::<TrayMenuState>()
+                .last_double_click
+                .lock() = Some(Instant::now());
             show_window(tray.app_handle());
         }
     })
@@ -278,5 +480,25 @@ mod tests {
             let model = menu_model(&ids(&["a", "b"]), &ids(&["a"]), activity);
             assert!(!model.can_start && !model.can_stop && !model.can_quit);
         }
+    }
+
+    #[test]
+    fn panel_stays_inside_the_work_area_on_multiple_monitors() {
+        assert_eq!(
+            panel_position((1900.0, 1060.0), (360.0, 500.0), (0.0, 0.0, 1920.0, 1040.0)),
+            (1552, 532)
+        );
+        assert_eq!(
+            panel_position(
+                (-1900.0, 25.0),
+                (540.0, 750.0),
+                (-1920.0, 0.0, 1920.0, 1040.0)
+            ),
+            (-1912, 8)
+        );
+        assert_eq!(
+            panel_position((15.0, 25.0), (360.0, 500.0), (0.0, 0.0, 1920.0, 1040.0)),
+            (8, 8)
+        );
     }
 }

@@ -8,7 +8,7 @@ import { RefreshCw, LifeBuoy } from 'lucide-react';
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { error: null };
+    this.state = { error: null, resetKey: props.resetKey };
   }
 
   static getDerivedStateFromError(error) {
@@ -19,10 +19,8 @@ export default class ErrorBoundary extends React.Component {
     console.error('Erreur d’interface :', error, info?.componentStack);
   }
 
-  componentDidUpdate(prevProps) {
-    if (this.state.error && prevProps.resetKey !== this.props.resetKey) {
-      this.setState({ error: null });
-    }
+  static getDerivedStateFromProps(props, state) {
+    return props.resetKey !== state.resetKey ? { error: null, resetKey: props.resetKey } : null;
   }
 
   render() {

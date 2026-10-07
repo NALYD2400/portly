@@ -59,22 +59,26 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
 
   // Charger le contenu du fichier sélectionné
   useEffect(() => {
+    let disposed = false;
     if (isModalOpen && projectRoot && selectedFile) {
       setLoading(true);
       setError('');
       setShowSecrets(false);
       invoke('read_env_file', { projectRoot, fileName: selectedFile })
         .then((res) => {
+          if (disposed) return;
           setContent(res || '');
           setSavedContent(res || '');
         })
         .catch((err) => {
+          if (disposed) return;
           setError(String(err));
           setContent('');
           setSavedContent('');
         })
-        .finally(() => setLoading(false));
+        .finally(() => { if (!disposed) setLoading(false); });
     }
+    return () => { disposed = true; };
   }, [isModalOpen, projectRoot, selectedFile]);
 
   useEffect(

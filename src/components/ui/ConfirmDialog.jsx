@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, HelpCircle } from 'lucide-react';
 import Modal from './Modal';
 
@@ -16,8 +16,14 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }) {
+  const [busy, setBusy] = useState(false);
+  const confirm = async () => {
+    if (busy) return;
+    setBusy(true);
+    try { await onConfirm(); } finally { setBusy(false); }
+  };
   return (
-    <Modal isOpen={open} onClose={onCancel} maxWidth="max-w-md">
+    <Modal isOpen={open} onClose={onCancel} dismissible={!busy} maxWidth="max-w-md">
       <div className="p-5 space-y-5">
         <div className="flex items-start gap-3.5">
           <div
@@ -37,18 +43,20 @@ export default function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
+            disabled={busy}
             className="h-8 px-3.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white text-xs font-medium border border-[var(--line)] transition-colors cursor-pointer"
           >
             {cancelLabel}
           </button>
           <button
             type="button"
-            onClick={onConfirm}
+            onClick={confirm}
+            disabled={busy}
             className={`h-8 px-3.5 rounded-lg text-white text-xs font-medium transition-colors cursor-pointer ${
               danger ? 'bg-red-600 hover:bg-red-500' : 'theme-accent-btn'
             }`}
           >
-            {confirmLabel}
+            {busy ? 'En cours…' : confirmLabel}
           </button>
         </div>
       </div>

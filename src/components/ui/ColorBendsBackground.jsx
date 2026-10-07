@@ -14,11 +14,11 @@ export default function ColorBendsBackground() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    if (!ctx) return undefined;
     let animationFrameId;
-    let running = true;
-
-    // Le respect de prefers-reduced-motion désactive l'animation continue
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let running = false;
+    let reducedMotion = false;
+    let lastFrame = 0;
 
     let width = (canvas.width = window.innerWidth);
     let height = (canvas.height = window.innerHeight);
@@ -26,24 +26,17 @@ export default function ColorBendsBackground() {
     const handleResize = () => {
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
+      syncRendering();
     };
     window.addEventListener('resize', handleResize);
 
     // L'accent est relu uniquement quand il change (plus de getComputedStyle à chaque frame)
     let cachedRgb = readAccentRgb();
-    let checkCounter = 0;
 
     let time = 0;
 
     const drawFrame = (timestamp) => {
       time = timestamp / 1000;
-
-      if (++checkCounter % 120 === 0) {
-        const current = readAccentRgb();
-        if (current !== cachedRgb) {
-          cachedRgb = current;
-        }
-      }
 
       // Dark space background
       ctx.fillStyle = '#06060c';
@@ -92,31 +85,39 @@ export default function ColorBendsBackground() {
 
     const render = (timestamp) => {
       if (!running) return;
-      drawFrame(reducedMotion ? 0 : timestamp);
+      if (timestamp - lastFrame >= 1000 / 30) {
+        drawFrame(timestamp);
+        lastFrame = timestamp;
+      }
       animationFrameId = requestAnimationFrame(render);
     };
 
     // Pause du rendu quand la fenêtre est masquée (économie CPU/GPU)
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        if (!running) {
-          running = true;
-          animationFrameId = requestAnimationFrame(render);
-        }
-      } else {
-        running = false;
-        cancelAnimationFrame(animationFrameId);
+    const syncRendering = () => {
+      cancelAnimationFrame(animationFrameId);
+      running = false;
+      const root = document.documentElement;
+      reducedMotion = root.dataset.motion === 'reduce';
+      cachedRgb = readAccentRgb();
+      if (document.hidden || root.dataset.theme === 'light') return;
+      drawFrame(reducedMotion ? 0 : performance.now());
+      if (!reducedMotion) {
+        running = true;
+        lastFrame = 0;
+        animationFrameId = requestAnimationFrame(render);
       }
     };
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    render(0);
+    document.addEventListener('visibilitychange', syncRendering);
+    const observer = new MutationObserver(syncRendering);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-motion', 'style'] });
+    syncRendering();
 
     return () => {
       running = false;
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
-      document.removeEventListener('visibilitychange', handleVisibility);
+      document.removeEventListener('visibilitychange', syncRendering);
+      observer.disconnect();
     };
   }, []);
 

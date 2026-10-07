@@ -5,7 +5,7 @@ import { Folder, X, Plus, Sparkles, Server } from 'lucide-react';
 import Modal from '../ui/Modal';
 
 const isValidPort = (value) => {
-  const n = parseInt(value, 10);
+  const n = Number(value);
   return Number.isInteger(n) && n >= 1 && n <= 65535;
 };
 
@@ -18,6 +18,7 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
   const [serverPort, setServerPort] = useState('3000');
   const [color, setColor] = useState('#a855f7');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const handleSelectFolder = async () => {
     try {
@@ -51,9 +52,10 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!folderPath || !projectName) return;
+    if (saving || !folderPath || !projectName.trim()) return;
+    if (!serverCommand.trim()) { setError('La commande de lancement est obligatoire.'); return; }
 
     if (!isValidPort(serverPort)) {
       setError('Le port TCP doit être un nombre entre 1 et 65535.');
@@ -62,7 +64,7 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
 
     const newProject = {
       id: `prj_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`}`,
-      name: projectName,
+      name: projectName.trim(),
       root: folderPath,
       color,
       icon: stackInfo?.icon || 'package',
@@ -71,7 +73,7 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
         {
           id: `srv_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`}`,
           name: 'dev',
-          command: serverCommand,
+          command: serverCommand.trim(),
           port: parseInt(serverPort, 10),
           ramLimit: 500,
           state: 'stopped',
@@ -81,12 +83,15 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
       ],
     };
 
-    onAddProject(newProject);
+    setSaving(true);
+    let saved;
+    try { saved = await onAddProject(newProject); } finally { setSaving(false); }
+    if (saved === false) { setError('Le projet n’a pas été enregistré. Vérifiez l’erreur et réessayez.'); return; }
     onClose();
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
+    <Modal isOpen={isOpen} onClose={onClose} dismissible={!saving} maxWidth="max-w-lg">
       <div className="p-6 space-y-5">
         <div className="flex items-center justify-between border-b border-[var(--line)] pb-4">
           <div className="flex items-center gap-2">
@@ -101,6 +106,7 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
           <button
             type="button"
             onClick={onClose}
+            disabled={saving}
             aria-label="Fermer"
             className="p-1.5 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
           >
@@ -221,17 +227,18 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
             <button
               type="button"
               onClick={onClose}
+            disabled={saving}
               className="px-4 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 transition-colors cursor-pointer"
             >
               Annuler
             </button>
             <button
               type="submit"
-              disabled={!folderPath || !projectName}
+              disabled={saving || !folderPath || !projectName.trim()}
               className="px-4 py-2 rounded-lg theme-accent-btn text-white font-medium transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" />
-              Ajouter le Projet
+              {saving ? 'Enregistrement…' : 'Ajouter le projet'}
             </button>
           </div>
         </form>

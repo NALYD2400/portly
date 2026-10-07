@@ -25,4 +25,5 @@ dist-ssr
 
 # Tauri build target
 src-tauri/target
+test-results/
 

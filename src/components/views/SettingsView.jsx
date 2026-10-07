@@ -10,6 +10,7 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 import DisplayPrefs from '../ui/DisplayPrefs';
 import pkg from '../../../package.json';
 import { applyAccent } from '../../services/accent';
+import { syncStoredSettings } from '../../services/settingsStorage';
 
 function isValidHex(hex) {
   return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex);
@@ -168,6 +169,7 @@ export default function SettingsView({
   initialSection = 'appearance',
 }) {
   const [activeTab, setActiveTab] = useState(initialSection);
+  const contentRef = useRef(null);
 
   // Unified Settings State
   const [settings, setSettings] = useState({
@@ -209,43 +211,34 @@ export default function SettingsView({
   const [copiedSkill, setCopiedSkill] = useState(false);
   const [configDirPath, setConfigDirPath] = useState('%APPDATA%/sprint');
   const [confirmReset, setConfirmReset] = useState(false);
+  const [pendingImport, setPendingImport] = useState(null);
+  const [saveState, setSaveState] = useState('');
+  const saveQueue = useRef(Promise.resolve());
+  const saveSequence = useRef(0);
 
   const savedTimerRef = useRef(null);
   const copiedTimerRef = useRef(null);
 
   // Load unified settings from Rust backend at launch
   useEffect(() => {
+    let disposed = false;
     invoke('get_settings_cmd')
       .then((backendSettings) => {
-        if (backendSettings) {
+        if (backendSettings && !disposed && !saveSequence.current) {
           setSettings((prev) => ({ ...prev, ...backendSettings }));
           setHexDraft(backendSettings.custom_hex);
           applyAccent(backendSettings.custom_hex);
-          // Sync localStorage
-          localStorage.setItem('portly_custom_hex', backendSettings.custom_hex);
-          localStorage.setItem('portly_cfg_canvas', String(backendSettings.canvas_bg));
-          localStorage.setItem('portly_cfg_autorestart', String(backendSettings.auto_restart));
-          localStorage.setItem(
-            'portly_cfg_hidestopped',
-            String(backendSettings.hide_stopped_servers),
-          );
-          localStorage.setItem('portly_cfg_cleanansi', String(backendSettings.clean_ansi_logs));
-          localStorage.setItem(
-            'portly_cfg_minimizetotray',
-            String(backendSettings.minimize_to_tray),
-          );
-          localStorage.setItem('portly_cfg_notif_windows', String(backendSettings.notif_windows));
-          localStorage.setItem('portly_cfg_notif_app', String(backendSettings.notif_app));
-          localStorage.setItem('portly_cfg_shortcut', backendSettings.global_shortcut);
+          syncStoredSettings(backendSettings);
         }
       })
       .catch(() => {});
 
     invoke('is_autostart_cmd')
       .then((enabled) => {
-        setSettings((prev) => ({ ...prev, autostart: !!enabled }));
+        if (!disposed) setSettings((prev) => ({ ...prev, autostart: !!enabled }));
       })
       .catch(() => {});
+    return () => { disposed = true; };
   }, []);
 
   useEffect(
@@ -263,19 +256,26 @@ export default function SettingsView({
   };
 
   const saveUpdatedSettings = (newSettings, silent = false) => {
+    const sequence = ++saveSequence.current;
     setSettings(newSettings);
+    setSaveState('saving');
     // Sync backend Rust
-    invoke('save_settings_cmd', { settings: newSettings })
+    saveQueue.current = saveQueue.current.catch(() => {}).then(() => invoke('save_settings_cmd', { settings: newSettings }))
       .then(() => {
-        if (!silent) showAutoSaved();
+        syncStoredSettings(newSettings);
+        if (sequence === saveSequence.current) {
+          setSaveState('');
+          if (!silent) showAutoSaved();
+        }
       })
-      .catch((error) =>
+      .catch((error) => {
+        if (sequence === saveSequence.current) setSaveState('error');
         triggerToast({
           title: 'Enregistrement impossible',
           message: String(error),
           type: 'error',
-        }),
-      );
+        });
+      });
   };
 
   const commitHexColor = (candidate) => {
@@ -393,15 +393,9 @@ export default function SettingsView({
           });
           return;
         }
-        await invoke('save_projects_cmd', { projects: importedData });
-        if (reloadProjects) {
-          await reloadProjects();
-        }
-        triggerToast({
-          title: '✅ Configuration Importée',
-          message: `${importedData.length} projet(s) restauré(s) avec succès.`,
-          type: 'success',
-        });
+        if (importedData.some(project => !project || typeof project.id !== 'string' || typeof project.name !== 'string'
+          || typeof project.root !== 'string' || !Array.isArray(project.servers))) throw new Error('Configuration invalide');
+        setPendingImport({ projects: importedData, name: file.name });
       } catch {
         triggerToast({
           title: "⚠️ Échec de l'Import",
@@ -411,6 +405,18 @@ export default function SettingsView({
       }
     };
     reader.readAsText(file);
+  };
+
+  const restoreImport = async () => {
+    if (!pendingImport) return;
+    try {
+      await invoke('save_projects_cmd', { projects: pendingImport.projects });
+      await reloadProjects?.();
+      setPendingImport(null);
+      triggerToast({ title: 'Projets restaurés', message: 'La sauvegarde a été importée.', type: 'success' });
+    } catch (reason) {
+      triggerToast({ title: 'Restauration impossible', message: String(reason), type: 'error' });
+    }
   };
 
   const handleDownloadSkill = () => {
@@ -423,8 +429,12 @@ export default function SettingsView({
     URL.revokeObjectURL(url);
   };
 
-  const handleCopySkill = () => {
-    navigator.clipboard.writeText(SKILL_MARKDOWN);
+  const handleCopySkill = async () => {
+    try { await navigator.clipboard.writeText(SKILL_MARKDOWN); }
+    catch (reason) {
+      triggerToast({ title: 'Copie impossible', message: String(reason), type: 'error' });
+      return;
+    }
     setCopiedSkill(true);
     if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
     copiedTimerRef.current = setTimeout(() => setCopiedSkill(false), 2000);
@@ -476,6 +486,7 @@ export default function SettingsView({
     localStorage.setItem('portly_cfg_notif_windows', 'true');
     localStorage.setItem('portly_cfg_notif_app', 'true');
     localStorage.setItem('portly_cfg_shortcut', 'Ctrl+Alt+P');
+    syncStoredSettings(def);
     window.dispatchEvent(new Event('portly_canvas_toggle'));
     showAutoSaved();
     setConfirmReset(false);
@@ -499,10 +510,8 @@ export default function SettingsView({
     [blocks[index], blocks[target]] = [blocks[target], blocks[index]];
     changeDashboard({ blocks });
   };
-  const toggleSetting = (key, storageKey, value) => {
-    localStorage.setItem(storageKey, String(value));
+  const toggleSetting = (key, _storageKey, value) => {
     saveUpdatedSettings({ ...settings, [key]: value });
-    if (key === 'canvas_bg') window.dispatchEvent(new Event('portly_canvas_toggle'));
   };
   const categories = [
     ['appearance', 'Apparence', 'Thème, couleur et confort de lecture.'],
@@ -531,20 +540,24 @@ export default function SettingsView({
           {categories.map(([id, label]) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id)}
+              onClick={() => {
+                setActiveTab(id);
+                contentRef.current?.scrollTo({ top: 0 });
+              }}
               aria-current={activeTab === id ? 'page' : undefined}
             >
               {label}
             </button>
           ))}
         </nav>
-        <div className="settings-content">
+        <div className="settings-content" ref={contentRef}>
           <div className="settings-section-heading">
             <h2>{categories.find(([id]) => id === activeTab)?.[1]}</h2>
             <p>{categories.find(([id]) => id === activeTab)?.[2]}</p>
           </div>
           <div className="settings-save-status" role="status">
-            {savedSuccess ? 'Enregistré' : 'Enregistrement automatique'}
+            {saveState === 'saving' ? 'Enregistrement…' : saveState === 'error' ? 'Modifications non enregistrées' : savedSuccess ? 'Enregistré' : 'Enregistrement automatique'}
+            {saveState === 'error' && <button className="quiet-button" onClick={() => saveUpdatedSettings(settings)}>Réessayer</button>}
           </div>
           {activeTab === 'appearance' && (
             <>
@@ -874,6 +887,14 @@ export default function SettingsView({
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={!!pendingImport}
+        title="Restaurer cette sauvegarde ?"
+        message={pendingImport ? `${pendingImport.name} contient ${pendingImport.projects.length} projet(s). Cette liste remplacera vos ${projects.length} projet(s) actuels. Les fichiers et les serveurs en marche sont conservés.` : ''}
+        confirmLabel="Restaurer les projets"
+        onConfirm={restoreImport}
+        onCancel={() => setPendingImport(null)}
+      />
       <ConfirmDialog
         open={confirmReset}
         title="Réinitialiser les paramètres ?"

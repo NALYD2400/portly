@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+static CONFIG_WRITE_LOCK: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
@@ -118,17 +119,21 @@ pub fn get_crash_log_file() -> PathBuf {
 
 /// Écriture atomique : écrit dans un fichier temporaire puis renomme.
 pub fn atomic_write(path: &Path, contents: &str) -> Result<(), String> {
+    let _write_guard = CONFIG_WRITE_LOCK.lock();
     let tmp_path = path.with_extension("tmp");
 
-    fs::write(&tmp_path, contents).map_err(|e| format!("Erreur écriture {}: {}", tmp_path.display(), e))?;
+    fs::write(&tmp_path, contents)
+        .map_err(|e| format!("Erreur écriture {}: {}", tmp_path.display(), e))?;
 
     if path.exists() {
         let bak_path = path.with_extension("bak");
-        let _ = fs::remove_file(&bak_path);
-        let _ = fs::rename(path, &bak_path);
+        // Keep the current file readable until the final atomic replacement.
+        fs::copy(path, &bak_path)
+            .map_err(|e| format!("Erreur sauvegarde {}: {}", bak_path.display(), e))?;
     }
 
-    fs::rename(&tmp_path, path).map_err(|e| format!("Erreur finalisation {}: {}", path.display(), e))?;
+    fs::rename(&tmp_path, path)
+        .map_err(|e| format!("Erreur finalisation {}: {}", path.display(), e))?;
     Ok(())
 }
 
@@ -142,6 +147,9 @@ pub fn load_projects() -> Vec<ProjectConfig> {
                         for srv in &mut prj.servers {
                             srv.state = "stopped".to_string();
                             srv.healthy = false;
+                            if srv.ram_limit == Some(0) {
+                                srv.ram_limit = None;
+                            }
                         }
                     }
                     return projects;
@@ -168,8 +176,90 @@ pub fn load_projects() -> Vec<ProjectConfig> {
 }
 
 pub fn save_projects(projects: &[ProjectConfig]) -> Result<(), String> {
+    validate_projects(projects)?;
     let json = serde_json::to_string_pretty(projects).map_err(|e| e.to_string())?;
     atomic_write(&get_projects_file(), &json)
+}
+
+fn validate_projects(projects: &[ProjectConfig]) -> Result<(), String> {
+    let mut project_ids = std::collections::HashSet::new();
+    let mut server_ids = std::collections::HashSet::new();
+    for project in projects {
+        if project.id.trim().is_empty() || !project_ids.insert(&project.id) {
+            return Err("Chaque projet doit avoir un identifiant unique.".to_string());
+        }
+        if project.name.trim().is_empty() || project.root.trim().is_empty() {
+            return Err("Le nom et le dossier du projet sont obligatoires.".to_string());
+        }
+        for server in &project.servers {
+            if server.id.trim().is_empty() || !server_ids.insert(&server.id) {
+                return Err("Chaque serveur doit avoir un identifiant unique.".to_string());
+            }
+            if server.name.trim().is_empty() || server.command.trim().is_empty() {
+                return Err("Le nom et la commande du serveur sont obligatoires.".to_string());
+            }
+            if server.ram_limit == Some(0) {
+                return Err("La limite RAM doit être supérieure à zéro.".to_string());
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod validation_tests {
+    use super::*;
+    fn project() -> ProjectConfig {
+        serde_json::from_value(serde_json::json!({ "id": "project", "name": "Test", "root": "C:/test", "color": "#a855f7", "icon": "folder", "servers": [
+            { "id": "server", "name": "Dev", "command": "npm run dev", "port": 3000, "state": "stopped", "healthy": false }
+        ] })).unwrap()
+    }
+    #[test]
+    fn imports_reject_duplicate_project_and_server_ids() {
+        let first = project();
+        assert!(validate_projects(&[first.clone()]).is_ok());
+        assert!(validate_projects(&[first.clone(), first.clone()]).is_err());
+        let mut second = first.clone();
+        second.id = "other-project".to_string();
+        assert!(validate_projects(&[first, second]).is_err());
+    }
+    #[test]
+    fn invalid_commands_and_memory_limits_are_rejected_without_writing_files() {
+        let mut invalid = project();
+        invalid.servers[0].command = " ".to_string();
+        assert!(validate_projects(&[invalid]).is_err());
+        let mut invalid = project();
+        invalid.servers[0].ram_limit = Some(0);
+        assert!(validate_projects(&[invalid]).is_err());
+        assert!(validate_projects(&[]).is_ok());
+    }
+
+    #[test]
+    fn concurrent_writes_preserve_the_current_file_and_previous_backup() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir =
+            std::env::temp_dir().join(format!("sprint-write-test-{}-{stamp}", std::process::id()));
+        fs::create_dir(&dir).unwrap();
+        let file = dir.join("config.json");
+        atomic_write(&file, "initial").unwrap();
+        let first_path = file.clone();
+        let second_path = file.clone();
+        let first = std::thread::spawn(move || atomic_write(&first_path, "first"));
+        let second = std::thread::spawn(move || atomic_write(&second_path, "second"));
+        first.join().unwrap().unwrap();
+        second.join().unwrap().unwrap();
+        let current = fs::read_to_string(&file).unwrap();
+        let previous = fs::read_to_string(file.with_extension("bak")).unwrap();
+        assert!(current == "first" || current == "second");
+        assert!(previous == "first" || previous == "second");
+        assert_ne!(current, previous);
+        fs::remove_file(&file).unwrap();
+        fs::remove_file(file.with_extension("bak")).unwrap();
+        fs::remove_dir(&dir).unwrap();
+    }
 }
 
 pub fn get_shortcut_file() -> PathBuf {
@@ -212,7 +302,11 @@ pub fn load_settings() -> AppSettings {
         minimize_to_tray: true,
         notif_windows: true,
         notif_app: true,
-        global_shortcut: if !legacy_shortcut.is_empty() { legacy_shortcut } else { default_shortcut() },
+        global_shortcut: if !legacy_shortcut.is_empty() {
+            legacy_shortcut
+        } else {
+            default_shortcut()
+        },
         autostart: false,
     }
 }

@@ -1,9 +1,9 @@
 use parking_lot::Mutex;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use sysinfo::{Pid, ProcessRefreshKind, RefreshKind, System};
+use sysinfo::{ProcessRefreshKind, RefreshKind, System};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::config_store::load_projects;
@@ -38,28 +38,39 @@ fn collect_metrics(
     system.refresh_memory();
     // Le suivi système reste disponible à l'arrêt, sans scanner les processus.
     if !active_pids.is_empty() {
-        system.refresh_processes_specifics(ProcessRefreshKind::everything());
+        system.refresh_processes_specifics(ProcessRefreshKind::new().with_cpu().with_memory());
     }
 
     let mut server_metrics = HashMap::new();
     let mut total_cpu: f32 = 0.0;
     let mut total_ram_bytes: u64 = 0;
+    let mut children: HashMap<u32, Vec<u32>> = HashMap::new();
+    for (pid, process) in system.processes() {
+        if let Some(parent) = process.parent() {
+            children
+                .entry(parent.as_u32())
+                .or_default()
+                .push(pid.as_u32());
+        }
+    }
+    let cpu_count = system.cpus().len().max(1) as f32;
+    let mut counted = HashSet::new();
 
     for (server_id, root_pid) in active_pids {
         let mut srv_cpu: f32 = 0.0;
         let mut srv_ram: u64 = 0;
 
         // Somme les métriques du process racine et de ses enfants
-        for (pid, process) in system.processes() {
-            let pid_u32 = pid.as_u32();
-            if pid_u32 == *root_pid || is_descendant(system.processes(), pid_u32, *root_pid) {
-                srv_cpu += process.cpu_usage();
+        for pid in descendant_pids(&children, *root_pid) {
+            if let Some(process) = system.process(sysinfo::Pid::from_u32(pid)) {
+                srv_cpu += process.cpu_usage() / cpu_count;
                 srv_ram += process.memory();
+                if counted.insert(pid) {
+                    total_cpu += process.cpu_usage() / cpu_count;
+                    total_ram_bytes += process.memory();
+                }
             }
         }
-
-        total_cpu += srv_cpu;
-        total_ram_bytes += srv_ram;
 
         server_metrics.insert(
             server_id.clone(),
@@ -86,7 +97,7 @@ fn collect_metrics(
 pub fn start_metrics_poller(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let sys = Arc::new(Mutex::new(System::new_with_specifics(
-            RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
+            RefreshKind::new().with_processes(ProcessRefreshKind::new().with_cpu().with_memory()),
         )));
         let last_restart: Arc<Mutex<HashMap<String, Instant>>> =
             Arc::new(Mutex::new(HashMap::new()));
@@ -154,7 +165,14 @@ async fn restart_server(app: &AppHandle, server_id: &str) {
 
     {
         let state = app.state::<Mutex<AppState>>();
-        let _ = state.lock().process_manager.stop_server(server_id);
+        if state
+            .lock()
+            .process_manager
+            .stop_server(app, server_id)
+            .is_err()
+        {
+            return;
+        }
     }
 
     // Laisse le taskkill /T se propager avant de relancer
@@ -176,38 +194,29 @@ async fn restart_server(app: &AppHandle, server_id: &str) {
     }
 }
 
-fn is_descendant(
-    processes: &HashMap<Pid, sysinfo::Process>,
-    target_pid: u32,
-    root_pid: u32,
-) -> bool {
-    let mut current = target_pid;
-    let mut depth = 0;
-    while depth < 32 {
-        if let Some(proc) = processes.get(&Pid::from(current as usize)) {
-            if let Some(parent) = proc.parent() {
-                let parent_u32 = parent.as_u32();
-                if parent_u32 == root_pid {
-                    return true;
-                }
-                if parent_u32 == current {
-                    break;
-                }
-                current = parent_u32;
-                depth += 1;
-            } else {
-                break;
+fn descendant_pids(children: &HashMap<u32, Vec<u32>>, root: u32) -> HashSet<u32> {
+    let mut result = HashSet::new();
+    let mut pending = vec![root];
+    while let Some(pid) = pending.pop() {
+        if result.insert(pid) {
+            if let Some(descendants) = children.get(&pid) {
+                pending.extend(descendants);
             }
-        } else {
-            break;
         }
     }
-    false
+    result
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn descendants_include_nested_children_and_tolerate_cycles() {
+        let tree = HashMap::from([(1, vec![2, 3]), (2, vec![4]), (4, vec![1]), (9, vec![10])]);
+        assert_eq!(descendant_pids(&tree, 1), HashSet::from([1, 2, 3, 4]));
+        assert_eq!(descendant_pids(&tree, 8), HashSet::from([8]));
+    }
 
     #[test]
     fn system_resources_remain_available_without_managed_servers() {

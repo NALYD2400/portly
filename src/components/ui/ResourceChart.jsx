@@ -16,7 +16,10 @@ function ChartPlot({ title, history, field, unit, chartStyle, period, expanded =
   useEffect(() => {
     const observer = new ResizeObserver(([entry]) => {
       if (entry.contentRect.width > 0 && entry.contentRect.height > 0)
-        setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+        setSize((previous) => {
+          const next = { width: entry.contentRect.width, height: entry.contentRect.height };
+          return previous.width === next.width && previous.height === next.height ? previous : next;
+        });
     });
     if (canvasRef.current) observer.observe(canvasRef.current);
     return () => observer.disconnect();

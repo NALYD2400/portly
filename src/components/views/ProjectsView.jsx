@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import FloatingMenu from '../ui/FloatingMenu';
 import { invoke } from '@tauri-apps/api/core';
 import {
   Play,
@@ -21,13 +22,15 @@ import {
 import { triggerToast } from '../../services/toastBus';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import IframePreviewModal from '../modals/IframePreviewModal';
-import { markManualStop } from '../../hooks/useTauriIPC';
+import { markManualStop, unmarkManualStop } from '../../hooks/useTauriIPC';
+import { stopProject } from '../../services/serverActions';
 
 function MenuItem({ icon: Icon, danger, onClick, children }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md transition-colors cursor-pointer text-left ${
+      role="menuitem"
+      className={`w-full flex items-center gap-2.5 px-2.5 min-h-8 py-1.5 rounded-md transition-colors cursor-pointer text-left ${
         danger ? 'text-rose-400 hover:bg-rose-500/10' : 'text-zinc-300 hover:text-white hover:bg-white/[0.06]'
       }`}
     >
@@ -194,6 +197,7 @@ export default function ProjectsView({
         type: 'info',
       });
     } catch (e) {
+      unmarkManualStop(serverId);
       if (String(e).includes("n'est pas en cours")) {
         triggerToast({
           title: '⏹ Serveur déjà arrêté',
@@ -263,23 +267,7 @@ export default function ProjectsView({
   };
 
   const handleStopProjectServers = async (project) => {
-    const runningServers = (project.servers || []).filter((srv) => srv.state === 'running');
-    if (runningServers.length === 0) return;
-
-    for (const srv of runningServers) {
-      markManualStop(srv.id);
-      try {
-        await invoke('stop_server_cmd', { serverId: srv.id });
-      } catch (err) {
-        console.warn('Error stopping server:', err);
-      }
-    }
-
-    triggerToast({
-      title: '⏹ Serveurs Arrêtés',
-      message: `Tous les serveurs du projet "${project.name}" ont été arrêtés.`,
-      type: 'info',
-    });
+    await stopProject(project);
   };
 
   const handleCopyPath = (path) => {
@@ -294,11 +282,11 @@ export default function ProjectsView({
       ? `Supprimer le serveur « ${confirmDeleteTarget.name} » de « ${confirmDeleteTarget.projectName} » ? Sa configuration (commande, port, .env du serveur) sera définitivement perdue.`
       : `Supprimer le projet « ${confirmDeleteTarget.name} » et ses ${confirmDeleteTarget.serverCount ?? 0} serveur(s) configurés ? Les fichiers du projet ne seront PAS touchés, mais la configuration Sprint sera définitivement perdue.`;
 
-  const executeConfirmedDelete = () => {
+  const executeConfirmedDelete = async () => {
     if (!confirmDelete) return;
 
     if (confirmDelete.type === 'project') {
-      saveProjects(projects.filter((p) => p.id !== confirmDelete.projectId));
+      if (await saveProjects(projects.filter((p) => p.id !== confirmDelete.projectId)) === false) return;
       triggerToast({
         title: '🗑 Projet Supprimé',
         message: `« ${confirmDelete.name} » a été retiré de Sprint.`,
@@ -314,7 +302,7 @@ export default function ProjectsView({
         }
         return prj;
       });
-      saveProjects(updatedProjects);
+      if (await saveProjects(updatedProjects) === false) return;
       triggerToast({
         title: '🗑 Serveur Supprimé',
         message: `« ${confirmDelete.name} » a été retiré du projet.`,
@@ -348,9 +336,9 @@ export default function ProjectsView({
   );
 
   return (
-    <div className="animate-fadeIn select-none pb-12 max-w-4xl mx-auto">
+    <div className="projects-page animate-fadeIn select-none pb-12 max-w-4xl mx-auto">
       {/* En-tête */}
-      <div className="flex items-end justify-between gap-4 mb-6">
+      <div className="page-header flex flex-wrap items-end justify-between gap-4 mb-6">
         <div>
           <h1 className="text-[22px] font-semibold text-zinc-50 tracking-tight">Projets</h1>
           <p className="text-[13px] text-zinc-500 mt-1">
@@ -361,7 +349,7 @@ export default function ProjectsView({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="project-tools flex flex-wrap items-center gap-2 min-w-0">
           {projects.length > 0 && (
             <>
               <div className="relative">
@@ -371,7 +359,7 @@ export default function ProjectsView({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Filtrer"
-                  className="pl-8 pr-3 h-8 rounded-md bg-transparent hover:bg-white/[0.04] border border-transparent text-xs text-white placeholder-zinc-600 focus:bg-white/[0.04] w-36 focus:w-52 transition-all"
+                  className="project-filter pl-8 pr-3 h-8 rounded-md bg-transparent hover:bg-white/[0.04] border border-transparent text-xs text-white placeholder-zinc-600 focus:bg-white/[0.04] w-36"
                 />
               </div>
               <button
@@ -486,7 +474,7 @@ export default function ProjectsView({
                       </button>
 
                       {isProjectMenuOpen && (
-                        <div className="absolute right-0 top-full mt-1 w-56 rounded-lg p-1 z-50 text-xs animate-scaleUp bg-[var(--surface-2)] border border-[var(--line-strong)] shadow-xl shadow-black/40">
+                        <FloatingMenu className="rounded-lg p-1 text-xs">
                           <MenuItem
                             icon={Code2}
                             onClick={() => {
@@ -544,7 +532,7 @@ export default function ProjectsView({
                             icon={Edit3}
                             onClick={() => {
                               setOpenMenu(null);
-                              onEditProject && onEditProject(project);
+                              onEditProject?.(project);
                             }}
                           >
                             Modifier le projet
@@ -565,7 +553,7 @@ export default function ProjectsView({
                           >
                             Supprimer le projet
                           </MenuItem>
-                        </div>
+                        </FloatingMenu>
                       )}
                     </div>
                   </div>
@@ -666,7 +654,7 @@ export default function ProjectsView({
                               </button>
 
                               {isServerMenuOpen && (
-                                <div className="absolute right-0 top-full mt-1 w-52 rounded-lg p-1 z-50 text-xs animate-scaleUp bg-[var(--surface-2)] border border-[var(--line-strong)] shadow-xl shadow-black/40">
+                                <FloatingMenu width={208} className="rounded-lg p-1 text-xs">
                                   {(srv.url || srv.port > 0) && (
                                     <MenuItem
                                       icon={Monitor}
@@ -701,8 +689,7 @@ export default function ProjectsView({
                                     icon={Edit3}
                                     onClick={() => {
                                       setOpenMenu(null);
-                                      onEditServer &&
-                                        onEditServer({ projectId: project.id, project, server: srv });
+                                      onEditServer?.({ projectId: project.id, project, server: srv });
                                     }}
                                   >
                                     Modifier le serveur
@@ -724,7 +711,7 @@ export default function ProjectsView({
                                   >
                                     Supprimer le serveur
                                   </MenuItem>
-                                </div>
+                                </FloatingMenu>
                               )}
                             </div>
                           </div>

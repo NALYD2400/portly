@@ -15,7 +15,7 @@ const SUGGESTED_SCRIPTS = [
 ];
 
 const isValidPort = (value) => {
-  const n = parseInt(value, 10);
+  const n = Number(value);
   return Number.isInteger(n) && n >= 1 && n <= 65535;
 };
 
@@ -39,6 +39,15 @@ export default function ServerFormModal({
   const [ramLimit, setRamLimit] = useState('500');
   const [error, setError] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const persist = async updated => {
+    setSaving(true);
+    try {
+      const saved = await saveProjects(updated);
+      if (saved === false) setError('Les modifications n’ont pas été enregistrées. Réessayez.');
+      return saved;
+    } finally { setSaving(false); }
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -59,8 +68,9 @@ export default function ServerFormModal({
 
   if (!isOpen || !project) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
 
     if (!name.trim() || !command.trim()) {
       setError('Le nom et la commande de démarrage sont obligatoires.');
@@ -76,9 +86,9 @@ export default function ServerFormModal({
     if (ramText === '') {
       ram = undefined;
     } else {
-      ram = parseInt(ramText, 10);
-      if (Number.isNaN(ram) || ram < 0) {
-        setError('La limite RAM doit être un nombre positif de mégaoctets.');
+      ram = Number(ramText);
+      if (!Number.isInteger(ram) || ram < 1 || ram > 4294967295) {
+        setError('Indiquez un nombre entier de mégaoctets supérieur à zéro, ou laissez vide pour désactiver la limite.');
         return;
       }
     }
@@ -103,7 +113,7 @@ export default function ServerFormModal({
           ),
         };
       });
-      saveProjects(updatedProjects);
+      if (await persist(updatedProjects) === false) return;
     } else {
       const newServer = {
         id: `srv_${project.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -120,7 +130,7 @@ export default function ServerFormModal({
           ? { ...prj, servers: [...(prj.servers || []), newServer] }
           : prj
       );
-      saveProjects(updatedProjects);
+      if (await persist(updatedProjects) === false) return;
     }
 
     onClose();
@@ -130,7 +140,7 @@ export default function ServerFormModal({
   const label = 'block text-xs text-zinc-400 mb-1.5';
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-md">
+    <Modal isOpen={isOpen} onClose={onClose} dismissible={!saving} maxWidth="max-w-md">
       <div className="flex items-start justify-between px-6 pt-6">
         <div>
           <h3 className="text-base font-semibold text-white tracking-tight">
@@ -141,6 +151,7 @@ export default function ServerFormModal({
         <button
           type="button"
           onClick={onClose}
+            disabled={saving}
           aria-label="Fermer"
           className="w-7 h-7 -mr-1.5 flex items-center justify-center rounded-md text-zinc-500 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
         >
@@ -249,15 +260,17 @@ export default function ServerFormModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={saving}
             className="h-8 px-3 rounded-md text-xs text-zinc-400 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
           >
             Annuler
           </button>
           <button
             type="submit"
+            disabled={saving}
             className="h-8 px-4 rounded-md theme-accent-btn text-xs font-medium cursor-pointer"
           >
-            {isEdit ? 'Enregistrer' : 'Ajouter'}
+            {saving ? 'Enregistrement…' : isEdit ? 'Enregistrer' : 'Ajouter'}
           </button>
         </div>
       </form>

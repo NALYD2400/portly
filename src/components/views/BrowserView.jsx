@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { triggerToast } from '../../services/toastBus';
-import { useServerLogs, markManualStop } from '../../hooks/useTauriIPC';
+import { useServerLogs, markManualStop, unmarkManualStop } from '../../hooks/useTauriIPC';
 import PageHeader from '../ui/PageHeader';
 import PreviewFrame from '../ui/PreviewFrame';
 import Modal from '../ui/Modal';
@@ -82,22 +82,29 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
     }
   }, [initialServerId, initialUrl]);
   useEffect(() => {
-    if (!server?.port) return;
+    setOnline(null);
+    if (!server?.port) return undefined;
     let disposed = false;
+    let checking = false;
     const check = async () => {
+      if (disposed || checking || document.hidden) return;
+      checking = true;
       try {
         const up = await invoke('ping_port_cmd', { port: server.port });
         if (!disposed) setOnline(!!up);
       } catch {
         if (!disposed) setOnline(false);
+      } finally {
+        checking = false;
       }
     };
-    setOnline(null);
     check();
     const timer = setInterval(check, 2500);
+    document.addEventListener('visibilitychange', check);
     return () => {
       disposed = true;
       clearInterval(timer);
+      document.removeEventListener('visibilitychange', check);
     };
   }, [server?.id, server?.port]);
   useEffect(() => {
@@ -192,6 +199,7 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
       await invoke('stop_server_cmd', { serverId: server.id });
       setOnline(false);
     } catch (reason) {
+      unmarkManualStop(server.id);
       triggerToast({
         title: 'Arrêt impossible',
         message: String(reason),

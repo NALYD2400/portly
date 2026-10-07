@@ -226,7 +226,7 @@ export default function PortsView({ projects = [] }) {
                   </th>
                 ))}
                 <th>Protocole</th>
-                <th className="text-right">Actions</th>
+                <th className="ports-actions text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -252,7 +252,7 @@ export default function PortsView({ projects = [] }) {
                       {entry.local_address}
                     </td>
                     <td className="text-xs text-zinc-400">{entry.protocol || 'TCP'}</td>
-                    <td>
+                    <td className="ports-actions">
                       <div className="flex justify-end gap-1">
                         <button
                           className="icon-button"

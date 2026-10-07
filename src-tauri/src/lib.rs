@@ -35,6 +35,7 @@ pub struct AppState {
 
 /// PIDs des tunnels localtunnel actifs, pour les nettoyer à la fermeture.
 static TUNNEL_PIDS: Mutex<Vec<u32>> = Mutex::new(Vec::new());
+static REGISTERED_SHORTCUT: Mutex<Option<String>> = Mutex::new(None);
 
 fn stop_all_tunnels() {
     let pids: Vec<u32> = {
@@ -84,10 +85,17 @@ async fn relaunch_app_cmd(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn get_projects_cmd() -> Result<Vec<ProjectConfig>, String> {
-    tauri::async_runtime::spawn_blocking(|| {
+async fn get_projects_cmd(app: AppHandle) -> Result<Vec<ProjectConfig>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
         let mut projects = load_projects();
+        let active = app.state::<Mutex<AppState>>()
+            .lock().process_manager.get_active_pids();
         for prj in &mut projects {
+            for server in &mut prj.servers {
+                if active.contains_key(&server.id) {
+                    server.state = "running".to_string();
+                }
+            }
             prj.branch = get_git_branch(&prj.root);
             if prj.framework.is_none() {
                 let stack = detect_stack(&prj.root);
@@ -139,7 +147,7 @@ fn start_server_cmd(
 async fn stop_server_cmd(app: AppHandle, server_id: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<Mutex<AppState>>();
-        let result = state.lock().process_manager.stop_server(&server_id);
+        let result = state.lock().process_manager.stop_server(&app, &server_id);
         result
     })
     .await
@@ -491,8 +499,12 @@ fn is_autostart_cmd(app: AppHandle) -> Result<bool, String> {
 }
 
 fn register_shortcut_internal(app: &AppHandle, shortcut: &str) -> Result<(), String> {
-    let _ = app.global_shortcut().unregister_all();
     if shortcut.is_empty() {
+        let mut current = REGISTERED_SHORTCUT.lock();
+        if let Some(previous) = current.as_ref() {
+            app.global_shortcut().unregister(previous.as_str()).map_err(|e| e.to_string())?;
+        }
+        *current = None;
         return Ok(());
     }
 
@@ -506,6 +518,9 @@ fn register_shortcut_internal(app: &AppHandle, shortcut: &str) -> Result<(), Str
     normalized
         .parse::<Shortcut>()
         .map_err(|_| format!("Raccourci clavier invalide : « {} »", shortcut))?;
+
+    let mut current = REGISTERED_SHORTCUT.lock();
+    if current.as_deref() == Some(&normalized) && app.global_shortcut().is_registered(normalized.as_str()) { return Ok(()); }
 
     app.global_shortcut()
         .on_shortcut(normalized.as_str(), move |app_handle, _shortcut, event| {
@@ -528,13 +543,26 @@ fn register_shortcut_internal(app: &AppHandle, shortcut: &str) -> Result<(), Str
             )
         })?;
 
+    if let Some(previous) = current.as_ref() {
+        if let Err(error) = app.global_shortcut().unregister(previous.as_str()) {
+            let _ = app.global_shortcut().unregister(normalized.as_str());
+            return Err(error.to_string());
+        }
+    }
+    *current = Some(normalized);
+
     Ok(())
 }
 
 #[tauri::command]
 fn register_global_shortcut_cmd(app: AppHandle, shortcut: String) -> Result<(), String> {
+    let previous = config_store::load_saved_shortcut();
     register_shortcut_internal(&app, &shortcut)?;
-    config_store::save_saved_shortcut(&shortcut)
+    if let Err(error) = config_store::save_saved_shortcut(&shortcut) {
+        let _ = register_shortcut_internal(&app, &previous);
+        return Err(error);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -629,11 +657,21 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
-                let _ = window.hide();
+                if window.label() != "main" || load_settings().minimize_to_tray {
+                    let _ = window.hide();
+                } else {
+                    let app = window.app_handle().clone();
+                    tauri::async_runtime::spawn_blocking(move || {
+                        shutdown_all_managed_processes(&app);
+                        app.exit(0);
+                    });
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![
             hide_window_cmd,
+            tray_menu::get_tray_state_cmd,
+            tray_menu::tray_action_cmd,
             exit_app,
             relaunch_app_cmd,
             get_projects_cmd,

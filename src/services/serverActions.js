@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { triggerToast } from './toastBus';
-import { markManualStop } from '../hooks/useTauriIPC';
+import { markManualStop, unmarkManualStop } from '../hooks/useTauriIPC';
 
 /** Lance tous les serveurs arrêtés d'un projet. */
 export async function startProject(project) {
@@ -35,24 +35,30 @@ export async function startProject(project) {
 /** Arrête tous les serveurs en marche d'un projet. */
 export async function stopProject(project, { silent = false } = {}) {
   const running = (project.servers || []).filter((s) => s.state === 'running');
+  let failures = 0;
   for (const srv of running) {
     markManualStop(srv.id);
     try {
       await invoke('stop_server_cmd', { serverId: srv.id });
     } catch (e) {
+      unmarkManualStop(srv.id);
       if (!String(e).includes("n'est pas en cours")) {
+        failures++;
         triggerToast({ title: `Impossible d'arrêter ${srv.name}`, message: String(e), type: 'error' });
       }
     }
   }
-  if (!silent && running.length > 0) {
+  if (!silent && running.length > 0 && failures === 0) {
     triggerToast({ title: `${project.name} est arrêté`, message: 'Tout a été arrêté proprement.', type: 'info' });
   }
+  return failures === 0;
 }
 
 export async function stopAll(projects) {
-  for (const p of projects) await stopProject(p, { silent: true });
-  triggerToast({ title: 'Tout est arrêté', message: 'Aucune application ne tourne plus.', type: 'info' });
+  let complete = true;
+  for (const p of projects) { if (!await stopProject(p, { silent: true })) complete = false; }
+  if (complete) triggerToast({ title: 'Tout est arrêté', message: 'Vos serveurs Sprint ont été arrêtés.', type: 'info' });
+  return complete;
 }
 
 export function openUrl(url) {

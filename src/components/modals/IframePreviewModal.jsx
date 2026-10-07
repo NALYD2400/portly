@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { triggerToast } from '../../services/toastBus';
+import Modal from '../ui/Modal';
+import PreviewFrame from '../ui/PreviewFrame';
 
 export default function IframePreviewModal({ isOpen, onClose, url, title }) {
   const [iframeKey, setIframeKey] = useState(0);
@@ -61,27 +63,22 @@ export default function IframePreviewModal({ isOpen, onClose, url, title }) {
     });
   };
 
-  let containerWidthClass = 'w-full';
-  if (deviceMode === 'tablet') containerWidthClass = 'max-w-[768px] mx-auto';
-  if (deviceMode === 'mobile') containerWidthClass = 'max-w-[390px] mx-auto';
-
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 select-none cursor-pointer"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="max-w-6xl"
+      labelledBy="iframe-preview-title"
+      panelClassName="workspace-dialog legacy-preview-dialog"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-[var(--surface-1)] border border-[var(--line)] rounded-2xl w-full max-w-6xl h-[88vh] flex flex-col overflow-hidden cursor-default animate-scaleUp"
-      >
         {/* Browser Top Shell Navigation Bar */}
-        <div className="flex items-center justify-between px-5 py-3.5 bg-[var(--surface-2)] border-b border-[var(--line)] gap-4">
+        <div className="flex flex-wrap shrink-0 items-center justify-between px-5 py-3.5 bg-[var(--surface-2)] border-b border-[var(--line)] gap-4">
           <div className="flex items-center gap-3 shrink-0 min-w-0">
             <div className="w-8 h-8 rounded-lg theme-accent-btn flex items-center justify-center shrink-0">
               <Monitor className="w-4 h-4 text-white" />
             </div>
             <div className="min-w-0">
-              <span className="text-xs font-semibold text-white truncate block max-w-[180px]">
+              <span id="iframe-preview-title" className="text-xs font-semibold text-white truncate block max-w-[180px]">
                 {title || 'Aperçu Web In-App'}
               </span>
               <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-1.5">
@@ -188,21 +185,15 @@ export default function IframePreviewModal({ isOpen, onClose, url, title }) {
         )}
 
         {/* Web Iframe Viewport Container */}
-        <div className="flex-1 bg-[var(--bg-base)] p-4 flex items-center justify-center overflow-hidden relative">
-          <div
-            className={`h-full transition-all duration-300 rounded-xl overflow-hidden border border-[var(--line)] bg-[#fff] ${containerWidthClass}`}
-          >
-            <iframe
-              key={iframeKey}
-              src={url}
-              title={title || 'Web Preview'}
-              className="w-full h-full border-0 bg-[#fff]"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
-          </div>
+        <div className="legacy-preview-stage flex-1 min-h-0 bg-[var(--bg-base)] p-4 overflow-hidden relative">
+          <PreviewFrame
+            frameKey={iframeKey}
+            url={url}
+            name={title || 'Aperçu web'}
+            width={deviceMode === 'mobile' ? 390 : deviceMode === 'tablet' ? 768 : null}
+            height={deviceMode === 'mobile' ? 844 : deviceMode === 'tablet' ? 1024 : null}
+          />
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

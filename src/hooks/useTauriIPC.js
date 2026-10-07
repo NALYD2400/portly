@@ -56,7 +56,7 @@ function flushLogs() {
     const listeners = logListeners.get(serverId);
     if (listeners) {
       for (const fn of listeners) {
-        fn(cache.slice(cache.length - lines.length));
+        fn([...cache]);
       }
     }
   }
@@ -98,15 +98,7 @@ export function useServerLogs(serverId) {
 
     setLogs(globalLogCache[serverId] ? [...globalLogCache[serverId]] : []);
 
-    const onBatch = (batch) => {
-      setLogs((prev) => {
-        const next = prev.concat(batch);
-        if (next.length > MAX_LOG_LINES) {
-          next.splice(0, next.length - MAX_LOG_LINES);
-        }
-        return next;
-      });
-    };
+    const onBatch = (snapshot) => setLogs(snapshot);
 
     let listeners = logListeners.get(serverId);
     if (!listeners) {
@@ -117,11 +109,16 @@ export function useServerLogs(serverId) {
 
     return () => {
       listeners.delete(onBatch);
+      if (!listeners.size) logListeners.delete(serverId);
     };
   }, [serverId]);
 
   const clearLogs = () => {
-    if (serverId) globalLogCache[serverId] = [];
+    if (serverId) {
+      globalLogCache[serverId] = [];
+      pendingLines.delete(serverId);
+      logListeners.get(serverId)?.forEach(listener => listener([]));
+    }
     setLogs([]);
   };
 
@@ -138,6 +135,7 @@ const manualStops = new Set();
 export function markManualStop(serverId) {
   if (serverId) manualStops.add(serverId);
 }
+export function unmarkManualStop(serverId) { manualStops.delete(serverId); }
 
 export function useProjects() {
   const [projects, setProjects] = useState([]);
@@ -167,14 +165,19 @@ export function useProjects() {
   };
 
   const saveProjects = async (updatedProjects) => {
-    setProjects(updatedProjects);
     try {
       if (isTauriEnv()) {
         const { invoke } = await import('@tauri-apps/api/core');
         await invoke('save_projects_cmd', { projects: updatedProjects });
       }
+      setProjects(updatedProjects.map(project => ({ ...project, servers: (project.servers || []).map(server => {
+        const live = projectsRef.current.flatMap(item => item.servers || []).find(item => item.id === server.id);
+        return live ? { ...server, state: live.state, pid: live.pid } : server;
+      }) })));
+      return true;
     } catch (e) {
-      console.warn('Failed to save projects:', e.message);
+      triggerToast({ title: 'Projets non enregistrés', message: String(e), type: 'error' });
+      return false;
     }
   };
 
@@ -185,8 +188,11 @@ export function useProjects() {
 
     // Garde-fou anti crash-loop : max 3 relances par serveur sur 2 minutes.
     const restartTimestamps = new Map();
+    const restartTimers = new Map();
+    let disposed = false;
 
     const scheduleAutoRestart = (serverId) => {
+      if (restartTimers.has(serverId)) return;
       const now = Date.now();
       const recent = (restartTimestamps.get(serverId) || []).filter((t) => now - t < 120_000);
       if (recent.length >= 3) {
@@ -196,7 +202,9 @@ export function useProjects() {
       recent.push(now);
       restartTimestamps.set(serverId, recent);
 
-      setTimeout(async () => {
+      restartTimers.set(serverId, setTimeout(async () => {
+        restartTimers.delete(serverId);
+        if (disposed || manualStops.has(serverId) || localStorage.getItem('portly_cfg_autorestart') !== 'true') return;
         let found = null;
         for (const p of projectsRef.current) {
           for (const s of p.servers || []) {
@@ -207,7 +215,7 @@ export function useProjects() {
           }
           if (found) break;
         }
-        if (!found) return;
+        if (!found || found.server.state === 'running') return;
 
         try {
           const { invoke } = await import('@tauri-apps/api/core');
@@ -229,43 +237,53 @@ export function useProjects() {
             type: 'error',
           });
         }
-      }, 1500);
+      }, 1500));
     };
 
     let unlistenFn = null;
     import('@tauri-apps/api/event')
       .then(({ listen }) => {
         listen('server-status-changed', (event) => {
-          const { server_id, state } = event.payload;
+          if (disposed) return;
+          const { server_id, state, pid, intentional } = event.payload;
+          if (state === 'running' || intentional) {
+            clearTimeout(restartTimers.get(server_id));
+            restartTimers.delete(server_id);
+          }
 
           const wasRunning = projectsRef.current.some((p) =>
             (p.servers || []).some((s) => s.id === server_id && s.state === 'running'),
           );
 
-          setProjects((prev) =>
-            prev.map((p) => ({
+          setProjects((prev) => {
+            const next = prev.map((p) => ({
               ...p,
               servers: (p.servers || []).map((s) =>
-                s.id === server_id ? { ...s, state, pid: null } : s,
+                s.id === server_id ? { ...s, state, pid: pid ?? null } : s,
               ),
-            })),
-          );
+            }));
+            projectsRef.current = next;
+            return next;
+          });
 
           // Auto-restart anti-crash : seulement si le serveur tournait, n'a pas
           // été arrêté manuellement, et que l'option est activée dans les réglages.
-          if (state === 'stopped' && wasRunning && !manualStops.has(server_id)) {
+          if (state === 'stopped' && wasRunning && !intentional && !manualStops.has(server_id)) {
             if (localStorage.getItem('portly_cfg_autorestart') === 'true') {
               scheduleAutoRestart(server_id);
             }
           }
           manualStops.delete(server_id);
         }).then((fn) => {
-          unlistenFn = fn;
+          if (disposed) fn();
+          else unlistenFn = fn;
         });
       })
       .catch(() => {});
 
     return () => {
+      disposed = true;
+      restartTimers.forEach(clearTimeout);
       if (unlistenFn) unlistenFn();
     };
   }, []);

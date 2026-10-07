@@ -50,7 +50,6 @@ export default function DashboardView({ metrics, projects, onSelectTab, onOpenBr
   const cpu = metrics.managed_cpu_pct || 0;
   const ram = metrics.managed_ram_mb || 0;
   const active = metrics.active_servers_count || 0;
-  const activePct = totalProjects > 0 ? Math.min(100, (active / totalProjects) * 100) : 0;
 
   const stats = [
     { label: 'Serveurs actifs', value: String(active), unit: `sur ${totalProjects} projet${totalProjects > 1 ? 's' : ''}` },

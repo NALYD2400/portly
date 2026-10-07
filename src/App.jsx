@@ -4,7 +4,8 @@ import { listen } from '@tauri-apps/api/event';
 import { triggerToast } from './services/toastBus';
 import ColorBendsBackground from './components/ui/ColorBendsBackground';
 import TitleBar from './components/layout/TitleBar';
-import Sidebar, { NAV_ITEMS } from './components/layout/Sidebar';
+import Sidebar from './components/layout/Sidebar';
+import { NAV_ITEMS } from './services/navigation';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 import HelpModal from './components/modals/HelpModal';
 import { loadPrefs, savePrefs, applyPrefs } from './services/prefs';
@@ -82,9 +83,11 @@ export default function App() {
       }).catch((error) => console.warn('Tray event subscription failed:', error));
     };
     subscribe('tray-navigate', ({ payload }) => {
-      if (payload === 'settings') {
+      const tab = typeof payload === 'string' ? payload : payload?.tab;
+      if (['dashboard', 'projects', 'terminal', 'settings'].includes(tab)) {
         setIsPaletteOpen(false);
-        setActiveTab('settings');
+        if (payload?.serverId) setSelectedTerminal({ id: payload.serverId, name: null });
+        setActiveTab(tab);
       }
     });
     subscribe('tray-action-error', ({ payload }) => {
@@ -161,6 +164,7 @@ export default function App() {
         t.isContentEditable);
 
     const handleKeyDown = (e) => {
+      if (e.defaultPrevented || document.querySelector('[aria-modal="true"]')) return;
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
 
@@ -241,11 +245,11 @@ export default function App() {
 
   const handleAddProject = (newProject) => {
     const updated = [...projects, newProject];
-    saveProjects(updated);
+    return saveProjects(updated);
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden relative font-sans text-zinc-100 bg-[var(--bg-base)]">
+    <div className="app-shell flex flex-col overflow-hidden font-sans text-zinc-100 bg-[var(--bg-base)]">
       <a href="#main-content" className="skip-link">
         Aller au contenu
       </a>
@@ -265,7 +269,7 @@ export default function App() {
 
       {/* Main Workspace Layout */}
       <div
-        className="flex-1 flex overflow-hidden z-10"
+        className="flex-1 flex min-h-0 overflow-hidden z-10"
         data-sidebar-collapsed={prefs.sidebarCollapsed ? 'true' : 'false'}
       >
         <Sidebar
@@ -285,7 +289,7 @@ export default function App() {
           id="main-content"
           data-view={activeTab}
           tabIndex={-1}
-          className="flex-1 min-w-0 px-8 lg:px-10 py-7 overflow-y-auto outline-none"
+          className="flex-1 min-w-0 min-h-0 px-8 lg:px-10 py-7 overflow-y-auto outline-none"
         >
           <ErrorBoundary resetKey={activeTab}>
             {loading ? (

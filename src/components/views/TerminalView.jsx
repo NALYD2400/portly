@@ -44,7 +44,7 @@ const LogLine = React.memo(function LogLine({ entry, lineNumber, showRaw }) {
 });
 
 // Single Terminal Panel Component
-function TerminalPanel({ server, titlePrefix = 'Console', servers, onServerChange }) {
+function TerminalPanel({ server, titlePrefix = 'Console' }) {
   const { logs, clearLogs } = useServerLogs(server?.id);
   const [filter, setFilter] = useState('');
   const [autoScroll, setAutoScroll] = useState(true);
@@ -56,12 +56,6 @@ function TerminalPanel({ server, titlePrefix = 'Console', servers, onServerChang
 
   // Réglage utilisateur : nettoyage ANSI des logs
   const showRawAnsi = localStorage.getItem('portly_cfg_cleanansi') === 'false';
-
-  useEffect(() => {
-    if (autoScroll && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [logs, autoScroll]);
 
   const filteredLogs = useMemo(() => {
     const q = filter.toLowerCase();
@@ -77,6 +71,7 @@ function TerminalPanel({ server, titlePrefix = 'Console', servers, onServerChang
   useEffect(() => {
     setExpandedHistory(false);
     setFilter('');
+    setLevel('all');
     setAutoScroll(true);
   }, [server?.id]);
   useEffect(() => () => clearTimeout(copyTimer.current), []);
@@ -85,6 +80,18 @@ function TerminalPanel({ server, titlePrefix = 'Console', servers, onServerChang
     ? 0
     : Math.max(0, filteredLogs.length - MAX_RENDERED_LINES);
   const visibleLogs = expandedHistory ? filteredLogs : filteredLogs.slice(-MAX_RENDERED_LINES);
+
+  useEffect(() => {
+    const screen = scrollRef.current;
+    if (!screen || !autoScroll) return undefined;
+    const follow = () => {
+      screen.scrollTop = screen.scrollHeight;
+    };
+    follow();
+    const observer = new ResizeObserver(follow);
+    observer.observe(screen);
+    return () => observer.disconnect();
+  }, [logs, filter, level, expandedHistory, autoScroll]);
 
   const handleCopyLogs = async () => {
     try {
@@ -117,33 +124,7 @@ function TerminalPanel({ server, titlePrefix = 'Console', servers, onServerChang
     <div className="terminal-panel">
       {/* Panel Header */}
       <div className="terminal-toolbar">
-        <div className="terminal-server-control flex items-center gap-2">
-          <span
-            className={`w-2.5 h-2.5 rounded-full ${
-              server?.state === 'running' ? 'bg-green-500 animate-pulse' : 'bg-gray-600'
-            }`}
-          />
-          <div>
-            <select
-              className="control-input max-w-56"
-              aria-label={titlePrefix}
-              value={server?.id || ''}
-              onChange={(event) => onServerChange(event.target.value)}
-            >
-              {servers.length ? (
-                servers.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.projectName} · {item.name}
-                  </option>
-                ))
-              ) : (
-                <option value="">Aucun serveur</option>
-              )}
-            </select>
-          </div>
-        </div>
-
-        <div className="terminal-actions flex items-center gap-1.5 flex-wrap ml-auto">
+        <div className="terminal-actions flex items-center gap-1.5 flex-wrap w-full">
           <select
             className="control-input"
             aria-label={`Niveau des logs · ${titlePrefix}`}
@@ -247,7 +228,7 @@ function TerminalPanel({ server, titlePrefix = 'Console', servers, onServerChang
                   <span className="text-zinc-300 font-mono">
                     {server?.state === 'running'
                       ? `Écoute active du flux (${server?.command || 'cmd'})...`
-                      : 'Serveur arrêté. Cliquez sur "Lancer" pour démarrer.'}
+                      : 'Serveur arrêté. Utilisez « Lancer » au-dessus de la console.'}
                   </span>
                 </>
               )}
@@ -257,8 +238,11 @@ function TerminalPanel({ server, titlePrefix = 'Console', servers, onServerChang
           <>
             {hiddenByWindow > 0 && (
               <button
-                onClick={() => setExpandedHistory(true)}
-                className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-300 py-1 border-b border-[var(--line)] cursor-pointer sticky top-0 bg-black/80 z-10"
+                onClick={() => {
+                  setAutoScroll(false);
+                  setExpandedHistory(true);
+                }}
+                className="log-history-button"
               >
                 ▲ {hiddenByWindow} lignes plus anciennes masquées — cliquer pour tout afficher
               </button>
@@ -279,220 +263,209 @@ function TerminalPanel({ server, titlePrefix = 'Console', servers, onServerChang
           {filteredLogs.length} lignes
           {filteredLogs.length !== logs.length ? ` sur ${logs.length}` : ''}
         </span>
-        <span>{autoScroll ? 'Suivi en direct' : 'Défilement en pause'}</span>
+        {autoScroll ? (
+          <span>Suivi en direct</span>
+        ) : (
+          <button className="log-resume" onClick={() => setAutoScroll(true)}>
+            <ArrowDown size={12} /> Reprendre le suivi
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ConsoleSelector({ server, servers, number, otherId, onChange, onStart, pending }) {
+  const groups = new Map();
+  for (const item of servers) {
+    if (!groups.has(item.projectId))
+      groups.set(item.projectId, { name: item.projectName, servers: [] });
+    groups.get(item.projectId).servers.push(item);
+  }
+  const running = server?.state === 'running';
+  return (
+    <div className="console-selector">
+      <div className="console-selector-heading">
+        <label htmlFor={'console-server-' + number}>Console {number}</label>
+        <span className="console-status">
+          <span className={'server-dot ' + (running ? 'running' : '')} />
+          {server ? (running ? 'En marche' : 'Arrêté') : 'Aucun serveur'}
+        </span>
+      </div>
+      <div className="console-selector-controls">
+        <select
+          id={'console-server-' + number}
+          className="control-input"
+          aria-label={'Console ' + number}
+          value={server?.id || ''}
+          onChange={(event) => onChange(event.target.value)}
+        >
+          {!server && <option value="">Choisir un serveur</option>}
+          {[...groups].map(([id, group]) => (
+            <optgroup key={id} label={group.name}>
+              {group.servers.map((item) => (
+                <option key={item.id} value={item.id} disabled={item.id === otherId}>
+                  {item.projectName} · {item.name}
+                  {item.port ? ' · :' + item.port : ''}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        {server && !running && (
+          <button
+            className="btn"
+            disabled={pending}
+            onClick={() => onStart(server)}
+            aria-label={'Lancer ' + server.name}
+          >
+            {pending ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+            <span>{pending ? 'Lancement…' : 'Lancer'}</span>
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 export default function TerminalView({ projects = [], initialServerId, onSelectTab }) {
-  // Réglage utilisateur : n'afficher que les serveurs actifs par défaut
   const [showAllServers, setShowAllServers] = useState(
     () => localStorage.getItem('portly_cfg_hidestopped') === 'false',
   );
-
-  // Collect all servers from projects
-  const allServers = useMemo(() => {
-    const list = [];
-    projects.forEach((p) => {
-      (p.servers || []).forEach((s) => {
-        list.push({ ...s, projectName: p.name });
-      });
-    });
-    return list;
-  }, [projects]);
-
-  const runningServers = useMemo(
-    () => allServers.filter((s) => s.state === 'running'),
-    [allServers],
+  const allServers = useMemo(
+    () =>
+      projects.flatMap((project) =>
+        (project.servers || []).map((server) => ({
+          ...server,
+          projectId: project.id,
+          projectName: project.name,
+          projectRoot: project.root,
+        })),
+      ),
+    [projects],
   );
-  const displayServers = showAllServers
-    ? allServers
-    : runningServers.length > 0
-      ? runningServers
-      : allServers;
-
-  const [activeServerId, setActiveServerId] = useState(
-    initialServerId || (displayServers[0] ? displayServers[0].id : null),
-  );
+  const runningServers = allServers.filter((server) => server.state === 'running');
+  const [activeServerId, setActiveServerId] = useState(initialServerId || null);
   const [splitServerId, setSplitServerId] = useState(null);
   const [isSplitMode, setIsSplitMode] = useState(false);
+  const [startingIds, setStartingIds] = useState(new Set());
+  const startingRef = useRef(new Set());
 
   useEffect(() => {
-    if (initialServerId) {
-      setActiveServerId(initialServerId);
-      setShowAllServers(true);
-    }
+    if (initialServerId) setActiveServerId(initialServerId);
   }, [initialServerId]);
 
-  // Primary Server
-  const primaryServer = displayServers.find((s) => s.id === activeServerId) || displayServers[0];
+  // Keep an opened console selected after its server stops, so its last logs remain readable.
+  const primaryServer =
+    allServers.find((server) => server.id === activeServerId) || runningServers[0] || allServers[0];
+  const secondaryServer =
+    allServers.find((server) => server.id === splitServerId && server.id !== primaryServer?.id) ||
+    runningServers.find((server) => server.id !== primaryServer?.id) ||
+    allServers.find((server) => server.id !== primaryServer?.id);
+  const primaryId = primaryServer?.id;
+  const secondaryId = secondaryServer?.id;
+  useEffect(() => {
+    if (primaryId && activeServerId !== primaryId) setActiveServerId(primaryId);
+  }, [primaryId, activeServerId]);
+  useEffect(() => {
+    if (isSplitMode && secondaryId && splitServerId !== secondaryId) setSplitServerId(secondaryId);
+  }, [isSplitMode, secondaryId, splitServerId]);
 
-  // Secondary Server: strictly different from primaryServer
-  let secondaryServer = displayServers.find(
-    (s) => s.id === splitServerId && s.id !== primaryServer?.id,
+  const displayServers = allServers.filter(
+    (server) =>
+      showAllServers ||
+      !runningServers.length ||
+      server.state === 'running' ||
+      server.id === primaryServer?.id ||
+      (isSplitMode && server.id === secondaryServer?.id),
   );
-  if (!secondaryServer) {
-    secondaryServer = displayServers.find((s) => s.id !== primaryServer?.id) || null;
-  }
-
-  const toggleSplitMode = () => {
-    const nextMode = !isSplitMode;
-    setIsSplitMode(nextMode);
-    if (nextMode && (!splitServerId || splitServerId === primaryServer?.id)) {
-      const distinct = displayServers.find((s) => s.id !== primaryServer?.id);
-      if (distinct) setSplitServerId(distinct.id);
-    }
-  };
-
-  const handleStartServer = async (server, project) => {
+  const handleStartServer = async (server) => {
+    if (startingRef.current.has(server.id)) return;
+    startingRef.current.add(server.id);
+    setStartingIds(new Set(startingRef.current));
     try {
       await invoke('start_server_cmd', {
         serverId: server.id,
-        cwd: project.root,
+        cwd: server.projectRoot,
         command: server.command,
         env: server.env || {},
       });
-    } catch (e) {
-      triggerToast({
-        title: 'Lancement impossible',
-        message: String(e),
-        type: 'error',
-      });
+    } catch (error) {
+      triggerToast({ title: 'Lancement impossible', message: String(error), type: 'error' });
+    } finally {
+      startingRef.current.delete(server.id);
+      setStartingIds(new Set(startingRef.current));
     }
   };
 
-  // If 0 servers are running and user hasn't forced "Show All", display clean empty state
-  if (runningServers.length === 0 && !showAllServers) {
-    const stoppedServers = allServers;
+  if (!allServers.length)
     return (
-      <div className="page logs-page animate-fadeIn">
+      <div className="page logs-page">
         <PageHeader title="Logs" />
-        <div className="flex-1 flex flex-col items-center justify-center text-center">
-          <div className="max-w-sm space-y-4">
-            <Terminal className="w-8 h-8 text-zinc-600 mx-auto" />
-            <div>
-              <h2 className="text-sm font-medium text-white">Aucun serveur en cours</h2>
-              <p className="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-                Lancez un serveur depuis vos projets : ses logs s'afficheront ici en direct.
-              </p>
-            </div>
-            <div className="flex items-center justify-center gap-2">
-              <button
-                onClick={() => onSelectTab && onSelectTab('projects')}
-                className="h-8 px-3.5 rounded-md theme-accent-btn text-xs font-medium flex items-center gap-2 cursor-pointer"
-              >
-                <span>Aller aux projets</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-              {stoppedServers.length > 0 && (
-                <button
-                  onClick={() => setShowAllServers(true)}
-                  className="h-8 px-3 rounded-md text-xs text-zinc-400 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
-                >
-                  Voir les serveurs arrêtés ({stoppedServers.length})
-                </button>
-              )}
-            </div>
-          </div>
+        <div className="empty-state flex-1 flex flex-col items-center justify-center gap-3">
+          <Terminal size={28} />
+          <h2 className="text-sm font-medium">Vos consoles apparaîtront ici</h2>
+          <p className="text-xs text-zinc-400">
+            Ajoutez un projet et configurez sa commande de lancement.
+          </p>
+          <button className="btn" onClick={() => onSelectTab?.('projects')}>
+            Aller aux projets <ArrowRight size={14} />
+          </button>
         </div>
       </div>
     );
-  }
 
   return (
     <div className="page logs-page animate-fadeIn">
-      <div className="logs-header flex items-center justify-between select-none">
-        <div>
-          <h1 className="page-title">Logs</h1>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setShowAllServers(!showAllServers)}
-            className="h-8 px-2.5 rounded-md text-xs text-zinc-400 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
-            title="Afficher aussi les serveurs arrêtés"
-          >
-            {showAllServers ? 'Seulement les actifs' : 'Voir tous les serveurs'}
-          </button>
-          <button
-            onClick={toggleSplitMode}
-            className={`h-8 px-2.5 rounded-md text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
-              isSplitMode
-                ? 'bg-white/[0.08] text-white'
-                : 'text-zinc-400 hover:text-white hover:bg-white/[0.05]'
-            }`}
-          >
-            <Columns className="w-3.5 h-3.5" />
-            <span>{isSplitMode ? 'Une console' : 'Deux consoles'}</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="logs-servers flex items-center gap-1 overflow-x-auto no-scrollbar">
-        {displayServers.map((srv) => {
-          const isPrimary = srv.id === primaryServer?.id;
-          const isSecondary = isSplitMode && srv.id === secondaryServer?.id;
-          const isRunning = srv.state === 'running';
-
-          return (
-            <div key={srv.id} className="relative group/tab flex items-center">
-              <button
-                onClick={() => {
-                  if (isSplitMode) {
-                    if (!isPrimary) setSplitServerId(srv.id);
-                  } else {
-                    setActiveServerId(srv.id);
-                  }
-                }}
-                className={`h-8 pl-3 pr-3 rounded-md text-xs flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                  isPrimary || isSecondary
-                    ? 'bg-white/[0.08] text-white'
-                    : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04]'
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${isRunning ? 'bg-emerald-400' : 'bg-zinc-600'}`}
-                />
-                <span>{srv.projectName}</span>
-                <span className="text-zinc-500">{srv.name}</span>
-              </button>
-
-              {!isRunning && (
-                <button
-                  onClick={() => {
-                    const project = projects.find((p) =>
-                      (p.servers || []).some((s) => s.id === srv.id),
-                    );
-                    if (project) handleStartServer(srv, project);
-                  }}
-                  title="Lancer ce serveur"
-                  aria-label={`Lancer ${srv.name}`}
-                  className="w-6 h-6 flex items-center justify-center rounded-md text-emerald-300 hover:bg-emerald-500/15 transition-colors cursor-pointer"
-                >
-                  <Play className="w-3 h-3 fill-current" />
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Main Terminal Grid Area */}
-      <div className={`terminal-grid ${isSplitMode ? 'split' : ''}`}>
-        <TerminalPanel
+      <PageHeader
+        title="Logs"
+        actions={
+          <>
+            <label className="logs-stopped-toggle">
+              <input
+                type="checkbox"
+                checked={showAllServers}
+                onChange={(event) => setShowAllServers(event.target.checked)}
+              />
+              Inclure les arrêtés
+            </label>
+            <button
+              className="quiet-button"
+              onClick={() => setIsSplitMode((value) => !value)}
+              aria-pressed={isSplitMode}
+              disabled={allServers.length < 2}
+              title="Comparer deux flux de logs"
+            >
+              <Columns size={14} /> {isSplitMode ? 'Une console' : 'Deux consoles'}
+            </button>
+          </>
+        }
+      />
+      <div className={'console-selectors ' + (isSplitMode ? 'split' : '')}>
+        <ConsoleSelector
           server={primaryServer}
-          titlePrefix="Console 1"
-          servers={displayServers.filter((item) => !isSplitMode || item.id !== secondaryServer?.id)}
-          onServerChange={setActiveServerId}
+          servers={displayServers}
+          number={1}
+          otherId={isSplitMode ? secondaryServer?.id : null}
+          onChange={setActiveServerId}
+          onStart={handleStartServer}
+          pending={startingIds.has(primaryServer?.id)}
         />
         {isSplitMode && (
-          <TerminalPanel
+          <ConsoleSelector
             server={secondaryServer}
-            titlePrefix="Console 2"
-            servers={displayServers.filter((item) => item.id !== primaryServer?.id)}
-            onServerChange={setSplitServerId}
+            servers={displayServers}
+            number={2}
+            otherId={primaryServer?.id}
+            onChange={setSplitServerId}
+            onStart={handleStartServer}
+            pending={startingIds.has(secondaryServer?.id)}
           />
         )}
+      </div>
+      <div className={'terminal-grid ' + (isSplitMode ? 'split' : '')}>
+        <TerminalPanel server={primaryServer} titlePrefix="Console 1" />
+        {isSplitMode && <TerminalPanel server={secondaryServer} titlePrefix="Console 2" />}
       </div>
     </div>
   );

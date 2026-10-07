@@ -16,6 +16,8 @@ const COLOR_PRESETS = [
 export default function EditProjectModal({ isOpen, onClose, project, projects, saveProjects }) {
   const [name, setName] = useState('');
   const [color, setColor] = useState('#a855f7');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     if (project) {
@@ -24,8 +26,9 @@ export default function EditProjectModal({ isOpen, onClose, project, projects, s
     }
   }, [project]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     const updatedProjects = projects.map((p) => {
       if (p.id === project.id) {
         return {
@@ -37,12 +40,15 @@ export default function EditProjectModal({ isOpen, onClose, project, projects, s
       return p;
     });
 
-    saveProjects(updatedProjects);
+    setSaving(true);
+    let saved;
+    try { saved = await saveProjects(updatedProjects); } finally { setSaving(false); }
+    if (saved === false) { setSaveError('Les modifications n’ont pas été enregistrées. Réessayez.'); return; }
     onClose();
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-md">
+    <Modal isOpen={isOpen} onClose={onClose} dismissible={!saving} maxWidth="max-w-md">
       <div className="p-6 space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--line)] pb-4">
@@ -65,6 +71,7 @@ export default function EditProjectModal({ isOpen, onClose, project, projects, s
           <button
             type="button"
             onClick={onClose}
+            disabled={saving}
             aria-label="Fermer"
             className="p-2 rounded-lg bg-white/[0.04] hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
           >
@@ -74,6 +81,7 @@ export default function EditProjectModal({ isOpen, onClose, project, projects, s
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {saveError && <p role="alert" className="text-xs text-rose-400">{saveError}</p>}
           {/* Project Name */}
           <div>
             <label htmlFor="edit-prj-name" className="block text-xs font-medium text-zinc-400 mb-1.5 font-mono">
@@ -122,12 +130,14 @@ export default function EditProjectModal({ isOpen, onClose, project, projects, s
             <button
               type="button"
               onClick={onClose}
+            disabled={saving}
               className="px-4 py-2.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white text-xs font-semibold border border-[var(--line)] transition-all cursor-pointer "
             >
               Annuler
             </button>
             <button
               type="submit"
+              disabled={saving}
               className="px-5 py-2.5 rounded-lg theme-accent-btn text-white font-semibold text-xs flex items-center gap-2 transition-all cursor-pointer "
             >
               <Save className="w-4 h-4" />

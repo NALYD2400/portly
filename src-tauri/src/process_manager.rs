@@ -21,16 +21,28 @@ pub struct StatusPayload {
     pub server_id: String,
     pub state: String,
     pub pid: Option<u32>,
+    pub intentional: bool,
 }
 
 pub struct ProcessManager {
     processes: Arc<Mutex<HashMap<String, u32>>>,
 }
 
+fn remove_owned_process(processes: &mut HashMap<String, u32>, server_id: &str, pid: u32) -> bool {
+    if processes.get(server_id) != Some(&pid) {
+        return false;
+    }
+    processes.remove(server_id);
+    true
+}
+
 /// Lit les lignes d'un flux de sortie en tolérant l'encodage non-UTF-8
 /// (cp850/cp1252 courant sur Windows FR). `read_until` + `from_utf8_lossy`
 /// remplacent `lines()` qui abandonne silencieusement sur des octets invalides.
-async fn stream_output<R: tokio::io::AsyncBufRead + Unpin, F: Fn(String)>(mut reader: R, emit_line: F) {
+async fn stream_output<R: tokio::io::AsyncBufRead + Unpin, F: Fn(String)>(
+    mut reader: R,
+    emit_line: F,
+) {
     use tokio::io::AsyncBufReadExt;
 
     let mut buf = Vec::with_capacity(512);
@@ -100,6 +112,7 @@ impl ProcessManager {
                 server_id: s_id.clone(),
                 state: "running".to_string(),
                 pid: Some(pid),
+                intentional: false,
             },
         );
 
@@ -149,10 +162,18 @@ impl ProcessManager {
         let app_exit = app_handle.clone();
         let s_exit = s_id.clone();
         tauri::async_runtime::spawn(async move {
-            let _ = child.wait().await;
-            {
+            let exited_normally = child
+                .wait()
+                .await
+                .map(|status| status.success())
+                .unwrap_or(false);
+            let owns_process = {
                 let mut map = processes_ref.lock();
-                map.remove(&s_exit);
+                // A stopped process can exit after a replacement has already started.
+                remove_owned_process(&mut map, &s_exit, pid)
+            };
+            if !owns_process {
+                return;
             }
             let _ = app_exit.emit(
                 "server-status-changed",
@@ -160,6 +181,7 @@ impl ProcessManager {
                     server_id: s_exit,
                     state: "stopped".to_string(),
                     pid: None,
+                    intentional: exited_normally,
                 },
             );
         });
@@ -167,11 +189,9 @@ impl ProcessManager {
         Ok(pid)
     }
 
-    pub fn stop_server(&self, server_id: &str) -> Result<(), String> {
-        let pid_opt = {
-            let mut processes = self.processes.lock();
-            processes.remove(server_id)
-        };
+    pub fn stop_server(&self, app: &AppHandle, server_id: &str) -> Result<(), String> {
+        let mut processes = self.processes.lock();
+        let pid_opt = processes.get(server_id).copied();
 
         if let Some(pid) = pid_opt {
             let mut kill_cmd = std::process::Command::new("taskkill");
@@ -188,6 +208,17 @@ impl ProcessManager {
                     String::from_utf8_lossy(&output.stderr).trim()
                 ));
             }
+            processes.remove(server_id);
+            drop(processes);
+            let _ = app.emit(
+                "server-status-changed",
+                StatusPayload {
+                    server_id: server_id.to_string(),
+                    state: "stopped".to_string(),
+                    pid: None,
+                    intentional: true,
+                },
+            );
             Ok(())
         } else {
             Err("Ce serveur n'est pas en cours d'exécution.".to_string())
@@ -213,5 +244,19 @@ impl ProcessManager {
     pub fn get_active_pids(&self) -> HashMap<String, u32> {
         let processes = self.processes.lock();
         processes.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn late_exit_does_not_remove_a_replacement_process() {
+        let mut running = HashMap::from([("server".to_string(), 222)]);
+        assert!(!remove_owned_process(&mut running, "server", 111));
+        assert_eq!(running["server"], 222);
+        assert!(remove_owned_process(&mut running, "server", 222));
+        assert!(running.is_empty());
+        assert!(!remove_owned_process(&mut running, "server", 222));
     }
 }

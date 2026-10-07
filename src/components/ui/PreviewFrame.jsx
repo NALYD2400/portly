@@ -6,9 +6,12 @@ export default function PreviewFrame({ url, frameKey, width, height, fit = true,
   const [size, setSize] = useState({ width: 0, height: 0 });
   useEffect(() => {
     const observer = new ResizeObserver(([entry]) =>
-      setSize({
-        width: entry.contentRect.width,
-        height: entry.contentRect.height,
+      setSize((previous) => {
+        const next = {
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        };
+        return previous.width === next.width && previous.height === next.height ? previous : next;
       }),
     );
     if (host.current) observer.observe(host.current);

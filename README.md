@@ -5,14 +5,15 @@ Superviseur de processus de développement local haute performance — moteur na
 ## Fonctionnalités
 
 - **Gestion de projets & serveurs** : démarrez/arrêtez vos serveurs de dev (`npm run dev`, `cargo run`, `python main.py`...) avec détection automatique du stack, branche git et éditeur `.env` intégré.
-- **Logs temps réel** : streaming stdout/stderr multi-consoles (vue divisée), filtrage, tolérant aux encodages Windows non-UTF-8, batché pour rester fluide même sur un serveur bavard.
+- **Logs temps réel** : choix du serveur par projet pour chaque console, vue divisée, filtrage et historique conservé après l’arrêt. Affichage batché et limité pour les flux volumineux.
 - **Télémétrie CPU/RAM** : consommation par serveur (process racine + enfants), rafraîchie toutes les 2 s.
  - **Inspecteur de ports TCP** : scan natif via l'API Windows (`GetExtendedTcpTable`) — indépendant de la langue du système — avec identification des serveurs Sprint.
 - **Auto-Restart Anti-Crash** : relance automatique d'un serveur qui plante (max 3 relances / 2 min).
 - **Auto-Guard RAM** : redémarrage automatique d'un serveur qui dépasse sa limite de mémoire configurée (cooldown 30 s).
 - **Tunnels publics** : partage d'un port local via localtunnel en un clic, process tracké et nettoyé à la fermeture.
 - **Palette de commandes** (`Ctrl+K`) : navigation, projets, VS Code, terminaux — entièrement navigable au clavier.
-- **Zone de notification Windows** : accès à Sprint et aux paramètres, compteur de serveurs en direct, démarrage/arrêt groupé en arrière-plan et actions disponibles selon l’état des serveurs.
+- **Zone de notification Windows** : panneau d’accès rapide dans le thème de Sprint, liste et état des serveurs, lancement/arrêt individuel ou groupé, accès aux logs et aux paramètres. Un double-clic ouvre la fenêtre principale ; Échap ou un clic ailleurs ferme le panneau.
+- **Paramètres stables** : navigation fixe et contenu défilant indépendamment, enregistrement avec état d’erreur et nouvelle tentative, aperçu avant restauration d’une sauvegarde.
 - **Thème dynamique** : couleur d'accent personnalisable (#HEX) synchronisée sur toute l'interface, vagues canvas réactives.
 - **Auto-update** : téléchargement des releases GitHub avec validation du domaine source et dossier de staging aléatoire.
 
@@ -37,6 +38,20 @@ npm run tauri dev    # lance l'app en mode développement
 npm run tauri build  # produit l'installateur NSIS (dist/ + src-tauri/target)
 ```
 
+## Vérifications
+
+```bash
+npm run lint
+npm run build
+npm run test:ui
+cd src-tauri
+cargo test --lib
+```
+
+Les tests UI utilisent Playwright avec les mocks IPC officiels de Tauri : ils n’arrêtent aucun processus réel et ne modifient pas votre configuration. Ils démarrent leur propre serveur Vite puis le ferment. Sous Windows, Microsoft Edge est utilisé ; pour Chromium sur un autre système, installez le navigateur avec `npx playwright install chromium`. Les captures et le rapport sont écrits dans `test-results/` (ignoré par Git).
+
+Voir [la revue UI/UX et les corrections](docs/ux-review-2026-10-07.md).
+
 ## Structure
 
 ```
@@ -59,4 +74,4 @@ src-tauri/src/
 
 ## Config utilisateur
 
-`%APPDATA%\portly\projects.json` — écriture atomique (`.tmp` + rename) ; un fichier corrompu est mis en quarantaine (`projects.corrupt-*.json`) plutôt qu'écrasé.
+`%APPDATA%\sprint\projects.json` — écriture atomique (`.tmp` + remplacement) avec sauvegarde de la version précédente (`.bak`). Les configurations Portly sont migrées au premier lancement. Un fichier corrompu est mis en quarantaine (`projects.corrupt-*.json`) plutôt qu'écrasé.

@@ -1,55 +1,14 @@
 import React from 'react';
 import {
-  Home,
-  FolderCode,
-  Network,
-  ScrollText,
   Settings,
   Download,
-  Globe,
   Search,
   PanelLeftClose,
   PanelLeftOpen,
   HelpCircle,
 } from 'lucide-react';
 
-export const NAV_ITEMS = [
-  {
-    id: 'dashboard',
-    label: 'Tableau de bord',
-    hint: 'Statistiques et serveurs',
-    icon: Home,
-    key: '1',
-  },
-  {
-    id: 'projects',
-    label: 'Projets',
-    hint: 'Gérer vos projets et leurs commandes',
-    icon: FolderCode,
-    key: '2',
-  },
-  {
-    id: 'browser',
-    label: 'Aperçu web',
-    hint: 'Voir votre site sur ordinateur, tablette et mobile',
-    icon: Globe,
-    key: '3',
-  },
-  {
-    id: 'ports',
-    label: 'Ports',
-    hint: 'Qui utilise quel port réseau sur cet ordinateur',
-    icon: Network,
-    key: '4',
-  },
-  {
-    id: 'terminal',
-    label: 'Logs',
-    hint: 'Ce que vos applications affichent en direct',
-    icon: ScrollText,
-    key: '5',
-  },
-];
+import { NAV_ITEMS } from '../../services/navigation';
 
 function NavButton({ item, isActive, onClick, collapsed, badge, shortcut }) {
   const Icon = item.icon;
@@ -105,10 +64,10 @@ export default function Sidebar({
     <aside
       className={`${
         collapsed ? 'w-14 px-2' : 'w-60 px-2.5'
-      } shrink-0 bg-[var(--surface-1)] pt-2 pb-3 flex flex-col justify-between select-none z-10 transition-[width] duration-200`}
+      } shrink-0 min-h-0 overflow-y-auto bg-[var(--surface-1)] pt-2 pb-3 flex flex-col justify-between gap-4 select-none z-10 transition-[width] duration-200`}
       aria-label="Navigation principale"
     >
-      <div className="space-y-4">
+      <div className="space-y-4 shrink-0">
         <button
           type="button"
           onClick={onOpenCommandPalette}
@@ -140,7 +99,7 @@ export default function Sidebar({
         </nav>
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-1 shrink-0">
         {updateAvailable && (
           <button
             type="button"

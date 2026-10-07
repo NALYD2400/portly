@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Minus, Square, X } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 
 export default function TitleBar({ pageLabel, runningCount = 0 }) {
+  const maximizePending = useRef(false);
   const getWin = async () => {
     try {
       if (typeof window !== 'undefined' && (window.__TAURI_INTERNALS__ || window.__TAURI__)) {
@@ -23,6 +24,8 @@ export default function TitleBar({ pageLabel, runningCount = 0 }) {
   };
 
   const handleMaximize = async () => {
+    if (maximizePending.current) return;
+    maximizePending.current = true;
     try {
       const win = await getWin();
       if (win) {
@@ -33,7 +36,11 @@ export default function TitleBar({ pageLabel, runningCount = 0 }) {
           await win.maximize();
         }
       }
-    } catch {}
+    } catch {
+      // The native window may be closing while the action is pending.
+    } finally {
+      maximizePending.current = false;
+    }
   };
 
   const handleClose = async () => {
@@ -56,11 +63,6 @@ export default function TitleBar({ pageLabel, runningCount = 0 }) {
     }
   };
 
-  const handleDoubleClick = async (e) => {
-    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
-    await handleMaximize();
-  };
-
   const closeTitle =
     localStorage.getItem('portly_cfg_minimizetotray') !== 'false'
       ? 'Réduire dans la barre des tâches'
@@ -72,10 +74,9 @@ export default function TitleBar({ pageLabel, runningCount = 0 }) {
   return (
     <div
       data-tauri-drag-region
-      onDoubleClick={handleDoubleClick}
-      className="h-9 w-full flex items-center justify-between pl-4 select-none bg-[var(--surface-1)] z-50 text-xs cursor-default"
+      className="h-9 shrink-0 w-full flex items-center justify-between pl-4 select-none bg-[var(--surface-1)] z-50 text-xs cursor-default"
     >
-      {/* Marque */}
+      {/* Tauri handles dragging and double-click maximization on this region. */}
       <div data-tauri-drag-region className="flex items-center gap-2 pointer-events-none">
         {pageLabel && <span className="text-zinc-500 text-xs">{pageLabel}</span>}
         {runningCount > 0 && (

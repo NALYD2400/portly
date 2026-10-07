@@ -3,7 +3,7 @@ import React from 'react';
 /** En-tête commun à toutes les pages : titre, phrase d'explication, actions. */
 export default function PageHeader({ title, lead, actions, children }) {
   return (
-    <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+    <header className="page-header flex flex-wrap items-end justify-between gap-4 mb-6">
       <div className="min-w-0">
         <h1 className="page-title">{title}</h1>
         {lead && <p className="page-lead">{lead}</p>}
