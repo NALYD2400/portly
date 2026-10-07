@@ -570,7 +570,7 @@ export default function SettingsView({
               />
               <section className="settings-group">
                 <h3>Couleur d’accent</h3>
-                <p className="settings-help">Pour les actions et les éléments sélectionnés.</p>
+                <p className="settings-help">Pour les actions, les éléments sélectionnés et la teinte du fond.</p>
                 <div className="accent-options">
                   {PRESET_PALETTES.map((palette) => (
                     <button
@@ -622,10 +622,42 @@ export default function SettingsView({
               </section>
               <SettingRow
                 title="Arrière-plan animé"
-                description="Une touche de couleur discrète derrière les pages."
+                description="Une teinte continue dans toute la fenêtre, en thème clair comme sombre."
                 checked={settings.canvas_bg}
                 onToggle={(value) => toggleSetting('canvas_bg', 'portly_cfg_canvas', value)}
               />
+              <div className="background-controls">
+                {[
+                  ['backgroundIntensity', 'Intensité', 100, '%'],
+                  ['backgroundBlur', 'Flou', 60, 'px'],
+                  ['backgroundSpeed', 'Vitesse', 200, '%'],
+                ].map(([key, label, max, unit]) => (
+                  <div className="background-control" key={key}>
+                    <label htmlFor={key}>
+                      {label}
+                      <output htmlFor={key}>{prefs[key]} {unit}</output>
+                    </label>
+                    <input
+                      id={key}
+                      type="range"
+                      min="0"
+                      max={max}
+                      step="1"
+                      value={prefs[key]}
+                      disabled={!settings.canvas_bg}
+                      aria-describedby="background-help"
+                      onChange={(event) => {
+                        onPrefsChange({ [key]: Number(event.target.value) });
+                        showAutoSaved();
+                      }}
+                    />
+                  </div>
+                ))}
+                <p id="background-help" className="settings-help">
+                  À 0 % d’intensité, le fond est uni. À 0 % de vitesse, la couleur reste fixe.
+                  Les animations réduites gardent aussi un fond fixe.
+                </p>
+              </div>
               <SettingRow
                 title="Barre latérale compacte"
                 description="Afficher uniquement les icônes de navigation."

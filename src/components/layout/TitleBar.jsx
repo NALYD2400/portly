@@ -74,7 +74,7 @@ export default function TitleBar({ pageLabel, runningCount = 0 }) {
   return (
     <div
       data-tauri-drag-region
-      className="h-9 shrink-0 w-full flex items-center justify-between pl-4 select-none bg-[var(--surface-1)] z-50 text-xs cursor-default"
+      className="h-9 shrink-0 w-full flex items-center justify-between pl-4 select-none z-50 text-xs cursor-default"
     >
       {/* Tauri handles dragging and double-click maximization on this region. */}
       <div data-tauri-drag-region className="flex items-center gap-2 pointer-events-none">

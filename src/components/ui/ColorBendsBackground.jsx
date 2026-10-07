@@ -7,8 +7,9 @@ function readAccentRgb() {
   ).trim();
 }
 
-export default function ColorBendsBackground() {
+export default function ColorBendsBackground({ blur = 30, speed = 100 }) {
   const canvasRef = useRef(null);
+  const timeRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -19,35 +20,34 @@ export default function ColorBendsBackground() {
     let running = false;
     let reducedMotion = false;
     let lastFrame = 0;
+    let light = false;
 
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
+    let width = (canvas.width = canvas.clientWidth);
+    let height = (canvas.height = canvas.clientHeight);
 
     const handleResize = () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+      width = canvas.width = canvas.clientWidth;
+      height = canvas.height = canvas.clientHeight;
       syncRendering();
     };
-    window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(canvas);
 
     // L'accent est relu uniquement quand il change (plus de getComputedStyle à chaque frame)
     let cachedRgb = readAccentRgb();
 
-    let time = 0;
-
-    const drawFrame = (timestamp) => {
-      time = timestamp / 1000;
-
-      // Dark space background
-      ctx.fillStyle = '#06060c';
-      ctx.fillRect(0, 0, width, height);
+    const drawFrame = () => {
+      const time = reducedMotion ? 0 : timeRef.current;
+      const strength = light ? 1.2 : 1;
+      const color = (alpha) => `rgba(${cachedRgb}, ${alpha * strength})`;
+      ctx.clearRect(0, 0, width, height);
 
       // Vagues colorées réactives synchronisées sur l'accent du thème
       const waves = [
-        { color: `rgba(${cachedRgb}, 0.22)`, y: height * 0.4, amp: 120, freq: 0.0015, speed: 0.8 },
-        { color: `rgba(${cachedRgb}, 0.16)`, y: height * 0.6, amp: 160, freq: 0.001, speed: 1.2 },
-        { color: `rgba(${cachedRgb}, 0.10)`, y: height * 0.5, amp: 100, freq: 0.002, speed: 0.5 },
-        { color: 'rgba(56, 189, 248, 0.06)', y: height * 0.3, amp: 140, freq: 0.0012, speed: 0.9 },
+        { color: color(0.22), y: height * 0.4, amp: 120, freq: 0.0015, speed: 0.8 },
+        { color: color(0.16), y: height * 0.6, amp: 160, freq: 0.001, speed: 1.2 },
+        { color: color(0.10), y: height * 0.5, amp: 100, freq: 0.002, speed: 0.5 },
+        { color: color(0.06), y: height * 0.3, amp: 140, freq: 0.0012, speed: 0.9 },
       ];
 
       waves.forEach((wave) => {
@@ -76,8 +76,8 @@ export default function ColorBendsBackground() {
       const orbX = width * 0.75 + Math.sin(time * 0.3) * 100;
       const orbY = height * 0.3 + Math.cos(time * 0.4) * 80;
       const orbGrad = ctx.createRadialGradient(orbX, orbY, 10, orbX, orbY, 450);
-      orbGrad.addColorStop(0, `rgba(${cachedRgb}, 0.22)`);
-      orbGrad.addColorStop(0.5, `rgba(${cachedRgb}, 0.06)`);
+      orbGrad.addColorStop(0, color(0.22));
+      orbGrad.addColorStop(0.5, color(0.06));
       orbGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = orbGrad;
       ctx.fillRect(0, 0, width, height);
@@ -86,7 +86,8 @@ export default function ColorBendsBackground() {
     const render = (timestamp) => {
       if (!running) return;
       if (timestamp - lastFrame >= 1000 / 30) {
-        drawFrame(timestamp);
+        timeRef.current += Math.min(timestamp - lastFrame, 100) / 1000 * speed / 100;
+        drawFrame();
         lastFrame = timestamp;
       }
       animationFrameId = requestAnimationFrame(render);
@@ -98,12 +99,13 @@ export default function ColorBendsBackground() {
       running = false;
       const root = document.documentElement;
       reducedMotion = root.dataset.motion === 'reduce';
+      light = root.dataset.theme === 'light';
       cachedRgb = readAccentRgb();
-      if (document.hidden || root.dataset.theme === 'light') return;
-      drawFrame(reducedMotion ? 0 : performance.now());
-      if (!reducedMotion) {
+      if (document.hidden) return;
+      drawFrame();
+      if (!reducedMotion && speed > 0) {
         running = true;
-        lastFrame = 0;
+        lastFrame = performance.now();
         animationFrameId = requestAnimationFrame(render);
       }
     };
@@ -115,18 +117,18 @@ export default function ColorBendsBackground() {
     return () => {
       running = false;
       cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       document.removeEventListener('visibilitychange', syncRendering);
       observer.disconnect();
     };
-  }, []);
+  }, [speed]);
 
   return (
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className="fixed inset-0 pointer-events-none z-0"
-      style={{ filter: 'blur(30px)' }}
+      className="app-background-canvas"
+      style={{ filter: `blur(${blur}px)` }}
     />
   );
 }

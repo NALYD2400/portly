@@ -56,12 +56,15 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
   const [fit, setFit] = useState(true);
   const [online, setOnline] = useState(null);
   const [starting, setStarting] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [localIp, setLocalIp] = useState('127.0.0.1');
   const [showQr, setShowQr] = useState(false);
   const timers = useRef({});
+  const operation = useRef(false);
+  const previousOnline = useRef({ id: null, online: null });
   const { logs, clearLogs } = useServerLogs(server?.id);
   useEffect(
     () => () => {
@@ -114,6 +117,11 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
       setFrameKey((key) => key + 1);
     }
   }, [online, starting]);
+  useEffect(() => {
+    if (online === true && previousOnline.current.id === server?.id && previousOnline.current.online === false)
+      setFrameKey((key) => key + 1);
+    previousOnline.current = { id: server?.id, online };
+  }, [online, server?.id]);
   const selectServer = (id) => {
     const selected = servers.find((item) => item.id === id);
     if (!selected) return;
@@ -123,6 +131,7 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
     setUrl(selected.url);
     setAddress(selected.url);
     setError('');
+    setOnline(null);
     setFrameKey((key) => key + 1);
   };
   const navigate = (event) => {
@@ -130,8 +139,9 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
     try {
       const text = address.trim();
       const target = text.startsWith('/')
-        ? new URL(text, server?.url || url)
-        : new URL(/^[a-z][a-z\d+.-]*:/i.test(text) ? text : 'http://' + text);
+        ? new URL(text, url || server?.url)
+        : new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(text) || /^(?:https?|javascript|file|data|about):/i.test(text)
+          ? text : 'http://' + text);
       if (!['http:', 'https:'].includes(target.protocol))
         throw new Error('Utilisez une adresse http ou https.');
       setUrl(target.href);
@@ -165,7 +175,8 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
       }),
     );
   const start = async () => {
-    if (!server) return;
+    if (!server || operation.current || starting) return;
+    operation.current = true;
     setStarting(true);
     clearTimeout(timers.current.start);
     timers.current.start = setTimeout(() => {
@@ -191,9 +202,14 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
         message: String(reason),
         type: 'error',
       });
+    } finally {
+      operation.current = false;
     }
   };
   const stop = async () => {
+    if (!server || operation.current || stopping) return;
+    operation.current = true;
+    setStopping(true);
     markManualStop(server.id);
     try {
       await invoke('stop_server_cmd', { serverId: server.id });
@@ -205,6 +221,9 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
         message: String(reason),
         type: 'error',
       });
+    } finally {
+      operation.current = false;
+      setStopping(false);
     }
   };
   let localTarget = false;
@@ -226,6 +245,7 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
           ? 'Lancez le serveur pour afficher votre site.'
           : 'Ajoutez un serveur avec un port dans vos projets.'}
       </p>
+      {server && <code className="preview-offline-command">{server.command}</code>}
       {server ? (
         <button
           className="btn mt-4 theme-accent-btn"
@@ -242,7 +262,12 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
       )}
     </div>
   );
-  const lanUrl = server?.port ? `http://${localIp}:${server.port}` : url;
+  let lanUrl = url;
+  try {
+    const target = new URL(url);
+    if (server?.port && localTarget) target.hostname = localIp;
+    lanUrl = target.href;
+  } catch {}
   const dimensions =
     mode === 'mobile'
       ? '390 × 844'
@@ -261,6 +286,9 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
       width={frameWidth}
       height={frameHeight}
       fit={fit}
+      showCaption={mode !== 'desktop'}
+      onRetry={() => setFrameKey((key) => key + 1)}
+      onOpenExternal={openExternal}
     >
       {canPreview ? null : offline}
     </PreviewFrame>
@@ -275,7 +303,7 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
               className="icon-button"
               aria-label="Tester sur téléphone"
               title="Tester sur téléphone"
-              disabled={!server || !online}
+              disabled={!server || !online || !localTarget}
               onClick={() => setShowQr(true)}
             >
               <QrCode size={16} />
@@ -293,9 +321,11 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
       />
       <div className="preview-toolbar">
         <select
-          className="control-input max-w-60"
+          className="control-input preview-server-select"
           aria-label="Serveur à prévisualiser"
+          title={server ? server.projectName + ' · ' + server.name : 'Aucun serveur'}
           value={server?.id || ''}
+          disabled={starting || stopping}
           onChange={(event) => selectServer(event.target.value)}
         >
           {servers.length ? (
@@ -324,10 +354,12 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
             className="control-input font-mono"
             placeholder="http://localhost:3000"
             value={address}
-            onChange={(event) => setAddress(event.target.value)}
+            aria-invalid={!!error}
+            aria-describedby={error ? 'preview-address-error' : undefined}
+            onChange={(event) => { setAddress(event.target.value); setError(''); }}
           />
           <button type="submit" className="quiet-button">
-            Ouvrir
+            Aller
           </button>
           <button
             type="button"
@@ -395,7 +427,8 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
           <option value="actual">100 %</option>
         </select>
         <span className="preview-status" role="status" title={dimensions}>
-          {server
+          <span className={'server-dot ' + (localTarget && online ? 'running' : '')} />
+          {!localTarget && url ? 'Adresse externe' : server
             ? online === null
               ? 'Vérification…'
               : online
@@ -406,16 +439,16 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
         {server && (
           <button
             className="quiet-button ml-auto"
-            disabled={starting || online === null}
+            disabled={starting || stopping || online === null}
             onClick={online ? stop : start}
           >
             {online ? <Square size={13} /> : <Play size={14} />}
-            {online ? 'Arrêter' : starting ? 'Démarrage…' : 'Lancer'}
+            {stopping ? 'Arrêt…' : online ? 'Arrêter' : starting ? 'Démarrage…' : 'Lancer'}
           </button>
         )}
       </div>
       {error && (
-        <p className="text-xs text-rose-400 mt-3" role="alert">
+        <p id="preview-address-error" className="text-xs text-rose-400 mt-3" role="alert">
           {error}
         </p>
       )}
@@ -443,13 +476,16 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
           frame('Ordinateur', null, null)
         )}
       </div>
+      <div className="preview-footnote"><span>{dimensions}</span>
+        <span>Page vide ou intégration refusée ? <button className="log-resume" disabled={!url} onClick={openExternal}>Ouvrir dans le navigateur <ExternalLink size={12} /></button></span>
+      </div>
       {showLogs && (
         <div className="preview-logs">
-          <div className="flex items-center justify-between mb-2">
+          <div className="preview-logs-heading">
             <span className="text-zinc-400">{server?.name || 'Logs'}</span>
-            <button className="quiet-button" onClick={clearLogs}>
-              Effacer
-            </button>
+            <div className="flex gap-2"><button className="quiet-button" onClick={() => onSelectTab?.('terminal', server?.id)}>Console complète</button>
+              <button className="quiet-button" disabled={!logs.length} onClick={clearLogs}>Effacer</button>
+              <button className="icon-button" aria-label="Fermer les logs de l’aperçu" onClick={() => setShowLogs(false)}><X size={14} /></button></div>
           </div>
           {logs.length ? (
             logs.slice(-100).map((entry) => (

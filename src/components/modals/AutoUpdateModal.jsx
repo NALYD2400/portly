@@ -73,14 +73,15 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
         setLatestVersion(tag);
         setReleaseNotes(data.body || 'Dernières améliorations et correctifs de performance.');
 
-        const asset = (data.assets || []).find(
-          (a) => a.name.toLowerCase().endsWith('.exe') || a.name.toLowerCase().endsWith('.msi'),
-        );
+        const assets = data.assets || [];
+        const asset = assets.find((item) => /(?:setup|installer).*\.exe$/i.test(item.name))
+          || assets.find((item) => /\.msi$/i.test(item.name))
+          || assets.find((item) => /\.exe$/i.test(item.name) && !/portable/i.test(item.name));
         if (asset) {
           setDownloadUrl(asset.browser_download_url);
         } else if (tag) {
           setDownloadUrl(
-            `https://github.com/${GITHUB_REPO}/releases/download/v${tag}/Portly_${tag}_x64-setup.exe`,
+            `https://github.com/${GITHUB_REPO}/releases/download/v${tag}/Sprint_${tag}_x64-setup.exe`,
           );
         }
 
@@ -130,7 +131,7 @@ export default function AutoUpdateModal({ isOpen, onClose, currentVersion }) {
     try {
       const targetUrl =
         downloadUrl ||
-        `https://github.com/${GITHUB_REPO}/releases/download/v${latestVersion}/Portly_${latestVersion}_x64-setup.exe`;
+        `https://github.com/${GITHUB_REPO}/releases/download/v${latestVersion}/Sprint_${latestVersion}_x64-setup.exe`;
       const downloadedPath = await invoke('download_update_cmd', { url: targetUrl });
       if (!mountedRef.current) return;
       setInstallerPath(downloadedPath);

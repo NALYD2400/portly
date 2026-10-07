@@ -13,6 +13,7 @@ import {
   Play,
   ArrowRight,
   Loader2,
+  X,
 } from 'lucide-react';
 import PageHeader from '../ui/PageHeader';
 import { triggerToast } from '../../services/toastBus';
@@ -20,12 +21,13 @@ import { triggerToast } from '../../services/toastBus';
 // Nombre max de lignes rendues dans le DOM (fenêtre glissante)
 const MAX_RENDERED_LINES = 500;
 
-const LogLine = React.memo(function LogLine({ entry, lineNumber, showRaw }) {
+const LogLine = React.memo(function LogLine({ entry, lineNumber, showRaw, active }) {
   const { isError, isSuccess, isInfo } = entry;
   const text = showRaw ? entry.raw : entry.clean;
   return (
     <div
-      className={`flex items-start px-2 py-0.5 rounded leading-relaxed break-all ${
+      data-log-id={entry.id}
+      className={`log-line ${active ? 'log-line-selected' : ''} flex items-start px-2 py-0.5 rounded leading-relaxed ${
         isError
           ? 'bg-red-500/10 text-red-300'
           : isSuccess
@@ -38,28 +40,48 @@ const LogLine = React.memo(function LogLine({ entry, lineNumber, showRaw }) {
       <span className="text-zinc-500 select-none mr-2.5 text-[10px] min-w-[2.2rem] text-right">
         {lineNumber}
       </span>
+      <span className="log-line-level">{isError ? 'Erreur' : isSuccess ? 'Succès' : isInfo ? 'Info' : ''}</span>
       <span className="flex-1">{text}</span>
     </div>
   );
 });
 
 // Single Terminal Panel Component
-function TerminalPanel({ server, titlePrefix = 'Console' }) {
+function TerminalPanel({ server, titlePrefix = 'Console', onStart, pending }) {
   const { logs, clearLogs } = useServerLogs(server?.id);
   const [filter, setFilter] = useState('');
   const [autoScroll, setAutoScroll] = useState(true);
   const [expandedHistory, setExpandedHistory] = useState(false);
   const [level, setLevel] = useState('all');
   const [copied, setCopied] = useState(false);
+  const [frozenLogs, setFrozenLogs] = useState(null);
+  const [activeErrorId, setActiveErrorId] = useState(null);
+  const pausedAt = useRef(0);
   const copyTimer = useRef(null);
   const scrollRef = useRef(null);
 
   // Réglage utilisateur : nettoyage ANSI des logs
   const showRawAnsi = localStorage.getItem('portly_cfg_cleanansi') === 'false';
 
+  const displayLogs = frozenLogs || logs;
+  const newLines = frozenLogs ? logs.filter((entry) => entry.id > pausedAt.current).length : 0;
+  const errorLogs = displayLogs.filter((entry) => entry.isError);
+  const pause = () => {
+    if (!frozenLogs) {
+      setFrozenLogs(logs);
+      pausedAt.current = logs.at(-1)?.id || 0;
+    }
+    setAutoScroll(false);
+  };
+  const resume = () => {
+    setFrozenLogs(null);
+    setExpandedHistory(false);
+    setActiveErrorId(null);
+    setAutoScroll(true);
+  };
   const filteredLogs = useMemo(() => {
     const q = filter.toLowerCase();
-    return logs.filter(
+    return displayLogs.filter(
       (entry) =>
         entry.clean.toLowerCase().includes(q) &&
         (level === 'all' ||
@@ -67,12 +89,14 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
           (level === 'success' && entry.isSuccess) ||
           (level === 'info' && entry.isInfo)),
     );
-  }, [logs, filter, level]);
+  }, [displayLogs, filter, level]);
   useEffect(() => {
     setExpandedHistory(false);
     setFilter('');
     setLevel('all');
     setAutoScroll(true);
+    setFrozenLogs(null);
+    setActiveErrorId(null);
   }, [server?.id]);
   useEffect(() => () => clearTimeout(copyTimer.current), []);
 
@@ -80,6 +104,17 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
     ? 0
     : Math.max(0, filteredLogs.length - MAX_RENDERED_LINES);
   const visibleLogs = expandedHistory ? filteredLogs : filteredLogs.slice(-MAX_RENDERED_LINES);
+  const nextError = () => {
+    const errors = filteredLogs.filter((entry) => entry.isError);
+    if (!errors.length) return;
+    const index = errors.findIndex((entry) => entry.id === activeErrorId);
+    pause();
+    setExpandedHistory(true);
+    setActiveErrorId(errors[(index + 1) % errors.length].id);
+  };
+  useEffect(() => {
+    if (activeErrorId) scrollRef.current?.querySelector(`[data-log-id="${activeErrorId}"]`)?.scrollIntoView({ block: 'center' });
+  }, [activeErrorId, expandedHistory]);
 
   useEffect(() => {
     const screen = scrollRef.current;
@@ -91,7 +126,7 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
     const observer = new ResizeObserver(follow);
     observer.observe(screen);
     return () => observer.disconnect();
-  }, [logs, filter, level, expandedHistory, autoScroll]);
+  }, [displayLogs, filter, level, expandedHistory, autoScroll]);
 
   const handleCopyLogs = async () => {
     try {
@@ -132,7 +167,7 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
             onChange={(event) => setLevel(event.target.value)}
           >
             <option value="all">Tous</option>
-            <option value="errors">Erreurs</option>
+            <option value="errors">Erreurs ({errorLogs.length})</option>
             <option value="success">Succès</option>
             <option value="info">Infos</option>
           </select>
@@ -142,19 +177,24 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
               type="text"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Filtrer..."
+              placeholder="Rechercher dans les logs…"
               aria-label={`Rechercher dans les logs · ${titlePrefix}`}
               className="control-input log-filter !pl-7"
             />
           </div>
+          {(filter || level !== 'all') && <button className="icon-button" title="Réinitialiser les filtres"
+            aria-label={`Réinitialiser les filtres · ${titlePrefix}`} onClick={() => { setFilter(''); setLevel('all'); }}><X size={14} /></button>}
+          <button className="quiet-button log-next-error" onClick={nextError}
+            disabled={!filteredLogs.some((entry) => entry.isError)} title="Aller à l’erreur suivante dans les résultats"
+            aria-label={`Erreur suivante · ${titlePrefix}`}><ArrowDown size={13} /> Erreur suivante</button>
 
           <button
-            onClick={() => setAutoScroll(!autoScroll)}
+            onClick={autoScroll ? pause : resume}
             aria-pressed={autoScroll}
             className={`icon-button ${
               autoScroll ? 'theme-accent-active' : 'bg-white/[0.04] text-zinc-400'
             }`}
-            title="Défilement automatique"
+            title={autoScroll ? 'Mettre le défilement en pause pour lire' : 'Revenir aux dernières lignes'}
             aria-label="Défilement automatique"
           >
             <ArrowDown className="w-3.5 h-3.5" />
@@ -181,9 +221,9 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
           </button>
 
           <button
-            onClick={clearLogs}
+            onClick={() => { clearLogs(); resume(); }}
             className="icon-button hover:text-rose-400"
-            title="Effacer"
+            title="Effacer les logs de cette session"
             aria-label="Effacer les logs"
             disabled={!logs.length}
           >
@@ -198,7 +238,7 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
         onScroll={(e) => {
           const el = e.currentTarget;
           const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-          if (!atBottom && autoScroll) setAutoScroll(false);
+          if (!atBottom && autoScroll) pause();
         }}
         className="terminal-log-screen flex-1 font-mono text-xs overflow-y-auto space-y-0.5 select-text"
       >
@@ -209,37 +249,33 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
             </span>
           </div>
         ) : filteredLogs.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center gap-2 text-zinc-500 italic select-none">
-            <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white/[0.04] border border-[var(--line)] text-xs not-italic">
+          <div className="console-empty">
               {filter || level !== 'all' ? (
                 <>
-                  <Search className="w-3 h-3 text-zinc-400" />
-                  <span className="text-zinc-300 font-mono">
-                    Aucune ligne ne correspond aux filtres.
-                  </span>
+                  <Search size={22} />
+                  <h2>Aucun résultat</h2><p>Essayez un autre texte ou affichez tous les niveaux.</p>
+                  <button className="btn" onClick={() => { setFilter(''); setLevel('all'); }}>Réinitialiser les filtres</button>
                 </>
               ) : (
                 <>
-                  {server?.state === 'running' ? (
-                    <Loader2 className="w-3 h-3 text-green-500 animate-spin" />
-                  ) : (
-                    <span className="w-2 h-2 rounded-full bg-gray-500" />
-                  )}
-                  <span className="text-zinc-300 font-mono">
-                    {server?.state === 'running'
-                      ? `Écoute active du flux (${server?.command || 'cmd'})...`
-                      : 'Serveur arrêté. Utilisez « Lancer » au-dessus de la console.'}
-                  </span>
+                  <Terminal size={24} />
+                  <h2>{server?.state === 'running' ? 'En attente des premières lignes' : 'Ce serveur est arrêté'}</h2>
+                  <p>{server?.state === 'running' ? 'Les nouvelles sorties du serveur apparaîtront ici.' : 'Lancez-le pour voir ses logs dans cette console.'}</p>
+                  {server.command && <code title={server.command}>{server.command}</code>}
+                  {server.state !== 'running' && <button className="btn theme-accent-btn" disabled={pending}
+                    onClick={() => onStart(server)} aria-label={'Lancer le serveur · ' + titlePrefix}>
+                    {pending ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                    {pending ? 'Lancement…' : 'Lancer le serveur'}
+                  </button>}
                 </>
               )}
-            </div>
           </div>
         ) : (
           <>
             {hiddenByWindow > 0 && (
               <button
                 onClick={() => {
-                  setAutoScroll(false);
+                  pause();
                   setExpandedHistory(true);
                 }}
                 className="log-history-button"
@@ -253,6 +289,7 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
                 entry={entry}
                 lineNumber={hiddenByWindow + i + 1}
                 showRaw={showRawAnsi}
+                active={entry.id === activeErrorId}
               />
             ))}
           </>
@@ -261,13 +298,15 @@ function TerminalPanel({ server, titlePrefix = 'Console' }) {
       <div className="terminal-footer">
         <span>
           {filteredLogs.length} lignes
-          {filteredLogs.length !== logs.length ? ` sur ${logs.length}` : ''}
+          {filteredLogs.length !== displayLogs.length ? ` sur ${displayLogs.length}` : ''}
         </span>
         {autoScroll ? (
-          <span>Suivi en direct</span>
+          <span className="console-status"><span className={'server-dot ' + (server?.state === 'running' ? 'running' : '')} />
+            {server?.state === 'running' ? 'En direct' : server ? 'Serveur arrêté' : 'Aucun serveur'}</span>
         ) : (
-          <button className="log-resume" onClick={() => setAutoScroll(true)}>
-            <ArrowDown size={12} /> Reprendre le suivi
+          <button className="log-resume" onClick={resume}>
+            <ArrowDown size={12} /> {server?.state === 'running' ? 'Revenir au direct' : 'Dernières lignes'}
+            {newLines > 0 ? ` · ${newLines} ${newLines === 1 ? 'nouvelle ligne' : 'nouvelles lignes'}` : ' · Lecture en pause'}
           </button>
         )}
       </div>
@@ -289,7 +328,7 @@ function ConsoleSelector({ server, servers, number, otherId, onChange, onStart, 
         <label htmlFor={'console-server-' + number}>Console {number}</label>
         <span className="console-status">
           <span className={'server-dot ' + (running ? 'running' : '')} />
-          {server ? (running ? 'En marche' : 'Arrêté') : 'Aucun serveur'}
+          {pending ? 'Lancement…' : server ? (running ? 'En marche' : 'Arrêté') : 'Aucun serveur'}
         </span>
       </div>
       <div className="console-selector-controls">
@@ -441,6 +480,11 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
           </>
         }
       />
+      {!showAllServers && (!runningServers.length || primaryServer?.state !== 'running' || (isSplitMode && secondaryServer?.state !== 'running')) && (
+        <p className="logs-selection-note">{!runningServers.length
+          ? 'Aucun serveur en marche : les serveurs arrêtés restent disponibles pour être lancés.'
+          : 'Une console ouverte reste visible après l’arrêt du serveur pour conserver ses dernières lignes.'}</p>
+      )}
       <div className={'console-selectors ' + (isSplitMode ? 'split' : '')}>
         <ConsoleSelector
           server={primaryServer}
@@ -464,8 +508,10 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
         )}
       </div>
       <div className={'terminal-grid ' + (isSplitMode ? 'split' : '')}>
-        <TerminalPanel server={primaryServer} titlePrefix="Console 1" />
-        {isSplitMode && <TerminalPanel server={secondaryServer} titlePrefix="Console 2" />}
+        <TerminalPanel key={primaryServer?.id || 'empty-primary'} server={primaryServer} titlePrefix="Console 1"
+          onStart={handleStartServer} pending={startingIds.has(primaryServer?.id)} />
+        {isSplitMode && <TerminalPanel key={secondaryServer?.id || 'empty-secondary'} server={secondaryServer} titlePrefix="Console 2"
+          onStart={handleStartServer} pending={startingIds.has(secondaryServer?.id)} />}
       </div>
     </div>
   );

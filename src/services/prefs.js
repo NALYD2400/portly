@@ -25,6 +25,9 @@ export const DEFAULT_PREFS = {
   theme: 'system',
   textSize: 'md',
   reduceMotion: 'system', // 'system' | 'on' | 'off'
+  backgroundIntensity: 30,
+  backgroundBlur: 30,
+  backgroundSpeed: 100,
   sidebarCollapsed: false,
   onboardingDismissed: false,
   dashboard: DEFAULT_DASHBOARD,
@@ -37,11 +40,22 @@ export function loadPrefs() {
     return {
       ...DEFAULT_PREFS,
       ...saved,
+      ...backgroundPrefs(saved),
       dashboard: dashboardPrefs(saved?.dashboard),
     };
   } catch {
     return { ...DEFAULT_PREFS };
   }
+}
+
+export function backgroundPrefs(prefs = {}) {
+  const ranges = { backgroundIntensity: 100, backgroundBlur: 60, backgroundSpeed: 200 };
+  return Object.fromEntries(Object.entries(ranges).map(([key, max]) => [
+    key,
+    Number.isFinite(prefs?.[key])
+      ? Math.min(max, Math.max(0, prefs[key]))
+      : DEFAULT_PREFS[key],
+  ]));
 }
 
 export function savePrefs(prefs) {

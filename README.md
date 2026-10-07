@@ -14,7 +14,7 @@ Superviseur de processus de développement local haute performance — moteur na
 - **Palette de commandes** (`Ctrl+K`) : navigation, projets, VS Code, terminaux — entièrement navigable au clavier.
 - **Zone de notification Windows** : panneau d’accès rapide dans le thème de Sprint, liste et état des serveurs, lancement/arrêt individuel ou groupé, accès aux logs et aux paramètres. Un double-clic ouvre la fenêtre principale ; Échap ou un clic ailleurs ferme le panneau.
 - **Paramètres stables** : navigation fixe et contenu défilant indépendamment, enregistrement avec état d’erreur et nouvelle tentative, aperçu avant restauration d’une sauvegarde.
-- **Thème dynamique** : couleur d'accent personnalisable (#HEX) synchronisée sur toute l'interface, vagues canvas réactives.
+- **Thème dynamique** : couleur d'accent personnalisable (#HEX), fond continu en clair et sombre, intensité, flou et vitesse réglables. Les animations réduites gardent un fond fixe.
 - **Auto-update** : téléchargement des releases GitHub avec validation du domaine source et dossier de staging aléatoire.
 
 ## Stack
@@ -51,6 +51,8 @@ cargo test --lib
 Les tests UI utilisent Playwright avec les mocks IPC officiels de Tauri : ils n’arrêtent aucun processus réel et ne modifient pas votre configuration. Ils démarrent leur propre serveur Vite puis le ferment. Sous Windows, Microsoft Edge est utilisé ; pour Chromium sur un autre système, installez le navigateur avec `npx playwright install chromium`. Les captures et le rapport sont écrits dans `test-results/` (ignoré par Git).
 
 Voir [la revue UI/UX et les corrections](docs/ux-review-2026-10-07.md).
+
+La version 0.5.4 ajoute les filtres de ports par usage, la pause stable et la navigation entre erreurs dans les logs, ainsi que des retours de chargement et des dimensions explicites dans l’aperçu web. Voir [les notes de version](docs/releases/v0.5.4.md).
 
 ## Structure
 

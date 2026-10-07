@@ -256,8 +256,14 @@ export default function App() {
 
       {/* Arrière-plan animé optionnel, volontairement discret */}
       {showCanvasBg && (
-        <div data-bg-canvas className="absolute inset-0 opacity-30 pointer-events-none">
-          <ColorBendsBackground />
+        <div
+          data-bg-canvas
+          className="app-background"
+          style={{ opacity: prefs.backgroundIntensity / 100 }}
+        >
+          {prefs.backgroundIntensity > 0 && (
+            <ColorBendsBackground blur={prefs.backgroundBlur} speed={prefs.backgroundSpeed} />
+          )}
         </div>
       )}
 
@@ -341,7 +347,10 @@ export default function App() {
                     projects={projects}
                     initialServerId={browserTarget.serverId}
                     initialUrl={browserTarget.url}
-                    onSelectTab={setActiveTab}
+                    onSelectTab={(tab, serverId) => {
+                      if (tab === 'terminal' && serverId) handleOpenTerminal(serverId);
+                      else setActiveTab(tab);
+                    }}
                   />
                 )}
 

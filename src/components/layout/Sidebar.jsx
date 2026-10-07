@@ -64,7 +64,7 @@ export default function Sidebar({
     <aside
       className={`${
         collapsed ? 'w-14 px-2' : 'w-60 px-2.5'
-      } shrink-0 min-h-0 overflow-y-auto bg-[var(--surface-1)] pt-2 pb-3 flex flex-col justify-between gap-4 select-none z-10 transition-[width] duration-200`}
+      } shrink-0 min-h-0 overflow-y-auto pt-2 pb-3 flex flex-col justify-between gap-4 select-none z-10 transition-[width] duration-200`}
       aria-label="Navigation principale"
     >
       <div className="space-y-4 shrink-0">
