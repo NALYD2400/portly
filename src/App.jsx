@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { readStoredSetting } from './services/settingsStorage';
+import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { triggerToast } from './services/toastBus';
@@ -23,7 +24,6 @@ import EnvEditorModal from './components/modals/EnvEditorModal';
 import EditProjectModal from './components/modals/EditProjectModal';
 import ServerFormModal from './components/modals/ServerFormModal';
 import AutoUpdateModal from './components/modals/AutoUpdateModal';
-import IframePreviewModal from './components/modals/IframePreviewModal';
 import ToastContainer from './components/ui/ToastContainer';
 import { useProjects, useSystemMetrics } from './hooks/useTauriIPC';
 
@@ -64,7 +64,7 @@ export default function App() {
     serverId: null,
     url: null,
   });
-  const [iframeModalTarget, setIframeModalTarget] = useState(null); // { url, title }
+  const consumeBrowserTarget = useCallback(() => setBrowserTarget({ serverId: null, url: null }), []);
 
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [prefs, setPrefs] = useState(loadPrefs);
@@ -142,10 +142,10 @@ export default function App() {
 
   // Initialize custom Hex accent color & Register Global OS Shortcut at launch
   useEffect(() => {
-    const savedHex = localStorage.getItem('portly_custom_hex');
+    const savedHex = readStoredSetting('custom_hex');
     if (savedHex) applyAccent(savedHex);
 
-    const savedShortcut = localStorage.getItem('portly_cfg_shortcut') || 'Ctrl+Alt+P';
+    const savedShortcut = readStoredSetting('global_shortcut') || 'Ctrl+Alt+P';
     const shortcutTimer = setTimeout(() => {
       invoke('register_global_shortcut_cmd', { shortcut: savedShortcut }).catch((e) => {
         console.warn('Non-critical: Global shortcut registration fallback:', e);
@@ -208,12 +208,12 @@ export default function App() {
   }, []);
 
   const [showCanvasBg, setShowCanvasBg] = useState(
-    () => localStorage.getItem('portly_cfg_canvas') !== 'false',
+    () => readStoredSetting('canvas_bg') !== 'false',
   );
 
   useEffect(() => {
     const handleCanvasToggle = () => {
-      setShowCanvasBg(localStorage.getItem('portly_cfg_canvas') !== 'false');
+      setShowCanvasBg(readStoredSetting('canvas_bg') !== 'false');
     };
     window.addEventListener('storage', handleCanvasToggle);
     window.addEventListener('portly_canvas_toggle', handleCanvasToggle);
@@ -320,8 +320,6 @@ export default function App() {
                       setActiveTab('settings');
                     }}
                     onOpenTerminal={handleOpenTerminal}
-                    onOpenHelp={() => setIsHelpOpen(true)}
-                    onOpenPalette={() => setIsPaletteOpen(true)}
                   />
                 )}
 
@@ -338,7 +336,6 @@ export default function App() {
                       setServerForm({ mode: 'edit', project, server })
                     }
                     onAddServer={(project) => setServerForm({ mode: 'add', project })}
-                    onOpenIframeModal={(target) => setIframeModalTarget(target)}
                   />
                 )}
 
@@ -347,6 +344,7 @@ export default function App() {
                     projects={projects}
                     initialServerId={browserTarget.serverId}
                     initialUrl={browserTarget.url}
+                    onTargetConsumed={consumeBrowserTarget}
                     onSelectTab={(tab, serverId) => {
                       if (tab === 'terminal' && serverId) handleOpenTerminal(serverId);
                       else setActiveTab(tab);
@@ -425,15 +423,6 @@ export default function App() {
         onClose={() => setIsUpdateModalOpen(false)}
         currentVersion={CURRENT_APP_VERSION}
       />
-
-      {iframeModalTarget && (
-        <IframePreviewModal
-          isOpen={!!iframeModalTarget}
-          onClose={() => setIframeModalTarget(null)}
-          url={iframeModalTarget.url}
-          title={iframeModalTarget.title}
-        />
-      )}
 
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
 

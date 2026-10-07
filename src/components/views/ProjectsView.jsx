@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import FloatingMenu from '../ui/FloatingMenu';
 import { invoke } from '@tauri-apps/api/core';
 import {
-  Play,
-  Square,
   ExternalLink,
   Code2,
   Folder,
@@ -18,12 +16,13 @@ import {
   Monitor,
   MoreHorizontal,
   Copy,
+  AlertTriangle,
 } from 'lucide-react';
 import { triggerToast } from '../../services/toastBus';
 import ConfirmDialog from '../ui/ConfirmDialog';
-import IframePreviewModal from '../modals/IframePreviewModal';
-import { markManualStop, unmarkManualStop } from '../../hooks/useTauriIPC';
-import { stopProject } from '../../services/serverActions';
+import ServerControls from '../ui/ServerControls';
+import useServerOperations from '../../hooks/useServerOperations';
+import { startProject, stopProject, openUrl, projectUrl } from '../../services/serverActions';
 
 function MenuItem({ icon: Icon, danger, onClick, children }) {
   return (
@@ -115,9 +114,8 @@ export default function ProjectsView({
     }
   });
   const [search, setSearch] = useState('');
-  const [, setCopiedPath] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [iframeTarget, setIframeTarget] = useState(null);
+  const getOperation = useServerOperations();
   const [openMenu, setOpenMenu] = useState(null); // { type: 'project'|'server', id: string } | null
 
   // Fermer le menu au clic a l'exterieur ou via la touche Echap
@@ -165,55 +163,6 @@ export default function ProjectsView({
     } catch {}
   };
 
-  const handleStartServer = async (projectId, serverId, cwd, command, env) => {
-    try {
-      await invoke('start_server_cmd', {
-        serverId,
-        cwd,
-        command,
-        env: env || {},
-      });
-      triggerToast({
-        title: '🚀 Serveur Démarré',
-        message: `Command: ${command}`,
-        type: 'success',
-      });
-    } catch (e) {
-      triggerToast({
-        title: '⚠️ Échec du Démarrage',
-        message: String(e),
-        type: 'error',
-      });
-    }
-  };
-
-  const handleStopServer = async (projectId, serverId) => {
-    markManualStop(serverId);
-    try {
-      await invoke('stop_server_cmd', { serverId });
-      triggerToast({
-        title: '⏹ Serveur Arrêté',
-        message: 'Le serveur a été arrêté avec succès.',
-        type: 'info',
-      });
-    } catch (e) {
-      unmarkManualStop(serverId);
-      if (String(e).includes("n'est pas en cours")) {
-        triggerToast({
-          title: '⏹ Serveur déjà arrêté',
-          message: 'Le processus ne tournait plus.',
-          type: 'info',
-        });
-      } else {
-        triggerToast({
-          title: '⚠️ Échec de l\'Arrêt',
-          message: String(e),
-          type: 'error',
-        });
-      }
-    }
-  };
-
   const handleShareTunnel = async (port) => {
     if (!port) return;
     triggerToast({
@@ -253,27 +202,16 @@ export default function ProjectsView({
     invoke('open_explorer', { path }).catch((e) =>
       triggerToast({ title: '⚠️ Explorateur', message: String(e), type: 'error' })
     );
-  const handleOpenBrowser = (url) =>
-    invoke('open_browser', { url }).catch((e) =>
-      triggerToast({ title: '⚠️ Navigateur', message: String(e), type: 'error' })
-    );
-
-  const handleStartProjectServers = (project) => {
-    (project.servers || []).forEach((srv) => {
-      if (srv.state !== 'running') {
-        handleStartServer(project.id, srv.id, project.root, srv.command, srv.env);
-      }
-    });
-  };
-
-  const handleStopProjectServers = async (project) => {
-    await stopProject(project);
-  };
-
-  const handleCopyPath = (path) => {
-    navigator.clipboard.writeText(path);
-    setCopiedPath(path);
-    setTimeout(() => setCopiedPath(null), 2000);
+  const handleOpenBrowser = openUrl;
+  const handleStartProjectServers = startProject;
+  const handleStopProjectServers = stopProject;
+  const handleCopyPath = async (path) => {
+    try {
+      await navigator.clipboard.writeText(path);
+      triggerToast({ title: 'Chemin copié', message: path, type: 'success' });
+    } catch (error) {
+      triggerToast({ title: 'Copie impossible', message: String(error), type: 'error' });
+    }
   };
 
   const confirmDeleteTarget = confirmDelete || {};
@@ -364,16 +302,18 @@ export default function ProjectsView({
               </div>
               <button
                 onClick={handleToggleAll}
-                className="h-8 px-2.5 rounded-md text-zinc-400 hover:text-white hover:bg-white/[0.05] text-xs transition-colors cursor-pointer"
+                className="quiet-button h-9"
                 title="Déplier ou replier tous les projets"
+                aria-expanded={!projects.every((p) => collapsedProjects[p.id])}
               >
+                <ChevronDown size={14} className={projects.every((p) => collapsedProjects[p.id]) ? '' : 'rotate-180'} />
                 {projects.every((p) => collapsedProjects[p.id]) ? 'Tout déplier' : 'Tout replier'}
               </button>
             </>
           )}
           <button
             onClick={onAddProject}
-            className="h-8 px-3 rounded-md theme-accent-btn text-xs font-medium cursor-pointer flex items-center gap-1.5"
+            className="btn"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Nouveau</span>
@@ -392,7 +332,7 @@ export default function ProjectsView({
           </div>
           <button
             onClick={onAddProject}
-            className="h-8 px-4 rounded-md theme-accent-btn text-xs font-medium cursor-pointer"
+            className="btn"
           >
             Choisir un dossier
           </button>
@@ -438,6 +378,7 @@ export default function ProjectsView({
                     {servers.length > 1 &&
                       (activeServersCount > 0 ? (
                         <button
+                          disabled={servers.some((server) => getOperation(server.id))}
                           onClick={() => handleStopProjectServers(project)}
                           className="h-7 px-2 rounded-md text-xs text-zinc-400 hover:text-rose-300 hover:bg-rose-500/10 opacity-0 group-hover/head:opacity-100 focus:opacity-100 transition-all cursor-pointer"
                         >
@@ -445,6 +386,7 @@ export default function ProjectsView({
                         </button>
                       ) : (
                         <button
+                          disabled={servers.some((server) => getOperation(server.id))}
                           onClick={() => handleStartProjectServers(project)}
                           className="h-7 px-2 rounded-md text-xs text-zinc-400 hover:text-emerald-300 hover:bg-emerald-500/10 opacity-0 group-hover/head:opacity-100 focus:opacity-100 transition-all cursor-pointer"
                         >
@@ -516,13 +458,9 @@ export default function ProjectsView({
                               icon={Monitor}
                               onClick={() => {
                                 setOpenMenu(null);
-                                const targetUrl =
-                                  project.url || servers[0]?.url || `http://localhost:${servers[0]?.port}`;
-                                if (onOpenBrowser) {
-                                  onOpenBrowser(servers[0]?.id, targetUrl);
-                                } else {
-                                  setIframeTarget({ url: targetUrl, title: project.name });
-                                }
+                                const targetUrl = projectUrl(project);
+                                const targetServer = servers.find((item) => item.state === 'running' && (item.url || item.port)) || servers.find((item) => item.url || item.port);
+                                onOpenBrowser(targetServer?.id, targetUrl);
                               }}
                             >
                               Aperçu Web & Devices
@@ -569,6 +507,7 @@ export default function ProjectsView({
                       return (
                         <div
                           key={srv.id}
+                          data-server-id={srv.id}
                           className={`group/row flex items-center justify-between gap-3 h-11 px-3 -ml-1 rounded-lg transition-colors ${
                             isServerMenuOpen ? 'bg-white/[0.04] relative z-40' : 'hover:bg-white/[0.03]'
                           }`}
@@ -579,7 +518,13 @@ export default function ProjectsView({
                                 isRunning ? 'bg-emerald-400 live-dot' : 'bg-zinc-700'
                               }`}
                             />
-                            <span className="text-[13px] text-zinc-100 truncate">{srv.name}</span>
+                            <div className="min-w-0">
+                              <span className="text-[13px] text-zinc-100 truncate block">{srv.name}</span>
+                              {srv.lastExitReason && <button className="server-exit-note" title={srv.lastExitReason}
+                                onClick={() => onOpenTerminal(srv.id, srv.name)}>
+                                <AlertTriangle size={11} /> Arrêt inattendu · Voir les logs
+                              </button>}
+                            </div>
                             <span
                               className="text-xs font-mono text-zinc-600 truncate hidden md:block"
                               title={srv.command}
@@ -610,27 +555,7 @@ export default function ProjectsView({
                               <Terminal className="w-3.5 h-3.5" />
                             </IconBtn>
 
-                            {isRunning ? (
-                              <button
-                                onClick={() => handleStopServer(project.id, srv.id)}
-                                className="h-7 w-7 flex items-center justify-center rounded-md text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 transition-colors cursor-pointer"
-                                title="Arrêter"
-                                aria-label="Arrêter"
-                              >
-                                <Square className="w-3 h-3 fill-current" />
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() =>
-                                  handleStartServer(project.id, srv.id, project.root, srv.command, srv.env)
-                                }
-                                className="h-7 w-7 flex items-center justify-center rounded-md text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors cursor-pointer"
-                                title="Lancer"
-                                aria-label="Lancer"
-                              >
-                                <Play className="w-3 h-3 fill-current" />
-                              </button>
-                            )}
+                            <ServerControls project={project} server={srv} compact />
 
                             <div className="relative" data-dropdown-container>
                               <button
@@ -661,14 +586,7 @@ export default function ProjectsView({
                                       onClick={() => {
                                         setOpenMenu(null);
                                         const targetUrl = srv.url || `http://localhost:${srv.port}`;
-                                        if (onOpenBrowser) {
-                                          onOpenBrowser(srv.id, targetUrl);
-                                        } else {
-                                          setIframeTarget({
-                                            url: targetUrl,
-                                            title: `${project.name} - ${srv.name}`,
-                                          });
-                                        }
+                                        onOpenBrowser(srv.id, targetUrl);
                                       }}
                                     >
                                       Aperçu Web & Devices
@@ -742,13 +660,6 @@ export default function ProjectsView({
         danger
         onConfirm={executeConfirmedDelete}
         onCancel={() => setConfirmDelete(null)}
-      />
-
-      <IframePreviewModal
-        isOpen={!!iframeTarget}
-        onClose={() => setIframeTarget(null)}
-        url={iframeTarget?.url}
-        title={iframeTarget?.title}
       />
     </div>
   );

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { Plus, SlidersHorizontal, Play, Square, Globe, ScrollText, ArrowRight } from 'lucide-react';
+import React from 'react';
+import { Plus, SlidersHorizontal, Globe, ScrollText, ArrowRight } from 'lucide-react';
 import PageHeader from '../ui/PageHeader';
 import ResourceChart from '../ui/ResourceChart';
-import { startProject, stopProject } from '../../services/serverActions';
+import ServerControls from '../ui/ServerControls';
 import { dashboardPrefs } from '../../services/dashboardPrefs';
 
 const ramText = (mb) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} Go` : `${Math.round(mb)} Mo`);
@@ -19,7 +19,6 @@ export default function OverviewView({
   onOpenTerminal,
 }) {
   const config = dashboardPrefs(prefs?.dashboard);
-  const [busy, setBusy] = useState({});
   const servers = projects.flatMap((project) =>
     (project.servers || []).map((server) => ({ ...server, project })),
   );
@@ -29,15 +28,6 @@ export default function OverviewView({
   const ramField = system ? 'ram_used_mb' : 'managed_ram_mb';
   const history = metrics.history || [];
   const hasMetrics = history.length > 0;
-  const act = async (server) => {
-    setBusy((previous) => ({ ...previous, [server.id]: true }));
-    const project = { ...server.project, name: server.name, servers: [server] };
-    try {
-      await (server.state === 'running' ? stopProject(project) : startProject(project));
-    } finally {
-      setBusy((previous) => ({ ...previous, [server.id]: false }));
-    }
-  };
   const blocks = {
     stats: (
       <section className="dashboard-stats" aria-label="Statistiques">
@@ -108,7 +98,7 @@ export default function OverviewView({
                   {server.project.name} <span className="text-zinc-400 ml-2">{server.name}</span>
                 </p>
                 <p className="text-xs text-zinc-500 mt-1 truncate">
-                  {server.state === 'running'
+                  {server.lastExitReason ? 'Arrêt inattendu · ' + server.lastExitReason : server.state === 'running'
                     ? 'En cours'
                     : server.state === 'starting'
                       ? 'Démarrage'
@@ -141,15 +131,7 @@ export default function OverviewView({
               >
                 <ScrollText size={15} />
               </button>
-              <button
-                className={`icon-button ${server.state === 'running' ? 'text-rose-300' : 'text-emerald-300'}`}
-                disabled={busy[server.id] || server.state === 'starting'}
-                title={server.state === 'running' ? 'Arrêter' : 'Lancer'}
-                aria-label={`${server.state === 'running' ? 'Arrêter' : 'Lancer'} ${server.name}`}
-                onClick={() => act(server)}
-              >
-                {server.state === 'running' ? <Square size={13} /> : <Play size={14} />}
-              </button>
+              <ServerControls project={server.project} server={server} nameInLabel />
             </div>
           ))
         )}

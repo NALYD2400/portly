@@ -4,7 +4,8 @@ Superviseur de processus de développement local haute performance — moteur na
 
 ## Fonctionnalités
 
-- **Gestion de projets & serveurs** : démarrez/arrêtez vos serveurs de dev (`npm run dev`, `cargo run`, `python main.py`...) avec détection automatique du stack, branche git et éditeur `.env` intégré.
+- **Gestion de projets & serveurs** : démarrez, arrêtez ou redémarrez vos serveurs de dev (`npm run dev`, `cargo run`, `python main.py`...) avec protection contre les doubles clics, détection du stack, branche git et éditeur `.env` intégré. Un arrêt inattendu affiche son code de sortie et donne accès aux logs.
+- **Aperçu web** : barre compacte, formats ordinateur/tablette/mobile et comparaison. Le serveur, l’adresse, le format, les dimensions libres et le zoom sont mémorisés.
 - **Logs temps réel** : choix du serveur par projet pour chaque console, vue divisée, filtrage et historique conservé après l’arrêt. Affichage batché et limité pour les flux volumineux.
 - **Télémétrie CPU/RAM** : consommation par serveur (process racine + enfants), rafraîchie toutes les 2 s.
  - **Inspecteur de ports TCP** : scan natif via l'API Windows (`GetExtendedTcpTable`) — indépendant de la langue du système — avec identification des serveurs Sprint.
@@ -44,6 +45,7 @@ npm run tauri build  # produit l'installateur NSIS (dist/ + src-tauri/target)
 npm run lint
 npm run build
 npm run test:ui
+npm run test:flows
 cd src-tauri
 cargo test --lib
 ```
@@ -51,8 +53,9 @@ cargo test --lib
 Les tests UI utilisent Playwright avec les mocks IPC officiels de Tauri : ils n’arrêtent aucun processus réel et ne modifient pas votre configuration. Ils démarrent leur propre serveur Vite puis le ferment. Sous Windows, Microsoft Edge est utilisé ; pour Chromium sur un autre système, installez le navigateur avec `npx playwright install chromium`. Les captures et le rapport sont écrits dans `test-results/` (ignoré par Git).
 
 Voir [la revue UI/UX et les corrections](docs/ux-review-2026-10-07.md).
+Voir aussi [les améliorations et le nettoyage du code](docs/improvements-2026-10-07.md).
 
-La version 0.5.4 ajoute les filtres de ports par usage, la pause stable et la navigation entre erreurs dans les logs, ainsi que des retours de chargement et des dimensions explicites dans l’aperçu web. Voir [les notes de version](docs/releases/v0.5.4.md).
+La version 0.5.5 harmonise l’interface, ajoute le redémarrage des serveurs et mémorise l’aperçu web. Voir [les notes de version](docs/releases/v0.5.5.md).
 
 ## Structure
 
@@ -60,11 +63,15 @@ La version 0.5.4 ajoute les filtres de ports par usage, la pause stable et la na
 src/
   components/
     layout/      # TitleBar, Sidebar
-    views/       # Dashboard, Projects, Ports, Terminal, Settings
+    views/       # Home, Projects, Browser, Ports, Terminal, Settings
+    settings/    # sections des paramètres et enregistreur de raccourci
     modals/      # Modal de base + ConfirmDialog + formulaires
     ui/          # Modal, ConfirmDialog, Toasts, ContextMenu, Toggle...
   hooks/
     useTauriIPC.js  # état projets, logs batchés, métriques, auto-restart
+    useServerOperations.js # état partagé des lancements/arrêts/redémarrages
+  services/      # actions serveur, préférences, stockage, thème
+  styles/        # base commune puis styles de chaque surface
 src-tauri/src/
   lib.rs             # commandes IPC, tray, update, tunnels
   process_manager.rs # spawn/kill des process + streaming logs

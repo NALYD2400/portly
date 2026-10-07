@@ -1,0 +1,295 @@
+/* Shared, flat workspace surfaces, following the Projects page. */
+.workspace-page {
+  max-width: 56rem;
+}
+.page-lead {
+  font-size: 13px;
+  color: var(--text-mid);
+}
+.btn:disabled,
+.icon-button:disabled,
+.quiet-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.icon-button,
+.quiet-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 6px;
+  color: var(--text-mid);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.icon-button {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+}
+.quiet-button {
+  padding: 7px 9px;
+  font-size: 12px;
+}
+.icon-button:hover,
+.quiet-button:hover {
+  background: var(--surface-3);
+  color: var(--text-hi);
+}
+.control-input {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text-hi);
+  font-size: 12px;
+  min-width: 0;
+}
+.control-input::placeholder {
+  color: var(--text-lo);
+}
+.empty-state {
+  padding: 64px 20px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-mid);
+}
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+}
+.dashboard-stats {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+  padding: 4px 0 26px;
+  border-bottom: 1px solid var(--line);
+}
+.dashboard-servers {
+  grid-column: 1 / -1;
+  padding-top: 8px;
+}
+.resource-chart {
+  min-width: 0;
+  padding: 4px 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+.chart-axis {
+  fill: var(--text-lo);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.chart-wait {
+  position: absolute;
+  inset: 30% 0 auto;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-mid);
+}
+.server-overview-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 8px;
+  margin: 0 -8px;
+  border-radius: 6px;
+}
+.server-overview-row:hover {
+  background: var(--surface-2);
+}
+.dashboard-compact .dashboard-stats {
+  padding-bottom: 16px;
+}
+.dashboard-compact .server-overview-row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.dashboard-compact .dashboard-layout {
+  gap: 18px;
+}
+.settings-layout {
+  display: grid;
+  grid-template-columns: 154px minmax(0, 1fr);
+  gap: 40px;
+}
+.settings-page {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+main#main-content[data-view='settings'] {
+  overflow: hidden;
+}
+.settings-page > header { flex-shrink: 0; }
+.settings-page .settings-layout { flex: 1; min-height: 0; }
+.settings-page .settings-content {
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding-right: 10px;
+}
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-self: start;
+  position: sticky;
+  top: 0;
+}
+.settings-nav button {
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-mid);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.settings-nav button:hover {
+  color: var(--text-hi);
+  background: var(--surface-2);
+}
+.settings-nav button[aria-current] {
+  background: var(--surface-3);
+  color: var(--text-hi);
+}
+.settings-content {
+  position: relative;
+  min-width: 0;
+}
+.settings-section-heading {
+  padding-bottom: 22px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.settings-section-heading h2 {
+  font-size: 15px;
+  font-weight: 500;
+}
+.settings-section-heading p,
+.settings-help {
+  font-size: 12px;
+  color: var(--text-mid);
+  margin-top: 5px;
+  line-height: 1.6;
+}
+.settings-save-status {
+  font-size: 11px;
+  color: var(--text-lo);
+  margin: -2px 0 22px;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 17px 0;
+  border-bottom: 1px solid var(--line);
+}
+.setting-control {
+  flex-shrink: 0;
+  max-width: 60%;
+}
+.setting-control select {
+  max-width: 100%;
+}
+.setting-control > div {
+  flex-wrap: wrap;
+}
+.settings-group {
+  margin-top: 30px;
+}
+.settings-group h3 {
+  font-size: 13px;
+  font-weight: 500;
+}
+.settings-note {
+  margin-top: 24px;
+  font-size: 12px;
+  color: var(--text-mid);
+  line-height: 1.7;
+}
+.accent-options {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+.accent-options button {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.accent-options button[aria-pressed='true'] {
+  outline: 1px solid var(--text-hi);
+  outline-offset: 3px;
+}
+.color-input {
+  width: 34px;
+  height: 34px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.background-controls {
+  display: grid;
+  gap: 18px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+.background-control label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-mid);
+}
+.background-control output {
+  font-variant-numeric: tabular-nums;
+}
+.background-control input {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  accent-color: var(--accent-color);
+  cursor: pointer;
+}
+.background-control input:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.dashboard-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-color);
+  cursor: pointer;
+  margin-left: 6px;
+}
+.skill-details {
+  margin-top: 24px;
+  font-size: 12px;
+  color: var(--text-mid);
+}
+.skill-details summary {
+  cursor: pointer;
+}
+.skill-details pre {
+  padding: 16px 0;
+  white-space: pre-wrap;
+  max-height: 320px;
+  overflow: auto;
+  font-size: 11px;
+}

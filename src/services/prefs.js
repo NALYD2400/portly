@@ -1,3 +1,4 @@
+import { readStoredSetting } from './settingsStorage';
 /**
  * Préférences d'interface (thème, taille du texte, animations, barre latérale).
  * Stockées dans localStorage, appliquées sur <html> via des attributs data-*
@@ -97,7 +98,7 @@ export function applyPrefs(prefs) {
   root.dataset.theme = resolveTheme(prefs.theme);
   applyAccent(
     root.style.getPropertyValue('--accent-color') ||
-      localStorage.getItem('portly_custom_hex') ||
+      readStoredSetting('custom_hex') ||
       '#8b5cf6',
   );
   root.dataset.motion =

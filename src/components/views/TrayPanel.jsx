@@ -1,3 +1,4 @@
+import { readStoredSetting } from '../../services/settingsStorage';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -33,7 +34,7 @@ export default function TrayPanel() {
     let disposed = false;
     const subscriptions = [];
     const syncTheme = () => {
-      applyAccent(localStorage.getItem('portly_custom_hex') || '#8b5cf6');
+      applyAccent(readStoredSetting('custom_hex') || '#8b5cf6');
       // Keep the compact native panel at its own text scale.
       applyPrefs({ ...loadPrefs(), textSize: 'md' });
     };

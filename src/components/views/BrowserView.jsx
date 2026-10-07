@@ -13,10 +13,16 @@ import {
   Play,
   Square,
   QrCode,
+  ArrowRight,
+  Loader2,
   X,
 } from 'lucide-react';
 import { triggerToast } from '../../services/toastBus';
-import { useServerLogs, markManualStop, unmarkManualStop } from '../../hooks/useTauriIPC';
+import { useServerLogs } from '../../hooks/useTauriIPC';
+import useServerOperations from '../../hooks/useServerOperations';
+import { startServer, stopServer } from '../../services/serverActions';
+import EmptyState from '../ui/EmptyState';
+import { loadPreviewPrefs, savePreviewPrefs } from '../../services/previewPrefs';
 import PageHeader from '../ui/PageHeader';
 import PreviewFrame from '../ui/PreviewFrame';
 import Modal from '../ui/Modal';
@@ -28,7 +34,8 @@ const DEVICES = [
   ['dual', 'Comparer', Columns],
   ['custom', 'Libre', null],
 ];
-export default function BrowserView({ projects = [], initialServerId, initialUrl, onSelectTab }) {
+export default function BrowserView({ projects = [], initialServerId, initialUrl, onTargetConsumed, onSelectTab }) {
+  const [savedPreview] = useState(loadPreviewPrefs);
   const servers = useMemo(
     () =>
       projects.flatMap((project) =>
@@ -44,16 +51,17 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
     [projects],
   );
   const [serverId, setServerId] = useState(
-    initialServerId || servers.find((server) => server.state === 'running')?.id || servers[0]?.id,
+    initialServerId || (servers.some((server) => server.id === savedPreview.serverId) ? savedPreview.serverId : null)
+      || servers.find((server) => server.state === 'running')?.id || servers[0]?.id,
   );
   const server = servers.find((item) => item.id === serverId) || servers[0];
-  const [url, setUrl] = useState(initialUrl || server?.url || '');
+  const [url, setUrl] = useState(initialUrl || (savedPreview.serverId === server?.id ? savedPreview.url : '') || server?.url || '');
   const [address, setAddress] = useState(url);
   const [frameKey, setFrameKey] = useState(0);
-  const [mode, setMode] = useState('desktop');
-  const [width, setWidth] = useState(1280);
-  const [height, setHeight] = useState(800);
-  const [fit, setFit] = useState(true);
+  const [mode, setMode] = useState(savedPreview.mode);
+  const [width, setWidth] = useState(savedPreview.width);
+  const [height, setHeight] = useState(savedPreview.height);
+  const [fit, setFit] = useState(savedPreview.fit);
   const [online, setOnline] = useState(null);
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
@@ -63,7 +71,7 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
   const [localIp, setLocalIp] = useState('127.0.0.1');
   const [showQr, setShowQr] = useState(false);
   const timers = useRef({});
-  const operation = useRef(false);
+  const getOperation = useServerOperations();
   const previousOnline = useRef({ id: null, online: null });
   const { logs, clearLogs } = useServerLogs(server?.id);
   useEffect(
@@ -83,7 +91,12 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
       setUrl(initialUrl);
       setAddress(initialUrl);
     }
-  }, [initialServerId, initialUrl]);
+    if (initialServerId || initialUrl) onTargetConsumed?.();
+  }, [initialServerId, initialUrl, onTargetConsumed]);
+  useEffect(() => {
+    savePreviewPrefs({ serverId: server?.id || null, url, mode,
+      width: Number(width), height: Number(height), fit });
+  }, [server?.id, url, mode, width, height, fit]);
   useEffect(() => {
     setOnline(null);
     if (!server?.port) return undefined;
@@ -175,8 +188,7 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
       }),
     );
   const start = async () => {
-    if (!server || operation.current || starting) return;
-    operation.current = true;
+    if (!server || getOperation(server.id) || starting) return;
     setStarting(true);
     clearTimeout(timers.current.start);
     timers.current.start = setTimeout(() => {
@@ -188,12 +200,7 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
       });
     }, 30000);
     try {
-      await invoke('start_server_cmd', {
-        serverId: server.id,
-        cwd: server.projectRoot,
-        command: server.command,
-        env: server.env || {},
-      });
+      await startServer({ root: server.projectRoot }, server);
     } catch (reason) {
       clearTimeout(timers.current.start);
       setStarting(false);
@@ -202,27 +209,21 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
         message: String(reason),
         type: 'error',
       });
-    } finally {
-      operation.current = false;
     }
   };
   const stop = async () => {
-    if (!server || operation.current || stopping) return;
-    operation.current = true;
+    if (!server || getOperation(server.id) || stopping) return;
     setStopping(true);
-    markManualStop(server.id);
     try {
-      await invoke('stop_server_cmd', { serverId: server.id });
+      await stopServer(server);
       setOnline(false);
     } catch (reason) {
-      unmarkManualStop(server.id);
       triggerToast({
         title: 'Arrêt impossible',
         message: String(reason),
         type: 'error',
       });
     } finally {
-      operation.current = false;
       setStopping(false);
     }
   };
@@ -232,35 +233,25 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
   } catch {}
   const canPreview = !!url && (!localTarget || online === true);
   const offline = (
-    <div className="empty-state h-full flex flex-col justify-center items-center bg-[var(--bg-base)]">
-      <p className="text-sm text-zinc-100">
-        {server
-          ? online === null
-            ? 'Vérification du serveur…'
-            : server.projectName + ' est hors ligne'
-          : 'Aucun serveur web configuré'}
-      </p>
-      <p className="text-xs text-zinc-400 mt-2">
-        {server
-          ? 'Lancez le serveur pour afficher votre site.'
-          : 'Ajoutez un serveur avec un port dans vos projets.'}
-      </p>
-      {server && <code className="preview-offline-command">{server.command}</code>}
+    <EmptyState className="preview-offline" icon={Monitor}
+      title={server ? online === null ? 'Vérification du serveur…' : server.projectName + ' est hors ligne' : 'Aucun serveur web configuré'}
+      description={server ? 'Lancez le serveur pour afficher votre site.' : 'Ajoutez un serveur avec un port dans vos projets.'}
+      command={server?.command}>
       {server ? (
         <button
-          className="btn mt-4 theme-accent-btn"
-          disabled={starting || online === null}
+          className="btn"
+          disabled={starting || !!getOperation(server?.id) || online === null}
           onClick={start}
         >
-          <Play size={14} />
+          {starting ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
           {starting ? 'Démarrage…' : 'Lancer le serveur'}
         </button>
       ) : (
-        <button className="btn mt-4" onClick={() => onSelectTab('projects')}>
+        <button className="btn" onClick={() => onSelectTab?.('projects')}>
           Aller aux projets
         </button>
       )}
-    </div>
+    </EmptyState>
   );
   let lanUrl = url;
   try {
@@ -299,23 +290,53 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
         title="Aperçu web"
         actions={
           <>
-            <button
-              className="icon-button"
-              aria-label="Tester sur téléphone"
-              title="Tester sur téléphone"
-              disabled={!server || !online || !localTarget}
-              onClick={() => setShowQr(true)}
-            >
-              <QrCode size={16} />
-            </button>
-            <button
-              className="quiet-button"
-              aria-pressed={showLogs}
-              onClick={() => setShowLogs(!showLogs)}
-            >
-              <Terminal size={14} />
-              Logs
-            </button>
+            <div className="preview-device-controls">
+              <div className="segmented-control" aria-label="Format de l’aperçu">
+                {DEVICES.map(([id, label, Icon]) => (
+                  <button key={id} aria-pressed={mode === id} onClick={() => setMode(id)}>
+                    {Icon && <Icon size={14} />}
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {mode === 'custom' && (
+                <div className="preview-custom-size">
+                  <input aria-label="Largeur de l’aperçu" type="number" min="240" max="3840"
+                    value={width} className="control-input"
+                    onChange={(event) => setWidth(event.target.value)}
+                    onBlur={() => setWidth(Math.min(3840, Math.max(240, Number(width) || 1280)))} />
+                  <span aria-hidden="true">×</span>
+                  <input aria-label="Hauteur de l’aperçu" type="number" min="240" max="2160"
+                    value={height} className="control-input"
+                    onChange={(event) => setHeight(event.target.value)}
+                    onBlur={() => setHeight(Math.min(2160, Math.max(240, Number(height) || 800)))} />
+                </div>
+              )}
+              <select className="control-input" aria-label="Zoom de l’aperçu"
+                value={fit ? 'fit' : 'actual'} onChange={(event) => setFit(event.target.value === 'fit')}>
+                <option value="fit">Ajuster</option>
+                <option value="actual">100 %</option>
+              </select>
+            </div>
+            <div className="preview-header-actions">
+              <button
+                className="icon-button"
+                aria-label="Tester sur téléphone"
+                title="Tester sur téléphone"
+                disabled={!server || !online || !localTarget}
+                onClick={() => setShowQr(true)}
+              >
+                <QrCode size={16} />
+              </button>
+              <button
+                className="quiet-button"
+                aria-pressed={showLogs}
+                onClick={() => setShowLogs(!showLogs)}
+              >
+                <Terminal size={14} />
+                Logs
+              </button>
+            </div>
           </>
         }
       />
@@ -325,7 +346,7 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
           aria-label="Serveur à prévisualiser"
           title={server ? server.projectName + ' · ' + server.name : 'Aucun serveur'}
           value={server?.id || ''}
-          disabled={starting || stopping}
+          disabled={starting || stopping || !!getOperation(server?.id)}
           onChange={(event) => selectServer(event.target.value)}
         >
           {servers.length ? (
@@ -358,8 +379,8 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
             aria-describedby={error ? 'preview-address-error' : undefined}
             onChange={(event) => { setAddress(event.target.value); setError(''); }}
           />
-          <button type="submit" className="quiet-button">
-            Aller
+          <button type="submit" className="icon-button" aria-label="Aller" title="Aller à cette adresse">
+            <ArrowRight size={14} />
           </button>
           <button
             type="button"
@@ -382,70 +403,28 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
             <ExternalLink size={14} />
           </button>
         </form>
-      </div>
-      <div className="preview-toolbar preview-device-toolbar">
-        <div className="segmented-control" aria-label="Format de l’aperçu">
-          {DEVICES.map(([id, label, Icon]) => (
-            <button key={id} aria-pressed={mode === id} onClick={() => setMode(id)}>
-              {Icon && <Icon size={14} />}
-              {label}
+        <div className="preview-server-state">
+          <span className="preview-status" role="status" title={dimensions}>
+            <span className={'server-dot ' + (localTarget && online ? 'running' : '')} />
+            {!localTarget && url ? 'Adresse externe' : server
+              ? online === null
+                ? 'Vérification…'
+                : online
+                  ? 'Serveur en ligne'
+                  : 'Serveur arrêté'
+              : 'Aucun serveur'}
+          </span>
+          {server && (
+            <button
+              className="quiet-button"
+              disabled={starting || stopping || !!getOperation(server?.id) || online === null}
+              onClick={online ? stop : start}
+            >
+              {online ? <Square size={13} /> : <Play size={14} />}
+              {stopping ? 'Arrêt…' : online ? 'Arrêter' : starting ? 'Démarrage…' : 'Lancer'}
             </button>
-          ))}
+          )}
         </div>
-        {mode === 'custom' && (
-          <>
-            <input
-              aria-label="Largeur de l’aperçu"
-              type="number"
-              min="240"
-              max="3840"
-              value={width}
-              className="control-input w-20"
-              onChange={(event) => setWidth(event.target.value)}
-              onBlur={() => setWidth(Math.min(3840, Math.max(240, Number(width) || 1280)))}
-            />
-            <span className="text-zinc-400">×</span>
-            <input
-              aria-label="Hauteur de l’aperçu"
-              type="number"
-              min="240"
-              max="2160"
-              value={height}
-              className="control-input w-20"
-              onChange={(event) => setHeight(event.target.value)}
-              onBlur={() => setHeight(Math.min(2160, Math.max(240, Number(height) || 800)))}
-            />
-          </>
-        )}
-        <select
-          className="control-input"
-          aria-label="Zoom de l’aperçu"
-          value={fit ? 'fit' : 'actual'}
-          onChange={(event) => setFit(event.target.value === 'fit')}
-        >
-          <option value="fit">Ajuster</option>
-          <option value="actual">100 %</option>
-        </select>
-        <span className="preview-status" role="status" title={dimensions}>
-          <span className={'server-dot ' + (localTarget && online ? 'running' : '')} />
-          {!localTarget && url ? 'Adresse externe' : server
-            ? online === null
-              ? 'Vérification…'
-              : online
-                ? 'Serveur en ligne'
-                : 'Serveur arrêté'
-            : 'Aucun serveur'}
-        </span>
-        {server && (
-          <button
-            className="quiet-button ml-auto"
-            disabled={starting || stopping || online === null}
-            onClick={online ? stop : start}
-          >
-            {online ? <Square size={13} /> : <Play size={14} />}
-            {stopping ? 'Arrêt…' : online ? 'Arrêter' : starting ? 'Démarrage…' : 'Lancer'}
-          </button>
-        )}
       </div>
       {error && (
         <p id="preview-address-error" className="text-xs text-rose-400 mt-3" role="alert">

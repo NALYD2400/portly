@@ -1,3 +1,4 @@
+import { readStoredSetting } from '../../services/settingsStorage';
 import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle2, AlertTriangle, XCircle, X, Zap, Info } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
@@ -11,12 +12,12 @@ export default function ToastContainer() {
      const { id = Date.now(), title, message, type = 'info', duration = 4000 } = event.detail || {};
      const newToast = { id, title, message, type };
 
-      const isAppEnabled = (localStorage.getItem('sprint_cfg_notif_app') ?? localStorage.getItem('portly_cfg_notif_app')) !== 'false';
+      const isAppEnabled = readStoredSetting('notif_app') !== 'false';
      if (isAppEnabled) {
        setToasts((prev) => [...prev.filter(toast => toast.id !== id), newToast].slice(-4));
      }
 
-      const isWindowsEnabled = (localStorage.getItem('sprint_cfg_notif_windows') ?? localStorage.getItem('portly_cfg_notif_windows')) !== 'false';
+      const isWindowsEnabled = readStoredSetting('notif_windows') !== 'false';
      if (isWindowsEnabled) {
        try {
          invoke('send_windows_notification', {

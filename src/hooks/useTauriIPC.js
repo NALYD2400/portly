@@ -1,5 +1,9 @@
+import { readStoredSetting } from '../services/settingsStorage';
 import { useEffect, useRef, useState } from 'react';
 import { triggerToast } from '../services/toastBus';
+import { isManualStop, unmarkManualStop } from '../services/serverLifecycle';
+import { startServer } from '../services/serverActions';
+export { markManualStop, unmarkManualStop } from '../services/serverLifecycle';
 
 const isTauriEnv = () =>
   typeof window !== 'undefined' && (!!window.__TAURI_INTERNALS__ || !!window.__TAURI__);
@@ -130,13 +134,6 @@ export function useServerLogs(serverId) {
 // manuellement pour que l'auto-restart ne s'applique qu'aux vrais crashs.
 // ---------------------------------------------------------------------------
 
-const manualStops = new Set();
-
-export function markManualStop(serverId) {
-  if (serverId) manualStops.add(serverId);
-}
-export function unmarkManualStop(serverId) { manualStops.delete(serverId); }
-
 export function useProjects() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -172,7 +169,7 @@ export function useProjects() {
       }
       setProjects(updatedProjects.map(project => ({ ...project, servers: (project.servers || []).map(server => {
         const live = projectsRef.current.flatMap(item => item.servers || []).find(item => item.id === server.id);
-        return live ? { ...server, state: live.state, pid: live.pid } : server;
+        return live ? { ...server, state: live.state, pid: live.pid, lastExitReason: live.lastExitReason } : server;
       }) })));
       return true;
     } catch (e) {
@@ -204,7 +201,7 @@ export function useProjects() {
 
       restartTimers.set(serverId, setTimeout(async () => {
         restartTimers.delete(serverId);
-        if (disposed || manualStops.has(serverId) || localStorage.getItem('portly_cfg_autorestart') !== 'true') return;
+        if (disposed || isManualStop(serverId) || readStoredSetting('auto_restart') !== 'true') return;
         let found = null;
         for (const p of projectsRef.current) {
           for (const s of p.servers || []) {
@@ -218,13 +215,7 @@ export function useProjects() {
         if (!found || found.server.state === 'running') return;
 
         try {
-          const { invoke } = await import('@tauri-apps/api/core');
-          await invoke('start_server_cmd', {
-            serverId,
-            cwd: found.project.root,
-            command: found.server.command,
-            env: found.server.env || {},
-          });
+          if (!await startServer(found.project, found.server)) return;
           triggerToast({
             title: '🔄 Auto-Restart Anti-Crash',
             message: `${found.server.name} s'est arrêté brutalement et a été relancé automatiquement.`,
@@ -245,7 +236,7 @@ export function useProjects() {
       .then(({ listen }) => {
         listen('server-status-changed', (event) => {
           if (disposed) return;
-          const { server_id, state, pid, intentional } = event.payload;
+          const { server_id, state, pid, intentional, exit_code, exit_error } = event.payload;
           if (state === 'running' || intentional) {
             clearTimeout(restartTimers.get(server_id));
             restartTimers.delete(server_id);
@@ -254,26 +245,32 @@ export function useProjects() {
           const wasRunning = projectsRef.current.some((p) =>
             (p.servers || []).some((s) => s.id === server_id && s.state === 'running'),
           );
+          const unexpected = state === 'stopped' && wasRunning && !intentional && !isManualStop(server_id);
+          const exitReason = unexpected && (exit_code != null || exit_error)
+            ? exit_error || 'Code de sortie ' + exit_code : null;
 
-          setProjects((prev) => {
-            const next = prev.map((p) => ({
-              ...p,
-              servers: (p.servers || []).map((s) =>
-                s.id === server_id ? { ...s, state, pid: pid ?? null } : s,
-              ),
-            }));
-            projectsRef.current = next;
-            return next;
-          });
+          const next = projectsRef.current.map((p) => ({
+            ...p,
+            servers: (p.servers || []).map((s) =>
+              s.id === server_id ? { ...s, state, pid: pid ?? null,
+                lastExitReason: state === 'running' || intentional ? null : exitReason || s.lastExitReason || null } : s,
+            ),
+          }));
+          projectsRef.current = next;
+          setProjects(next);
 
           // Auto-restart anti-crash : seulement si le serveur tournait, n'a pas
           // été arrêté manuellement, et que l'option est activée dans les réglages.
-          if (state === 'stopped' && wasRunning && !intentional && !manualStops.has(server_id)) {
-            if (localStorage.getItem('portly_cfg_autorestart') === 'true') {
+          if (unexpected) {
+            if (exitReason) {
+              const name = projectsRef.current.flatMap((project) => project.servers || []).find((server) => server.id === server_id)?.name || 'Le serveur';
+              triggerToast({ title: 'Arrêt inattendu', message: name + ' · ' + exitReason + '. Consultez les logs.', type: 'error' });
+            }
+            if (readStoredSetting('auto_restart') === 'true') {
               scheduleAutoRestart(server_id);
             }
           }
-          manualStops.delete(server_id);
+          unmarkManualStop(server_id);
         }).then((fn) => {
           if (disposed) fn();
           else unlistenFn = fn;

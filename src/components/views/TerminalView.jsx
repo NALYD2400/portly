@@ -1,5 +1,5 @@
+import { readStoredSetting } from '../../services/settingsStorage';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { useServerLogs } from '../../hooks/useTauriIPC';
 import {
   Terminal,
@@ -16,6 +16,9 @@ import {
   X,
 } from 'lucide-react';
 import PageHeader from '../ui/PageHeader';
+import EmptyState from '../ui/EmptyState';
+import useServerOperations from '../../hooks/useServerOperations';
+import { performServerAction } from '../../services/serverActions';
 import { triggerToast } from '../../services/toastBus';
 
 // Nombre max de lignes rendues dans le DOM (fenêtre glissante)
@@ -61,7 +64,7 @@ function TerminalPanel({ server, titlePrefix = 'Console', onStart, pending }) {
   const scrollRef = useRef(null);
 
   // Réglage utilisateur : nettoyage ANSI des logs
-  const showRawAnsi = localStorage.getItem('portly_cfg_cleanansi') === 'false';
+  const showRawAnsi = readStoredSetting('clean_ansi_logs') === 'false';
 
   const displayLogs = frozenLogs || logs;
   const newLines = frozenLogs ? logs.filter((entry) => entry.id > pausedAt.current).length : 0;
@@ -249,27 +252,22 @@ function TerminalPanel({ server, titlePrefix = 'Console', onStart, pending }) {
             </span>
           </div>
         ) : filteredLogs.length === 0 ? (
-          <div className="console-empty">
-              {filter || level !== 'all' ? (
-                <>
-                  <Search size={22} />
-                  <h2>Aucun résultat</h2><p>Essayez un autre texte ou affichez tous les niveaux.</p>
-                  <button className="btn" onClick={() => { setFilter(''); setLevel('all'); }}>Réinitialiser les filtres</button>
-                </>
-              ) : (
-                <>
-                  <Terminal size={24} />
-                  <h2>{server?.state === 'running' ? 'En attente des premières lignes' : 'Ce serveur est arrêté'}</h2>
-                  <p>{server?.state === 'running' ? 'Les nouvelles sorties du serveur apparaîtront ici.' : 'Lancez-le pour voir ses logs dans cette console.'}</p>
-                  {server.command && <code title={server.command}>{server.command}</code>}
-                  {server.state !== 'running' && <button className="btn theme-accent-btn" disabled={pending}
-                    onClick={() => onStart(server)} aria-label={'Lancer le serveur · ' + titlePrefix}>
-                    {pending ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-                    {pending ? 'Lancement…' : 'Lancer le serveur'}
-                  </button>}
-                </>
-              )}
-          </div>
+          filter || level !== 'all' ? (
+            <EmptyState icon={Search} title="Aucun résultat" description="Essayez un autre texte ou affichez tous les niveaux.">
+              <button className="btn" onClick={() => { setFilter(''); setLevel('all'); }}>Réinitialiser les filtres</button>
+            </EmptyState>
+          ) : (
+            <EmptyState icon={Terminal}
+              title={server.state === 'running' ? 'En attente des premières lignes' : 'Ce serveur est arrêté'}
+              description={server.state === 'running' ? 'Les nouvelles sorties du serveur apparaîtront ici.' : 'Lancez-le pour voir ses logs dans cette console.'}
+              command={server.command}>
+              {server.state !== 'running' && <button className="btn" disabled={pending}
+                onClick={() => onStart(server)} aria-label={'Lancer le serveur · ' + titlePrefix}>
+                {pending ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                {pending ? 'Lancement…' : 'Lancer le serveur'}
+              </button>}
+            </EmptyState>
+          )
         ) : (
           <>
             {hiddenByWindow > 0 && (
@@ -369,7 +367,7 @@ function ConsoleSelector({ server, servers, number, otherId, onChange, onStart, 
 
 export default function TerminalView({ projects = [], initialServerId, onSelectTab }) {
   const [showAllServers, setShowAllServers] = useState(
-    () => localStorage.getItem('portly_cfg_hidestopped') === 'false',
+    () => readStoredSetting('hide_stopped_servers') === 'false',
   );
   const allServers = useMemo(
     () =>
@@ -387,8 +385,7 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
   const [activeServerId, setActiveServerId] = useState(initialServerId || null);
   const [splitServerId, setSplitServerId] = useState(null);
   const [isSplitMode, setIsSplitMode] = useState(false);
-  const [startingIds, setStartingIds] = useState(new Set());
-  const startingRef = useRef(new Set());
+  const getOperation = useServerOperations();
 
   useEffect(() => {
     if (initialServerId) setActiveServerId(initialServerId);
@@ -418,24 +415,8 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
       server.id === primaryServer?.id ||
       (isSplitMode && server.id === secondaryServer?.id),
   );
-  const handleStartServer = async (server) => {
-    if (startingRef.current.has(server.id)) return;
-    startingRef.current.add(server.id);
-    setStartingIds(new Set(startingRef.current));
-    try {
-      await invoke('start_server_cmd', {
-        serverId: server.id,
-        cwd: server.projectRoot,
-        command: server.command,
-        env: server.env || {},
-      });
-    } catch (error) {
-      triggerToast({ title: 'Lancement impossible', message: String(error), type: 'error' });
-    } finally {
-      startingRef.current.delete(server.id);
-      setStartingIds(new Set(startingRef.current));
-    }
-  };
+  const handleStartServer = (server) =>
+    performServerAction('start', { root: server.projectRoot }, server, { silent: true });
 
   if (!allServers.length)
     return (
@@ -493,7 +474,7 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
           otherId={isSplitMode ? secondaryServer?.id : null}
           onChange={setActiveServerId}
           onStart={handleStartServer}
-          pending={startingIds.has(primaryServer?.id)}
+          pending={!!getOperation(primaryServer?.id)}
         />
         {isSplitMode && (
           <ConsoleSelector
@@ -503,15 +484,15 @@ export default function TerminalView({ projects = [], initialServerId, onSelectT
             otherId={primaryServer?.id}
             onChange={setSplitServerId}
             onStart={handleStartServer}
-            pending={startingIds.has(secondaryServer?.id)}
+            pending={!!getOperation(secondaryServer?.id)}
           />
         )}
       </div>
       <div className={'terminal-grid ' + (isSplitMode ? 'split' : '')}>
         <TerminalPanel key={primaryServer?.id || 'empty-primary'} server={primaryServer} titlePrefix="Console 1"
-          onStart={handleStartServer} pending={startingIds.has(primaryServer?.id)} />
+          onStart={handleStartServer} pending={!!getOperation(primaryServer?.id)} />
         {isSplitMode && <TerminalPanel key={secondaryServer?.id || 'empty-secondary'} server={secondaryServer} titlePrefix="Console 2"
-          onStart={handleStartServer} pending={startingIds.has(secondaryServer?.id)} />}
+          onStart={handleStartServer} pending={!!getOperation(secondaryServer?.id)} />}
       </div>
     </div>
   );

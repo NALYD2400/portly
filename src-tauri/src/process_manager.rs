@@ -22,6 +22,8 @@ pub struct StatusPayload {
     pub state: String,
     pub pid: Option<u32>,
     pub intentional: bool,
+    pub exit_code: Option<i32>,
+    pub exit_error: Option<String>,
 }
 
 pub struct ProcessManager {
@@ -113,6 +115,8 @@ impl ProcessManager {
                 state: "running".to_string(),
                 pid: Some(pid),
                 intentional: false,
+                exit_code: None,
+                exit_error: None,
             },
         );
 
@@ -162,11 +166,10 @@ impl ProcessManager {
         let app_exit = app_handle.clone();
         let s_exit = s_id.clone();
         tauri::async_runtime::spawn(async move {
-            let exited_normally = child
-                .wait()
-                .await
-                .map(|status| status.success())
-                .unwrap_or(false);
+            let exit = child.wait().await;
+            let exited_normally = exit.as_ref().map(|status| status.success()).unwrap_or(false);
+            let exit_code = exit.as_ref().ok().and_then(|status| status.code());
+            let exit_error = exit.err().map(|error| error.to_string());
             let owns_process = {
                 let mut map = processes_ref.lock();
                 // A stopped process can exit after a replacement has already started.
@@ -182,6 +185,8 @@ impl ProcessManager {
                     state: "stopped".to_string(),
                     pid: None,
                     intentional: exited_normally,
+                    exit_code,
+                    exit_error,
                 },
             );
         });
@@ -217,6 +222,8 @@ impl ProcessManager {
                     state: "stopped".to_string(),
                     pid: None,
                     intentional: true,
+                    exit_code: None,
+                    exit_error: None,
                 },
             );
             Ok(())

@@ -1,3 +1,4 @@
+import { readStoredSetting } from '../../services/settingsStorage';
 import React, { useRef } from 'react';
 import { Minus, Square, X } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
@@ -44,7 +45,7 @@ export default function TitleBar({ pageLabel, runningCount = 0 }) {
   };
 
   const handleClose = async () => {
-    const minimizeToTray = localStorage.getItem('portly_cfg_minimizetotray') !== 'false';
+    const minimizeToTray = readStoredSetting('minimize_to_tray') !== 'false';
     try {
       if (minimizeToTray) {
         // Masque dans le tray (réouverture via raccourci global ou icône tray)
@@ -64,7 +65,7 @@ export default function TitleBar({ pageLabel, runningCount = 0 }) {
   };
 
   const closeTitle =
-    localStorage.getItem('portly_cfg_minimizetotray') !== 'false'
+    readStoredSetting('minimize_to_tray') !== 'false'
       ? 'Réduire dans la barre des tâches'
       : 'Quitter Sprint complètement';
 

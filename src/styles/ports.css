@@ -1,0 +1,81 @@
+.ports-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  text-align: left;
+  table-layout: fixed;
+}
+.ports-table th:nth-child(1) { width: 84px; }
+.ports-table th:nth-child(3) { width: 68px; }
+.ports-table th:nth-child(4) { width: 190px; }
+.ports-table th:nth-child(5) { width: 126px; }
+.ports-table th {
+  font-size: 11px;
+  color: var(--text-mid);
+  font-weight: 400;
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-1);
+}
+.ports-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-1);
+  transition: background-color 0.15s ease-out;
+}
+.ports-table tbody tr:is(:hover, :focus-within) td {
+  background: var(--surface-3);
+}
+.ports-table tbody tr:is(:hover, :focus-within) td:first-child { border-radius: var(--radius-ctl) 0 0 var(--radius-ctl); }
+.ports-table tbody tr:is(:hover, :focus-within) td:last-child { border-radius: 0 var(--radius-ctl) var(--radius-ctl) 0; }
+.ports-table tbody tr:last-child td { border-bottom: 0; }
+.ports-table .port-process {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ports-table .ports-actions {
+  position: sticky;
+  right: 0;
+}
+.ports-table th.ports-actions { z-index: 2; }
+.ports-page { display: flex; flex-direction: column; height: 100%; min-height: 0; padding-bottom: 0; }
+main#main-content[data-view='ports'] { overflow: hidden; }
+.ports-page > header { flex-shrink: 0; margin-bottom: 20px; }
+.ports-tools { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; flex-shrink: 0; }
+.ports-tools .segmented-control { flex-wrap: wrap; border: 1px solid var(--line); border-radius: var(--radius-ctl); }
+.ports-tools input { width: 280px; max-width: 100%; padding-right: 30px; }
+.ports-search-clear { position: absolute; right: 2px; top: 2px; }
+.ports-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 16px 0 8px; font-size: 12px; color: var(--text-mid); flex-shrink: 0; }
+.ports-summary label { display: inline-flex; gap: 8px; align-items: center; }
+.ports-summary select { font-size: 12px; }
+.ports-table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  padding: 0 8px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface-1);
+  isolation: isolate;
+}
+.ports-table { min-width: 600px; }
+.port-number { font: 500 13px var(--font-mono); color: var(--text-hi); }
+.port-detail { display: block; font-size: 11px; line-height: 1.7; color: var(--text-mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.port-process-title { display: block; color: var(--text-hi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.port-process-title svg { display: inline-block; vertical-align: -2px; margin-right: 8px; color: var(--text-mid); }
+.port-access { font-size: 12px; color: var(--text-hi); }
+.port-row-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+.ports-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-top: 12px; font-size: 11px; color: var(--text-mid); flex-shrink: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .ports-table td { transition: none; }
+}
+:root[data-motion='reduce'] .ports-table td {
+  transition: none;
+}
