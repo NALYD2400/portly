@@ -456,7 +456,7 @@ export default function BrowserView({ projects = [], initialServerId, initialUrl
         )}
       </div>
       <div className="preview-footnote"><span>{dimensions}</span>
-        <span>Page vide ou intégration refusée ? <button className="log-resume" disabled={!url} onClick={openExternal}>Ouvrir dans le navigateur <ExternalLink size={12} /></button></span>
+        <span>Page vide ou intégration refusée ? <button className="log-resume inline-flex items-center min-h-6" disabled={!url} onClick={openExternal}>Ouvrir dans le navigateur <ExternalLink size={12} /></button></span>
       </div>
       {showLogs && (
         <div className="preview-logs">

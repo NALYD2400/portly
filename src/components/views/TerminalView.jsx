@@ -40,7 +40,7 @@ const LogLine = React.memo(function LogLine({ entry, lineNumber, showRaw, active
               : 'text-zinc-300 hover:bg-white/[0.02]'
       }`}
     >
-      <span className="text-zinc-500 select-none mr-2.5 text-[10px] min-w-[2.2rem] text-right">
+      <span className="text-zinc-500 select-none mr-2.5 text-[12px] min-w-[2.2rem] text-right">
         {lineNumber}
       </span>
       <span className="log-line-level">{isError ? 'Erreur' : isSuccess ? 'Succès' : isInfo ? 'Info' : ''}</span>
@@ -180,7 +180,7 @@ function TerminalPanel({ server, titlePrefix = 'Console', onStart, pending }) {
               type="text"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Rechercher dans les logs…"
+              placeholder="Rechercher…"
               aria-label={`Rechercher dans les logs · ${titlePrefix}`}
               className="control-input log-filter !pl-7"
             />

@@ -81,7 +81,7 @@ export default function TitleBar({ pageLabel, runningCount = 0 }) {
       <div data-tauri-drag-region className="flex items-center gap-2 pointer-events-none">
         {pageLabel && <span className="text-zinc-500 text-xs">{pageLabel}</span>}
         {runningCount > 0 && (
-          <span className="ml-2 flex items-center gap-1.5 text-[11px] text-emerald-400">
+          <span className="ml-2 flex items-center gap-1.5 text-[12px] text-emerald-400">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 live-dot" />
             {runningCount} en marche
           </span>

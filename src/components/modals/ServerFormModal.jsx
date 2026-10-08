@@ -179,7 +179,7 @@ export default function ServerFormModal({
                   key={scriptCmd}
                   type="button"
                   onClick={() => setCommand(scriptCmd)}
-                  className={`h-6 px-2 rounded-md text-[11px] font-mono transition-colors cursor-pointer ${
+                  className={`h-6 px-2 rounded-md text-[12px] font-mono transition-colors cursor-pointer ${
                     isSelected
                       ? 'bg-white/[0.1] text-white'
                       : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.05]'
@@ -243,7 +243,7 @@ export default function ServerFormModal({
                 placeholder="500"
                 className={`${field} font-mono`}
               />
-              <p className="text-[11px] text-zinc-500 mt-1.5 leading-relaxed">
+              <p className="text-[12px] text-zinc-500 mt-1.5 leading-relaxed">
                 Si le serveur dépasse cette limite, Sprint le relance automatiquement. Laissez vide pour désactiver.
               </p>
             </div>

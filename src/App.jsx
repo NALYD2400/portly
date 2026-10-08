@@ -281,7 +281,6 @@ export default function App() {
         <Sidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          activeServersCount={activeServersCount}
           onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
           updateAvailable={updateAvailable}
           onOpenCommandPalette={() => setIsPaletteOpen(true)}

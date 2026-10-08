@@ -118,15 +118,24 @@ pub fn get_crash_log_file() -> PathBuf {
 }
 
 /// Écriture atomique : écrit dans un fichier temporaire puis renomme.
+/// Ajoute un suffixe au nom complet (`.env.local` → `.env.local.bak`).
+/// `with_extension` remplacerait l'extension et ferait collisionner `.env` et `.env.local`.
+pub fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
+    let mut name = path.file_name().unwrap_or_default().to_os_string();
+    name.push(".");
+    name.push(suffix);
+    path.with_file_name(name)
+}
+
 pub fn atomic_write(path: &Path, contents: &str) -> Result<(), String> {
     let _write_guard = CONFIG_WRITE_LOCK.lock();
-    let tmp_path = path.with_extension("tmp");
+    let tmp_path = with_suffix(path, "tmp");
 
     fs::write(&tmp_path, contents)
         .map_err(|e| format!("Erreur écriture {}: {}", tmp_path.display(), e))?;
 
     if path.exists() {
-        let bak_path = path.with_extension("bak");
+        let bak_path = with_suffix(path, "bak");
         // Keep the current file readable until the final atomic replacement.
         fs::copy(path, &bak_path)
             .map_err(|e| format!("Erreur sauvegarde {}: {}", bak_path.display(), e))?;
@@ -252,13 +261,29 @@ mod validation_tests {
         first.join().unwrap().unwrap();
         second.join().unwrap().unwrap();
         let current = fs::read_to_string(&file).unwrap();
-        let previous = fs::read_to_string(file.with_extension("bak")).unwrap();
+        let previous = fs::read_to_string(with_suffix(&file, "bak")).unwrap();
         assert!(current == "first" || current == "second");
         assert!(previous == "first" || previous == "second");
         assert_ne!(current, previous);
         fs::remove_file(&file).unwrap();
-        fs::remove_file(file.with_extension("bak")).unwrap();
+        fs::remove_file(with_suffix(&file, "bak")).unwrap();
         fs::remove_dir(&dir).unwrap();
+    }
+
+    #[test]
+    fn env_variants_keep_separate_backups() {
+        let dir = std::env::temp_dir().join(format!("sprint-env-test-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let base = dir.join(".env");
+        let local = dir.join(".env.local");
+        atomic_write(&base, "BASE=1").unwrap();
+        atomic_write(&local, "LOCAL=1").unwrap();
+        atomic_write(&local, "LOCAL=2").unwrap();
+        assert_eq!(fs::read_to_string(with_suffix(&local, "bak")).unwrap(), "LOCAL=1");
+        assert!(!with_suffix(&base, "bak").exists());
+        assert_eq!(fs::read_to_string(&base).unwrap(), "BASE=1");
+        assert_ne!(with_suffix(&base, "tmp"), with_suffix(&local, "tmp"));
+        fs::remove_dir_all(&dir).unwrap();
     }
 }
 

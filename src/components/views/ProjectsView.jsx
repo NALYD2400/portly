@@ -204,7 +204,13 @@ export default function ProjectsView({
     );
   const handleOpenBrowser = openUrl;
   const handleStartProjectServers = startProject;
-  const handleStopProjectServers = stopProject;
+  const [confirmStopProject, setConfirmStopProject] = useState(null);
+  const handleStopProjectServers = (project) => setConfirmStopProject(project);
+  const executeStopProject = async () => {
+    const project = confirmStopProject;
+    setConfirmStopProject(null);
+    if (project) await stopProject(project);
+  };
   const handleCopyPath = async (path) => {
     try {
       await navigator.clipboard.writeText(path);
@@ -360,7 +366,7 @@ export default function ProjectsView({
                 <div className="group/head flex items-center justify-between gap-3 h-9">
                   <button
                     onClick={() => toggleProjectCollapse(project.id)}
-                    className="flex items-center gap-2.5 min-w-0 cursor-pointer text-left"
+                    className="flex items-center gap-2.5 min-w-0 min-h-6 cursor-pointer text-left"
                     aria-label={isCollapsed ? 'Déplier le projet' : 'Replier le projet'}
                   >
                     <ChevronDown
@@ -380,7 +386,7 @@ export default function ProjectsView({
                         <button
                           disabled={servers.some((server) => getOperation(server.id))}
                           onClick={() => handleStopProjectServers(project)}
-                          className="h-7 px-2 rounded-md text-xs text-zinc-400 hover:text-rose-300 hover:bg-rose-500/10 opacity-0 group-hover/head:opacity-100 focus:opacity-100 transition-all cursor-pointer"
+                          className="h-7 px-2 rounded-md text-xs text-zinc-300 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
                         >
                           Tout arrêter
                         </button>
@@ -660,6 +666,19 @@ export default function ProjectsView({
         danger
         onConfirm={executeConfirmedDelete}
         onCancel={() => setConfirmDelete(null)}
+      />
+
+      <ConfirmDialog
+        open={!!confirmStopProject}
+        title="Arrêter les serveurs de ce projet ?"
+        message={(() => {
+          const count = (confirmStopProject?.servers || []).filter((server) => server.state === 'running').length;
+          return `${count} serveur${count > 1 ? 's' : ''} en cours dans « ${confirmStopProject?.name ?? ''} » ${count > 1 ? 'seront arrêtés' : 'sera arrêté'}. Les autres projets ne sont pas touchés.`;
+        })()}
+        confirmLabel="Arrêter les serveurs"
+        danger
+        onConfirm={executeStopProject}
+        onCancel={() => setConfirmStopProject(null)}
       />
     </div>
   );

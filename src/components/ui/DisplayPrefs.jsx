@@ -86,7 +86,7 @@ export default function DisplayPrefs({ prefs, onChange }) {
             );
           }}
         />
-        <p className="text-[11px] text-zinc-500">
+        <p className="text-[12px] text-zinc-500">
           « Automatique » suit le réglage clair ou sombre de Windows.
         </p>
       </div>
@@ -117,7 +117,7 @@ export default function DisplayPrefs({ prefs, onChange }) {
           ]}
           onChange={(reduceMotion) => onChange({ reduceMotion })}
         />
-        <p className="text-[11px] text-zinc-500">
+        <p className="text-[12px] text-zinc-500">
           Réduire les animations aide en cas de gêne visuelle ou d’ordinateur lent.
         </p>
       </div>

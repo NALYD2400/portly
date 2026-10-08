@@ -220,7 +220,7 @@ export default function EnvEditorModal({ isOpen, onClose, projectRoot }) {
                     {selectedFile}
                   </span>
                 </h2>
-                <p className="text-[11px] text-zinc-400 font-mono truncate max-w-lg mt-0.5">
+                <p className="text-[12px] text-zinc-400 font-mono truncate max-w-lg mt-0.5">
                   {projectRoot}\{selectedFile}
                 </p>
               </div>

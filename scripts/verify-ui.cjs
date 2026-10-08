@@ -48,7 +48,7 @@ const { entry, projects } = require('./fixtures/ui.cjs');
     );
     await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
     await page.route('http://localhost:3000/**', (r) =>
-      r.fulfill({ contentType: 'text/html', body: '<html><body>Test aperçu</body></html>' }),
+      r.fulfill({ contentType: 'text/html; charset=utf-8', body: '<html><head><meta charset="utf-8"></head><body>Test aperçu</body></html>' }),
     );
     await page.route('http://localhost:3001/**', (r) =>
       r.fulfill({ contentType: 'text/html', body: '<html><body>Test API</body></html>' }),
@@ -641,11 +641,11 @@ const { entry, projects } = require('./fixtures/ui.cjs');
     await page.setViewportSize({width: 1320, height: 860});
     await setTheme('light');
     // A portable download must never replace the installer in the update flow.
-    const updateUrl = 'https://github.com/NALYD2400/portly/releases/download/v0.5.5/Sprint_0.5.5_x64-setup.exe';
+    const updateUrl = 'https://github.com/NALYD2400/portly/releases/download/v9.0.0/Sprint_9.0.0_x64-setup.exe';
     await page.route('https://api.github.com/repos/NALYD2400/portly/releases/latest', (route) => route.fulfill({json: {
-      tag_name: 'v0.5.5', body: 'Version de test', assets: [
-        {name: 'Sprint_0.5.5_x64-portable.exe', browser_download_url: updateUrl.replace('setup', 'portable')},
-        {name: 'Sprint_0.5.5_x64-setup.exe', browser_download_url: updateUrl},
+      tag_name: 'v9.0.0', body: 'Version de test', assets: [
+        {name: 'Sprint_9.0.0_x64-portable.exe', browser_download_url: updateUrl.replace('setup', 'portable')},
+        {name: 'Sprint_9.0.0_x64-setup.exe', browser_download_url: updateUrl},
       ],
     }}));
     await page.keyboard.press('Control+,');
@@ -656,7 +656,7 @@ const { entry, projects } = require('./fixtures/ui.cjs');
     check((await cmds()).some((command) => command.cmd === 'download_update_cmd' && command.args.url === updateUrl),
       'update chooses installer even when portable asset is listed first');
     await page.getByRole('button', {name: 'Fermer la fenêtre de mise à jour', exact: true}).click();
-    await page.route('https://api.github.com/repos/NALYD2400/portly/releases/latest', (route) => route.fulfill({json: {tag_name: 'v0.5.5', assets: []}}));
+    await page.route('https://api.github.com/repos/NALYD2400/portly/releases/latest', (route) => route.fulfill({json: {tag_name: 'v9.0.0', assets: []}}));
     await page.getByRole('button', {name: 'Mises à jour', exact: true}).click();
     await page.getByRole('button', {name: 'Télécharger la mise à jour', exact: true}).click();
     await page.getByText('La mise à jour est prête', {exact: true}).waitFor();
@@ -664,6 +664,18 @@ const { entry, projects } = require('./fixtures/ui.cjs');
       'update fallback uses the Sprint installer filename');
     await page.getByRole('button', {name: 'Fermer la fenêtre de mise à jour', exact: true}).click();
     await page.unroute('https://api.github.com/repos/NALYD2400/portly/releases/latest');
+    // Bulk stop of a project waits for explicit confirmation before sending any stop command.
+    await page.keyboard.press('Control+2');
+    const stopsBefore = (await cmds()).filter((x) => x.cmd === 'stop_server_cmd').length;
+    await page.getByRole('button', { name: 'Tout arrêter', exact: true }).first().click();
+    await page.getByRole('dialog').getByText('Arrêter les serveurs de ce projet ?', { exact: true }).waitFor();
+    check((await cmds()).filter((x) => x.cmd === 'stop_server_cmd').length === stopsBefore, 'project bulk stop waits for confirmation');
+    await page.getByRole('dialog').getByRole('button', { name: 'Annuler', exact: true }).click();
+    check((await cmds()).filter((x) => x.cmd === 'stop_server_cmd').length === stopsBefore, 'cancelled project bulk stop sends nothing');
+    await page.getByRole('button', { name: 'Tout arrêter', exact: true }).first().click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Arrêter les serveurs', exact: true }).click();
+    await page.waitForTimeout(150);
+    check((await cmds()).filter((x) => x.cmd === 'stop_server_cmd').length > stopsBefore, 'confirmed project bulk stop stops servers');
     // Dirty .env nested confirmation must own Escape and keyboard focus.
     await page.keyboard.press('Control+2');
     await page.getByRole('button', { name: 'Options du projet', exact: true }).click();
@@ -702,7 +714,7 @@ const { entry, projects } = require('./fixtures/ui.cjs');
     // Tray surface, no real processes involved.
     await page.goto(base + '/?tray=1', { waitUntil: 'domcontentloaded' });
     await page.getByRole('heading', { name: 'Sprint', exact: true }).waitFor();
-    await page.setViewportSize({ width: 360, height: 540 });
+    await page.setViewportSize({ width: 340, height: 400 });
     await page.screenshot({ path: art + '/sprint-tray-light.png' });
     const overflow = await page.evaluate(
       () =>
@@ -726,6 +738,18 @@ const { entry, projects } = require('./fixtures/ui.cjs');
           x.args.serverId === 's2',
       ).length === 1,
       'tray toggles only chosen server',
+    );
+    await page.getByRole('button', { name: /^Tout arrêter/ }).click();
+    check(
+      (await cmds()).filter((x) => x.cmd === 'tray_action_cmd' && x.args.action === 'stop-all').length === 0,
+      'tray stop-all waits for confirmation',
+    );
+    await page.getByRole('button', { name: 'Annuler', exact: true }).click();
+    await page.getByRole('button', { name: /^Tout arrêter/ }).click();
+    await page.getByRole('button', { name: 'Arrêter', exact: true }).click();
+    check(
+      (await cmds()).filter((x) => x.cmd === 'tray_action_cmd' && x.args.action === 'stop-all').length === 1,
+      'tray stop-all runs once after confirmation',
     );
     await page.evaluate(() => (window.__trayActivity = 1));
     await emit('tray-state-changed', null);

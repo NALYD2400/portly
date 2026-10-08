@@ -290,7 +290,7 @@ export default function PortsView({ projects = [] }) {
                       sort.key === key ? (sort.ascending ? 'ascending' : 'descending') : 'none'
                     }
                   >
-                    <button className="cursor-pointer" onClick={() => changeSort(key)}>
+                    <button className="cursor-pointer inline-flex items-center min-h-6" onClick={() => changeSort(key)}>
                       {label}
                       {sort.key === key ? (sort.ascending ? ' ↑' : ' ↓') : ''}
                     </button>

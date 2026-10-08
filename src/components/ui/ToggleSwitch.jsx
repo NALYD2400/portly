@@ -23,7 +23,7 @@ export default function ToggleSwitch({
         e.stopPropagation();
         if (!disabled) onChange(!checked);
       }}
-      className={`relative inline-flex shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ${
+      className={`relative inline-flex shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 before:absolute before:-inset-y-1 before:inset-x-0 before:content-[''] ${
         sm ? 'h-[18px] w-8' : 'h-5 w-9'
       } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
       style={{

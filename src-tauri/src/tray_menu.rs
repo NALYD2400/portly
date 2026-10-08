@@ -297,10 +297,10 @@ fn show_panel(app: &AppHandle, cursor: PhysicalPosition<f64>) {
         if let Some(monitor) = monitor {
             let area = monitor.work_area();
             let scale = monitor.scale_factor();
-            let width = 360.0_f64
+            let width = 340.0_f64
                 .min(area.size.width as f64 / scale - 16.0)
                 .max(1.0);
-            let height = 540.0_f64
+            let height = 400.0_f64
                 .min(area.size.height as f64 / scale - 16.0)
                 .max(1.0);
             let _ = panel.set_size(tauri::LogicalSize::new(width, height));
@@ -356,7 +356,7 @@ pub fn setup(app: &tauri::App) -> tauri::Result<()> {
     let custom_panel =
         WebviewWindowBuilder::new(app, "tray", WebviewUrl::App("index.html?tray=1".into()))
             .title("Sprint · Accès rapide")
-            .inner_size(360.0, 540.0)
+            .inner_size(340.0, 400.0)
             .decorations(false)
             .resizable(false)
             .visible(false)

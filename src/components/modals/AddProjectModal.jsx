@@ -176,7 +176,7 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
                     <Sparkles className="w-4 h-4 theme-accent-text" />
                     <span>Stack Détecté : <strong>{stackInfo.framework}</strong></span>
                   </div>
-                  <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-black/40">
+                  <span className="font-mono text-[12px] px-2 py-0.5 rounded bg-black/40">
                     {stackInfo.package_manager}
                   </span>
                 </div>
@@ -190,7 +190,7 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="col-span-2">
-                    <label htmlFor="prj-cmd" className="block text-[11px] text-zinc-400 mb-1">Commande</label>
+                    <label htmlFor="prj-cmd" className="block text-[12px] text-zinc-400 mb-1">Commande</label>
                     <input
                       id="prj-cmd"
                       type="text"
@@ -200,7 +200,7 @@ export default function AddProjectModal({ isOpen, onClose, onAddProject }) {
                     />
                   </div>
                   <div>
-                    <label htmlFor="prj-port" className="block text-[11px] text-zinc-400 mb-1">Port</label>
+                    <label htmlFor="prj-port" className="block text-[12px] text-zinc-400 mb-1">Port</label>
                     <input
                       id="prj-port"
                       type="number"

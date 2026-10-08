@@ -83,7 +83,7 @@
 .chart-axis {
   fill: var(--text-lo);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
 }
 .chart-wait {
   position: absolute;
@@ -182,7 +182,7 @@ main#main-content[data-view='settings'] {
   line-height: 1.6;
 }
 .settings-save-status {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-lo);
   margin: -2px 0 22px;
 }
@@ -291,5 +291,5 @@ main#main-content[data-view='settings'] {
   white-space: pre-wrap;
   max-height: 320px;
   overflow: auto;
-  font-size: 11px;
+  font-size: 12px;
 }

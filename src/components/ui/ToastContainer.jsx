@@ -6,19 +6,34 @@ import { invoke } from '@tauri-apps/api/core';
 export default function ToastContainer() {
   const [toasts, setToasts] = useState([]);
   const timers = useRef(new Map());
+  // Clé (type, titre, message) -> identifiant de la notification affichée : évite d'empiler les doublons.
+  const toastKeys = useRef(new Map());
+
+  const forgetToast = (toastId) => {
+    for (const [key, value] of toastKeys.current) {
+      if (value === toastId) toastKeys.current.delete(key);
+    }
+  };
 
   useEffect(() => {
     const handleAddToast = (event) => {
      const { id = Date.now(), title, message, type = 'info', duration = 4000 } = event.detail || {};
-     const newToast = { id, title, message, type };
+     const key = [type, title, message].join('|');
+     const isAppEnabled = readStoredSetting('notif_app') !== 'false';
+     const duplicateId = isAppEnabled ? toastKeys.current.get(key) : undefined;
+     const isDuplicate = duplicateId !== undefined;
+     const toastId = isDuplicate ? duplicateId : id;
+     const newToast = { id: toastId, title, message, type };
 
-      const isAppEnabled = readStoredSetting('notif_app') !== 'false';
      if (isAppEnabled) {
-       setToasts((prev) => [...prev.filter(toast => toast.id !== id), newToast].slice(-4));
+       toastKeys.current.set(key, toastId);
+       setToasts((prev) => (prev.some((toast) => toast.id === toastId)
+         ? prev.map((toast) => (toast.id === toastId ? newToast : toast))
+         : [...prev, newToast].slice(-4)));
      }
 
       const isWindowsEnabled = readStoredSetting('notif_windows') !== 'false';
-     if (isWindowsEnabled) {
+     if (isWindowsEnabled && !isDuplicate) {
        try {
          invoke('send_windows_notification', {
             title: title || 'Sprint Supervisor',
@@ -30,10 +45,11 @@ export default function ToastContainer() {
       }
 
       if (duration > 0) {
-        clearTimeout(timers.current.get(id));
-        timers.current.set(id, setTimeout(() => {
-          timers.current.delete(id);
-          setToasts((prev) => prev.filter((t) => t.id !== id));
+        clearTimeout(timers.current.get(toastId));
+        timers.current.set(toastId, setTimeout(() => {
+          timers.current.delete(toastId);
+          forgetToast(toastId);
+          setToasts((prev) => prev.filter((t) => t.id !== toastId));
         }, duration));
       }
     };
@@ -50,6 +66,7 @@ export default function ToastContainer() {
   const removeToast = (id) => {
     clearTimeout(timers.current.get(id));
     timers.current.delete(id);
+    forgetToast(id);
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 

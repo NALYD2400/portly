@@ -30,7 +30,7 @@ function NavButton({ item, isActive, onClick, collapsed, badge, shortcut }) {
       <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
       {!collapsed && <span className="flex-1 text-left truncate">{item.label}</span>}
       {!collapsed && badge ? (
-        <span className="min-w-5 h-5 px-1.5 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
+        <span className="min-w-5 h-5 px-1.5 rounded-full text-[12px] font-medium bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
           {badge}
         </span>
       ) : null}
@@ -41,7 +41,7 @@ function NavButton({ item, isActive, onClick, collapsed, badge, shortcut }) {
         />
       ) : null}
       {!collapsed && shortcut && !badge ? (
-        <span className="text-[10px] font-mono text-zinc-600 opacity-0 group-hover/nav:opacity-100">
+        <span className="text-[12px] font-mono text-zinc-600 opacity-0 group-hover/nav:opacity-100">
           ^{shortcut}
         </span>
       ) : null}
@@ -52,7 +52,6 @@ function NavButton({ item, isActive, onClick, collapsed, badge, shortcut }) {
 export default function Sidebar({
   activeTab,
   setActiveTab,
-  activeServersCount,
   onOpenUpdateModal,
   updateAvailable,
   onOpenCommandPalette,
@@ -64,7 +63,7 @@ export default function Sidebar({
     <aside
       className={`${
         collapsed ? 'w-14 px-2' : 'w-60 px-2.5'
-      } shrink-0 min-h-0 overflow-y-auto pt-2 pb-3 flex flex-col justify-between gap-4 select-none z-10 transition-[width] duration-200`}
+      } shrink-0 min-h-0 overflow-x-hidden overflow-y-auto pt-2 pb-3 flex flex-col justify-between gap-4 select-none z-10 transition-[width] duration-200`}
       aria-label="Navigation principale"
     >
       <div className="space-y-4 shrink-0">
@@ -93,7 +92,6 @@ export default function Sidebar({
               onClick={() => setActiveTab(item.id)}
               collapsed={collapsed}
               shortcut={item.key}
-              badge={item.id === 'projects' && activeServersCount > 0 ? activeServersCount : null}
             />
           ))}
         </nav>

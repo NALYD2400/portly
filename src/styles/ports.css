@@ -11,7 +11,7 @@
 .ports-table th:nth-child(4) { width: 190px; }
 .ports-table th:nth-child(5) { width: 126px; }
 .ports-table th {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-mid);
   font-weight: 400;
   padding: 12px 10px;
@@ -67,12 +67,12 @@ main#main-content[data-view='ports'] { overflow: hidden; }
 }
 .ports-table { min-width: 600px; }
 .port-number { font: 500 13px var(--font-mono); color: var(--text-hi); }
-.port-detail { display: block; font-size: 11px; line-height: 1.7; color: var(--text-mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.port-detail { display: block; font-size: 12px; line-height: 1.7; color: var(--text-mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .port-process-title { display: block; color: var(--text-hi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .port-process-title svg { display: inline-block; vertical-align: -2px; margin-right: 8px; color: var(--text-mid); }
 .port-access { font-size: 12px; color: var(--text-hi); }
 .port-row-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
-.ports-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-top: 12px; font-size: 11px; color: var(--text-mid); flex-shrink: 0; }
+.ports-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-top: 12px; font-size: 12px; color: var(--text-mid); flex-shrink: 0; }
 @media (prefers-reduced-motion: reduce) {
   .ports-table td { transition: none; }
 }

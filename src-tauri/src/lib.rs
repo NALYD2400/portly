@@ -21,6 +21,9 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
+/// Version épinglée de localtunnel : `npx -y localtunnel` téléchargerait la dernière version à chaque appel.
+const LOCALTUNNEL_VERSION: &str = "2.0.2";
+
 /// Domaines autorisés pour le téléchargement des mises à jour.
 const UPDATE_HOSTS: &[&str] = &[
     "github.com",
@@ -163,24 +166,54 @@ async fn get_ports_cmd() -> Result<Vec<PortEntry>, String> {
 
 #[tauri::command]
 async fn kill_port_cmd(pid: u32) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || kill_pid(pid))
-        .await
-        .map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        // PID 0/4 (système) et Sprint lui-même ne doivent jamais être tués depuis l'UI.
+        if pid <= 4 || pid == std::process::id() {
+            return Err("Ce processus ne peut pas être arrêté depuis Sprint.".to_string());
+        }
+        // Seul un PID qui écoute actuellement un port peut être tué.
+        let is_listener = get_active_ports()?.iter().any(|entry| entry.pid == pid);
+        if !is_listener {
+            return Err("Ce processus n'écoute plus de port.".to_string());
+        }
+        kill_pid(pid)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Le chemin est transmis à `cmd /C` : on refuse les dossiers inexistants et les caractères
+/// que cmd interprète, pour qu'aucune commande ne puisse être injectée dans l'argument.
+fn is_safe_cmd_path(path: &str) -> bool {
+    !path.is_empty()
+        && !path.contains(['"', '&', '|', '<', '>', '^', '%', '!'])
+        && std::path::Path::new(path).is_dir()
 }
 
 #[tauri::command]
-fn open_vscode(path: String) -> Result<(), String> {
-    std::process::Command::new("code")
-        .arg(&path)
-        .creation_flags(CREATE_NO_WINDOW)
-        .spawn()
-        .map_err(|e| {
-            format!(
+async fn open_vscode(path: String) -> Result<(), String> {
+    if !is_safe_cmd_path(&path) {
+        return Err("Dossier de projet introuvable ou chemin non pris en charge.".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        // `code` est un script `code.cmd` : il n'est trouvé que via cmd.exe, pas par CreateProcess.
+        let output = std::process::Command::new("cmd")
+            .args(["/C", "code"])
+            .arg(&path)
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .map_err(|e| format!("Impossible de lancer cmd.exe: {}", e))?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(format!(
                 "Impossible de lancer VS Code ('code' dans le PATH ?): {}",
-                e
-            )
-        })?;
-    Ok(())
+                String::from_utf8_lossy(&output.stderr).trim()
+            ))
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -238,23 +271,84 @@ fn is_allowed_update_url(url: &str) -> bool {
     }
 }
 
-#[tauri::command]
-async fn download_update_cmd(app: AppHandle, url: String) -> Result<String, String> {
+const CHECKSUMS_FILE_NAME: &str = "SHA256SUMS.txt";
+const MAX_CHECKSUMS_BYTES: usize = 64 * 1024;
+
+/// Client HTTP : les redirections ne sont suivies que vers les domaines de confiance.
+fn update_http_client() -> Result<reqwest::Client, String> {
+    let policy = reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= 5 {
+            attempt.error("trop de redirections")
+        } else if is_allowed_update_url(attempt.url().as_str()) {
+            attempt.follow()
+        } else {
+            attempt.error("redirection vers un domaine non autorisé")
+        }
+    });
+    reqwest::Client::builder()
+        .user_agent("Sprint-Updater")
+        .redirect(policy)
+        .build()
+        .map_err(|e| format!("Erreur initialisation client HTTP: {}", e))
+}
+
+/// Empreinte SHA-256 d'un fichier, lue dans SHA256SUMS.txt (format `sha256sum` : « hash  nom » ou « hash *nom »).
+fn expected_sha256(checksums: &str, file_name: &str) -> Option<String> {
+    checksums.lines().find_map(|line| {
+        let mut parts = line.trim().splitn(2, char::is_whitespace);
+        let hash = parts.next()?;
+        let name = parts.next()?.trim().trim_start_matches('*');
+        let well_formed = hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit());
+        (well_formed && name == file_name).then(|| hash.to_ascii_lowercase())
+    })
+}
+
+fn installer_file_name(url: &reqwest::Url) -> Option<String> {
+    url.path_segments()?
+        .last()
+        .filter(|name| !name.is_empty())
+        .map(|name| name.to_string())
+}
+
+/// Télécharge l'installateur dans `staging_dir` et ne le conserve que si son empreinte
+/// correspond à celle publiée dans SHA256SUMS.txt de la même release.
+async fn fetch_verified_installer(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    url: &reqwest::Url,
+    staging_dir: &std::path::Path,
+) -> Result<PathBuf, String> {
+    use sha2::{Digest, Sha256};
     use tauri::Emitter;
     use tokio::io::AsyncWriteExt;
 
-    if !is_allowed_update_url(&url) {
-        return Err("URL de téléchargement refusée : seules les releases GitHub officielles de Sprint sont autorisées.".into());
-    }
+    let file_name = installer_file_name(url).ok_or("URL de téléchargement invalide.")?;
+    let checksums_url = url
+        .join(CHECKSUMS_FILE_NAME)
+        .map_err(|e| format!("URL des empreintes invalide: {}", e))?;
 
-    let client = reqwest::Client::builder()
-        .user_agent("Sprint-Updater")
-        .redirect(reqwest::redirect::Policy::limited(10))
-        .build()
-        .map_err(|e| format!("Erreur initialisation client HTTP: {}", e))?;
+    let checksums_response = client
+        .get(checksums_url)
+        .send()
+        .await
+        .map_err(|e| format!("Erreur de réseau: {}", e))?;
+    if !checksums_response.status().is_success() {
+        return Err("Fichier SHA256SUMS.txt introuvable : mise à jour refusée.".into());
+    }
+    let checksums_bytes = checksums_response
+        .bytes()
+        .await
+        .map_err(|e| format!("Erreur de réseau: {}", e))?;
+    if checksums_bytes.len() > MAX_CHECKSUMS_BYTES {
+        return Err("Fichier SHA256SUMS.txt anormalement volumineux : mise à jour refusée.".into());
+    }
+    let checksums = String::from_utf8_lossy(&checksums_bytes);
+    let expected = expected_sha256(&checksums, &file_name).ok_or_else(|| {
+        format!("Empreinte de {} absente de SHA256SUMS.txt : mise à jour refusée.", file_name)
+    })?;
 
     let mut response = client
-        .get(&url)
+        .get(url.clone())
         .send()
         .await
         .map_err(|e| format!("Erreur de réseau: {}", e))?;
@@ -264,28 +358,26 @@ async fn download_update_cmd(app: AppHandle, url: String) -> Result<String, Stri
     }
 
     let total_size = response.content_length().unwrap_or(0);
-
-    let nonce = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    let staging_dir =
-        std::env::temp_dir().join(format!("sprint_update_{}_{}", std::process::id(), nonce));
-    tokio::fs::create_dir_all(&staging_dir)
-        .await
-        .map_err(|e| format!("Erreur création du dossier temporaire: {}", e))?;
     let installer_path = staging_dir.join("Sprint_setup.exe");
-
     let mut file = tokio::fs::File::create(&installer_path)
         .await
         .map_err(|e| format!("Erreur création fichier: {}", e))?;
 
+    let mut hasher = Sha256::new();
+    let mut header: Vec<u8> = Vec::with_capacity(2);
     let mut downloaded: u64 = 0;
-    while let Some(chunk_result) = response.chunk().await.transpose() {
-        let chunk = chunk_result.map_err(|e| format!("Interruption du téléchargement: {}", e))?;
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|e| format!("Interruption du téléchargement: {}", e))?
+    {
+        if header.len() < 2 {
+            header.extend(chunk.iter().take(2 - header.len()));
+        }
         file.write_all(&chunk)
             .await
             .map_err(|e| format!("Erreur d'écriture: {}", e))?;
+        hasher.update(&chunk);
         downloaded += chunk.len() as u64;
 
         let pct = if total_size > 0 {
@@ -316,14 +408,51 @@ async fn download_update_cmd(app: AppHandle, url: String) -> Result<String, Stri
         .map_err(|e| format!("Erreur finalisation fichier: {}", e))?;
 
     if total_size > 0 && downloaded < total_size {
-        let _ = tokio::fs::remove_file(&installer_path).await;
         return Err(format!(
             "Téléchargement incomplet: {}/{} octets reçus.",
             downloaded, total_size
         ));
     }
+    if header != b"MZ" {
+        return Err("Le fichier téléchargé n'est pas un exécutable Windows.".into());
+    }
+    let actual: String = hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{:02x}", byte))
+        .collect();
+    if actual != expected {
+        return Err("Empreinte SHA-256 de l'installateur incorrecte : fichier rejeté.".into());
+    }
+    Ok(installer_path)
+}
 
-    Ok(installer_path.to_string_lossy().to_string())
+#[tauri::command]
+async fn download_update_cmd(app: AppHandle, url: String) -> Result<String, String> {
+    if !is_allowed_update_url(&url) {
+        return Err("URL de téléchargement refusée : seules les releases GitHub officielles de Sprint sont autorisées.".into());
+    }
+    let parsed = reqwest::Url::parse(&url).map_err(|e| format!("URL invalide: {}", e))?;
+    let client = update_http_client()?;
+
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let staging_dir =
+        std::env::temp_dir().join(format!("sprint_update_{}_{}", std::process::id(), nonce));
+    tokio::fs::create_dir_all(&staging_dir)
+        .await
+        .map_err(|e| format!("Erreur création du dossier temporaire: {}", e))?;
+
+    match fetch_verified_installer(&app, &client, &parsed, &staging_dir).await {
+        Ok(installer_path) => Ok(installer_path.to_string_lossy().to_string()),
+        Err(error) => {
+            // Un échec ne laisse aucun fichier partiel dans le dossier temporaire.
+            let _ = tokio::fs::remove_dir_all(&staging_dir).await;
+            Err(error)
+        }
+    }
 }
 
 fn clean_path_str(path: &std::path::Path) -> String {
@@ -436,14 +565,38 @@ async fn list_env_files_cmd(project_root: String) -> Result<Vec<String>, String>
 fn sanitize_env_filename(file_name: Option<String>) -> Result<String, String> {
     let name = file_name.unwrap_or_else(|| ".env".to_string());
     let trimmed = name.trim();
-    if trimmed.contains("..")
-        || trimmed.contains('/')
-        || trimmed.contains('\\')
+    // Un seul composant « normal » : pas de séparateur, de préfixe de lecteur (« C: ») ni de « .. ».
+    let is_single_component = {
+        let mut components = std::path::Path::new(trimmed).components();
+        matches!(components.next(), Some(std::path::Component::Normal(_))) && components.next().is_none()
+    };
+    if !is_single_component
+        || trimmed.contains("..")
+        || trimmed.contains(':')
         || (!trimmed.starts_with(".env") && !trimmed.ends_with(".env"))
     {
         return Err("Nom de fichier d'environnement non autorisé.".to_string());
     }
     Ok(trimmed.to_string())
+}
+
+#[cfg(test)]
+mod env_filename_tests {
+    use super::sanitize_env_filename;
+
+    #[test]
+    fn accepts_plain_env_file_names() {
+        assert_eq!(sanitize_env_filename(None).unwrap(), ".env");
+        assert_eq!(sanitize_env_filename(Some(".env.local".into())).unwrap(), ".env.local");
+        assert_eq!(sanitize_env_filename(Some("prod.env".into())).unwrap(), "prod.env");
+    }
+
+    #[test]
+    fn rejects_paths_and_drive_prefixes() {
+        for bad in ["../.env", "sub/.env", "sub\\.env", "C:.env", "C:x.env", "/abs.env", "notes.txt", "..env"] {
+            assert!(sanitize_env_filename(Some(bad.into())).is_err(), "{bad} should be rejected");
+        }
+    }
 }
 
 #[tauri::command]
@@ -569,7 +722,7 @@ fn register_global_shortcut_cmd(app: AppHandle, shortcut: String) -> Result<(), 
 async fn start_localtunnel_cmd(port: u16) -> Result<String, String> {
     let mut cmd = tokio::process::Command::new("cmd.exe");
     cmd.arg("/C")
-        .arg(format!("npx -y localtunnel --port {}", port));
+        .arg(format!("npx -y localtunnel@{} --port {}", LOCALTUNNEL_VERSION, port));
     cmd.creation_flags(CREATE_NO_WINDOW);
     cmd.stdout(std::process::Stdio::piped());
 
@@ -627,7 +780,6 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
-        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(
@@ -702,4 +854,53 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod update_verification_tests {
+    use super::{expected_sha256, installer_file_name, is_allowed_update_url, is_safe_cmd_path};
+
+    #[test]
+    fn cmd_paths_must_be_existing_directories_without_shell_metacharacters() {
+        let dir = std::env::temp_dir();
+        assert!(is_safe_cmd_path(&dir.to_string_lossy()));
+        assert!(!is_safe_cmd_path(&dir.join("missing-folder").to_string_lossy()));
+        assert!(!is_safe_cmd_path(&format!("{}\\x&calc", dir.display())));
+        assert!(!is_safe_cmd_path("\"C:\\a\" & calc"));
+        assert!(!is_safe_cmd_path(""));
+    }
+
+    const HASH: &str = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+
+    #[test]
+    fn finds_hash_for_the_exact_installer_name() {
+        let sums = format!("{HASH}  Sprint_0.5.5_x64-setup.exe\n{}  Sprint_portable_0.5.5_x64.exe\n", "a".repeat(64));
+        assert_eq!(expected_sha256(&sums, "Sprint_0.5.5_x64-setup.exe").as_deref(), Some(HASH));
+        assert_eq!(expected_sha256(&format!("{}  *Sprint_0.5.5_x64-setup.exe", HASH.to_uppercase()), "Sprint_0.5.5_x64-setup.exe").as_deref(), Some(HASH));
+        assert_eq!(expected_sha256(&sums, "Sprint_0.5.5_x64-setup.ex"), None);
+    }
+
+    #[test]
+    fn rejects_malformed_checksum_lines() {
+        assert_eq!(expected_sha256("abc  Sprint_setup.exe", "Sprint_setup.exe"), None);
+        assert_eq!(expected_sha256(&format!("{}  Sprint_setup.exe", "g".repeat(64)), "Sprint_setup.exe"), None);
+        assert_eq!(expected_sha256(&format!("{HASH}"), "Sprint_setup.exe"), None);
+    }
+
+    #[test]
+    fn only_official_https_hosts_are_allowed() {
+        assert!(is_allowed_update_url("https://github.com/owner/repo/releases/download/v1/a.exe"));
+        assert!(is_allowed_update_url("https://objects.githubusercontent.com/x/a.exe"));
+        assert!(!is_allowed_update_url("http://github.com/owner/repo/a.exe"));
+        assert!(!is_allowed_update_url("https://github.com.attacker.example/a.exe"));
+        assert!(!is_allowed_update_url("https://attacker.example/github.com/a.exe"));
+    }
+
+    #[test]
+    fn installer_name_comes_from_the_release_url() {
+        let url = reqwest::Url::parse("https://github.com/owner/repo/releases/download/v1/Sprint_1_x64-setup.exe").unwrap();
+        assert_eq!(installer_file_name(&url).as_deref(), Some("Sprint_1_x64-setup.exe"));
+        let checksums = url.join("SHA256SUMS.txt").unwrap();
+        assert_eq!(checksums.as_str(), "https://github.com/owner/repo/releases/download/v1/SHA256SUMS.txt");
+    }
 }

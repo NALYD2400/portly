@@ -41,7 +41,7 @@ export default class ErrorBoundary extends React.Component {
             <RefreshCw className="w-4 h-4" />
             Réessayer
           </button>
-          <p className="text-[11px] font-mono text-zinc-600 break-words">{String(this.state.error?.message || '')}</p>
+          <p className="text-[12px] font-mono text-zinc-600 break-words">{String(this.state.error?.message || '')}</p>
         </div>
       </div>
     );

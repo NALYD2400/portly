@@ -339,7 +339,7 @@ select:focus {
 
 /* ---------- Primitives de l'interface ---------- */
 .eyebrow {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -417,7 +417,7 @@ select:focus {
   --color-zinc-950: #f7f7f9;
 
   --color-emerald-300: #047857;
-  --color-emerald-400: #059669;
+  --color-emerald-400: #047857;
   --color-green-300: #15803d;
   --color-green-400: #16a34a;
   --color-rose-300: #be123c;
@@ -528,7 +528,7 @@ select:focus {
     height: 22px;
     padding: 0 8px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 500;
     background: rgba(255, 255, 255, 0.06);
     color: var(--color-zinc-300);
@@ -546,7 +546,7 @@ select:focus {
     border-bottom-width: 2px;
     background: var(--surface-2);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--color-zinc-300);
   }
 
@@ -558,8 +558,9 @@ select:focus {
     transform: translateY(-200%);
     padding: 8px 14px;
     border-radius: 8px;
-    background: var(--accent-color);
-    color: #fff;
+    background: var(--surface-2);
+    color: var(--text-hi);
+    box-shadow: 0 0 0 2px var(--accent-color);
     font-size: 13px;
   }
   .skip-link:focus {

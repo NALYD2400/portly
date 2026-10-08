@@ -16,7 +16,7 @@ Superviseur de processus de développement local haute performance — moteur na
 - **Zone de notification Windows** : panneau d’accès rapide dans le thème de Sprint, liste et état des serveurs, lancement/arrêt individuel ou groupé, accès aux logs et aux paramètres. Un double-clic ouvre la fenêtre principale ; Échap ou un clic ailleurs ferme le panneau.
 - **Paramètres stables** : navigation fixe et contenu défilant indépendamment, enregistrement avec état d’erreur et nouvelle tentative, aperçu avant restauration d’une sauvegarde.
 - **Thème dynamique** : couleur d'accent personnalisable (#HEX), fond continu en clair et sombre, intensité, flou et vitesse réglables. Les animations réduites gardent un fond fixe.
-- **Auto-update** : téléchargement des releases GitHub avec validation du domaine source et dossier de staging aléatoire.
+- **Auto-update** : téléchargement des releases GitHub avec validation du domaine source, vérification SHA-256 (SHA256SUMS.txt de la release) et dossier de staging aléatoire.
 
 ## Stack
 
@@ -55,7 +55,7 @@ Les tests UI utilisent Playwright avec les mocks IPC officiels de Tauri : ils n�
 Voir [la revue UI/UX et les corrections](docs/ux-review-2026-10-07.md).
 Voir aussi [les améliorations et le nettoyage du code](docs/improvements-2026-10-07.md).
 
-La version 0.5.5 harmonise l’interface, ajoute le redémarrage des serveurs et mémorise l’aperçu web. Voir [les notes de version](docs/releases/v0.5.5.md).
+La version 0.5.6 améliore le panneau de notification, confirme les arrêts groupés et renforce la vérification des mises à jour et les sauvegardes `.env`. Voir [les notes de version](docs/releases/v0.5.6.md).
 
 ## Structure
 

@@ -52,8 +52,8 @@ export default function ConfirmDialog({
             type="button"
             onClick={confirm}
             disabled={busy}
-            className={`h-8 px-3.5 rounded-lg text-white text-xs font-medium transition-colors cursor-pointer ${
-              danger ? 'bg-red-600 hover:bg-red-500' : 'theme-accent-btn'
+            className={`h-8 px-3.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+              danger ? 'bg-red-600 hover:bg-red-500 text-[#fff]' : 'theme-accent-btn text-white'
             }`}
           >
             {busy ? 'En cours…' : confirmLabel}
